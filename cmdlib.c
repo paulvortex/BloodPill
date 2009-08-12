@@ -42,7 +42,7 @@ void Error (char *error, ...)
 {
 	va_list argptr;
 
-	printf ("************ ERROR ************\n");
+	printf ("\n************ ERROR ************\n");
 
 	va_start (argptr,error);
 	vprintf (error,argptr);
@@ -402,6 +402,17 @@ int Q_filelength (FILE *f)
   return end;
 }
 
+FILE *SafeOpen (char *filename, char mode[])
+{
+  FILE	*f;
+
+  f = fopen(filename, mode);
+
+  if (!f)
+    Error ("Error opening %s: %s",filename,strerror(errno));
+
+  return f;
+}
 
 FILE *SafeOpenWrite (char *filename)
 {

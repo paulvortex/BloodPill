@@ -45,6 +45,7 @@ extern void Error (char *error, ...);
 
 extern int CheckParm (char *check);
 
+extern FILE *SafeOpen (char *filename, char mode[]);
 extern FILE *SafeOpenWrite (char *filename);
 extern FILE *SafeOpenRead (char *filename);
 extern void SafeRead (FILE *f, void *buffer, int count);

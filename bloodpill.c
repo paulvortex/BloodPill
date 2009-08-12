@@ -11,15 +11,23 @@ int BigFile_Main(int argc, char **argv);
 int Help_Main()
 {
 	printf(
-	"usage: %s [-w] [-mem] [action]\n"
+	"usage: bpill [-w] [-mem] [action]\n"
 	" -w : wait for a key press before exit\n"
 	" -mem : print a memory usage stats\n"
-	"\nactions:\n"
-	" -bigfile [bigfilename] -list [-to filename]\n"
-	"    list contents of bigfile\n"
+	"\n"
+	"=== ACTIONS ===\n"
+	" -bigfile \"bigfilename\" -list [-to filename]\n"
 	"    if bigfilename is not set, it will be default 'pill.big'\n"
-	"    [-to filename] outputs to external file\n",
-	progname);
+	"    [-to filename] outputs to external file\n"
+	"\n"
+	" -bigfile \"bigfilename\" -unpack [-to dirname]\n"
+	"    unpacks all entries of bigfile and saves listfile\n"
+	"    [-to filename] outputs to some other folder instead of 'bigfile'\n"
+	"\n"
+	" -bigfile \"bigfilename\" -pack [-srcdir dirname]\n"
+	"    creates or overwrites a bigfile from a folder containing all files and listfile\n"
+	"    [-srcdir dirname] overrides default 'bigfile' input folder\n");
+
 	return 0;
 }
 
@@ -48,7 +56,7 @@ int main(int argc, char **argv)
 			memstats = true;
 			continue;
 		}
-		if (!strcmp(argv[i],"-w"))
+		if (!strcmp(argv[i], "-w"))
 		{
 			printf("waitforkey = true\n");
 			waitforkey = true;
@@ -56,14 +64,14 @@ int main(int argc, char **argv)
 		}
 		break;
 	}
-	printf("\n");
+	printf( "\n" );
 
 	// no args check
 	if (argc == 1)
 	{
 		waitforkey = true;
 		Help_Main ();
-		Error("bad commandline", progname);
+		Error  ("bad commandline" , progname );
 	}
 
 	// init memory
@@ -71,9 +79,9 @@ int main(int argc, char **argv)
 
 	// do the action
 	if (!strcmp(argv[i], "-bigfile"))
-		returncode = BigFile_Main (argc-i, argv+i);
+		returncode = BigFile_Main(argc-i, argv+i);
 	else if (!strcmp (argv[i], "-help"))
-		returncode = Help_Main ();
+		returncode = Help_Main();
 	else
 		Error("unknown action %s, try %s -help", argv[i], progname);
 
@@ -81,7 +89,11 @@ int main(int argc, char **argv)
 
 	// print memory stats
 	if (memstats)
+	{
+		printf("=== MemStats ===\n");
 		Q_PrintMem();
+		printf("\n");
+	}
 
 #if _MSC_VER
 	if (waitforkey)
