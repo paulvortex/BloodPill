@@ -1,0 +1,1 @@
+bpill -w -mem -bigfile pill.big -list -to lstfile.txt
