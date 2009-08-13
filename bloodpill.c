@@ -11,23 +11,26 @@ int BigFile_Main(int argc, char **argv);
 int Help_Main()
 {
 	printf(
-	"usage: bpill [-w] [-mem] [action]\n"
+	"usage: bpill [-w] [-mem] action\n"
 	" -w : wait for a key press before exit\n"
 	" -mem : print a memory usage stats\n"
 	"\n"
 	"=== ACTIONS ===\n"
-	" -bigfile \"bigfilename\" -list [-to filename]\n"
-	"    if bigfilename is not set, it will be default 'pill.big'\n"
-	"    [-to filename] outputs to external file\n"
+	"-bigfile [bigfilename] -list [-to filename] [-klist filename]\n"
+	"  -to: outputs to external file\n"
+	"  -klist: make use of known-files-list\n"
+	"   tip: some filetypes like VAG couldn't be detected\n"
+	"   automatically by a tool, so known-files-list is only way\n"
+	"   to determine them\n"
 	"\n"
-	" -bigfile \"bigfilename\" -unpack [-to dirname]\n"
-	"    unpacks all entries of bigfile and saves listfile\n"
-	"    [-to filename] outputs to some other folder instead of 'bigfile'\n"
+	"-bigfile [bigfilename] -unpack [-dstdir dir] [-klist filename]\n"
+	"  unpacks all entries of bigfile and saves listfile\n"
+	"    -dstdir: outputs to other folder instead of 'bigfile'\n"
 	"\n"
-	" -bigfile \"bigfilename\" -pack [-srcdir dirname]\n"
-	"    creates or overwrites a bigfile from a folder containing all files and listfile\n"
-	"    [-srcdir dirname] overrides default 'bigfile' input folder\n");
-
+	"-bigfile [bigfilename] -pack [-srcdir dir]\n"
+	"  creates a bigfile from a folder containing all files and listfile\n"
+	"    -srcdir: inputs from other folder instead of 'bigfile'\n"
+	);
 	return 0;
 }
 

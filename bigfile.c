@@ -7,7 +7,15 @@
 #define DEFAULT_PACKPATH	"bigfile"
 
 char bigfile[MAX_BLOODPATH];
+char knownfiles[MAX_BLOODPATH];
 
+// knowledge base
+typedef struct
+{
+	unsigned int hash;
+	bigentrytype_t type;
+}
+bigknowlegde_t;
 
 /*
 ==========================================================================================
@@ -93,6 +101,9 @@ bigfileheader_t *ReadBigfileHeader(FILE *f)
 		Error("BigfileHeader: funny entries count, perhaps file is broken\n");
 	printf("%i entries\n", data->numentries);
 
+	// load up knowledge base
+
+
 	// read entries
 	data->entries = qmalloc(data->numentries * sizeof(bigfileentry_t));
 	for (i = 0; i < (int)data->numentries; i++)
@@ -148,26 +159,6 @@ qboolean BigFileScanTIM(FILE *f, bigfileentry_t *entry)
 	return true;
 }
 
-// does not work for now
-qboolean BigFileScanAlteredTIM(FILE *f, bigfileentry_t *entry)
-{
-	unsigned int numobjects;
-	unsigned int clutoffset;
-	unsigned int imgoffset;
-	
-	BigfileSeekFile(f, entry);
-	// first int - numobjects
-	if (fread(&numobjects, sizeof(unsigned int), 1, f) < 1)
-		return false;
-	// second int - CLUT offset
-	if (fread(&clutoffset, sizeof(unsigned int), 1, f) < 1)
-		return false;
-	// third int - IMG offset
-	if (fread(&imgoffset, sizeof(unsigned int), 1, f) < 1)
-		return false;
-	return false;
-}
-
 qboolean BigFileScanRiffWave(FILE *f, bigfileentry_t *entry)
 {
 	byte tag[4];
@@ -202,8 +193,6 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 		// scan for certain filetype
 		if (BigFileScanTIM(f, entry))
 			entry->type = BIGENTRY_TIM;
-		else if (BigFileScanAlteredTIM(f, entry))
-			entry->type = BIGENTRY_ALTEREDTIM;
 		else if (BigFileScanRiffWave(f, entry))
 			entry->type = BIGENTRY_RIFF_WAVE;
 		else
@@ -215,8 +204,7 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 	printf("\n");
 	// print stats
 	printf(" %6i TIM\n", stats[BIGENTRY_TIM]);
-	printf(" %6i Altered TIM\n", stats[BIGENTRY_ALTEREDTIM]);
-	printf(" %6i VAG\n", stats[BIGENTRY_VAG]);
+	printf(" %6i RAW VAG\n", stats[BIGENTRY_RAW_VAG]);
 	printf(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
 	printf(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
 }
@@ -555,6 +543,12 @@ int BigFile_Main(int argc, char **argv)
 			k++;
 			if (k < argc)
 				strcpy(srcdir, argv[k]);
+		}
+		else if (!strcmp(argv[k],"-knownfiles"))
+		{
+			k++;
+			if (k < argc)
+				strcpy(knownfiles, argv[k]);
 		}
 	}
 

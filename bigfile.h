@@ -1,11 +1,10 @@
 // filetypes
-#define BIGFILE_NUM_FILETYPES 5
+#define BIGFILE_NUM_FILETYPES 4
 typedef enum
 {
 	BIGENTRY_UNKNOWN,		// unknown data
 	BIGENTRY_TIM,			// TIM texture
-	BIGENTRY_ALTEREDTIM,	// altered TIM texture
-	BIGENTRY_VAG,			// PSX audio file
+	BIGENTRY_RAW_VAG,		// RAW 4 bit ADPCM
 	BIGENTRY_RIFF_WAVE,		// RIFF wave file
 }bigentrytype_t;
 
@@ -13,7 +12,6 @@ typedef enum
 static char *bigentryext[BIGFILE_NUM_FILETYPES] = 
 { 
 	".dat", 
-	".tim", 
 	".tim", 
 	".vag", 
 	".wav"
