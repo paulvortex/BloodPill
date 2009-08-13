@@ -1,15 +1,18 @@
 // filetypes
+#define BIGFILE_NUM_FILETYPES 4
 typedef enum
 {
-	BIGENTRY_UNKNOWN, // unknown data
-	BIGENTRY_TIM, // TIM texture
-	BIGENTRY_VAG // PSX audio file
+	BIGENTRY_UNKNOWN,		// unknown data
+	BIGENTRY_TIM,			// TIM texture
+	BIGENTRY_ALTEREDTIM,	// altered TIM texture
+	BIGENTRY_VAG			// PSX audio file
 }bigentrytype_t;
 
 // filetype extensions
-static char *bigentryext[3] = 
+static char *bigentryext[BIGFILE_NUM_FILETYPES] = 
 { 
 	".dat", 
+	".tim", 
 	".tim", 
 	".vag" 
 };

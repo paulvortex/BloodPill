@@ -11,6 +11,95 @@ char bigfile[MAX_BLOODPATH];
 /*
 ==========================================================================================
 
+  BigFile filetype scal
+
+==========================================================================================
+*/
+
+qboolean BigFileScanTIM(FILE *f, bigfileentry_t *entry)
+{
+	byte tag;
+	byte version;
+
+	if (fseek(f, entry->offset, SEEK_SET))
+		Error( "error seeking for data on file %.8X", entry->hash);
+
+	// 0x10 should be at beginning of standart TIM
+	if (fread(&tag, sizeof(byte), 1, f) < 1)
+		return false;
+	if (tag != 0x10)
+		return false;
+
+	// second byte is version, should be 0
+	if (fread(&version, sizeof(byte), 1, f) < 1)
+		return false;
+	if (version != 0)
+		return false;
+
+	return true;
+}
+
+qboolean BigFileScanAlteredTIM(FILE *f, bigfileentry_t *entry)
+{
+	unsigned int numobjects;
+	unsigned int clutoffset;
+	unsigned int imgoffset;
+	
+	if (fseek(f, entry->offset, SEEK_SET))
+		Error( "error seeking for data on file %.8X", entry->hash);
+
+	// first int - numobjects
+	if (fread(&numobjects, sizeof(unsigned int), 1, f) < 1)
+		return false;
+//	printf("numobjects: %i\n", numobjects); 
+	// second int - CLUT offset
+	if (fread(&clutoffset, sizeof(unsigned int), 1, f) < 1)
+		return false;
+	// third int - IMG offset
+	if (fread(&imgoffset, sizeof(unsigned int), 1, f) < 1)
+		return false;
+	return false;
+}
+
+void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
+{
+	fpos_t fpos;
+	bigfileentry_t *entry;
+	int stats[BIGFILE_NUM_FILETYPES];
+	int i;
+
+	memset(stats, 0, sizeof(int)*BIGFILE_NUM_FILETYPES);
+	fgetpos(f, &fpos);
+	// scan for filetypes
+	for (i = 0; i < (int)data->numentries; i++)
+	{
+		entry = &data->entries[i];
+
+		printf("\rscanning type for entry %i of %i", i + 1, data->numentries);
+		fflush(stdout);
+
+		// seek file contents
+		if (BigFileScanTIM(f, entry))
+			entry->type = BIGENTRY_TIM;
+		else if (BigFileScanAlteredTIM(f, entry))
+			entry->type = BIGENTRY_ALTEREDTIM;
+		else
+			entry->type = BIGENTRY_UNKNOWN;
+		stats[entry->type]++;
+		sprintf(entry->name, "%.8X%s", entry->hash, bigentryext[entry->type]);
+	}
+	fsetpos(f, &fpos);
+	printf("\n");
+	// print stats
+	printf(" %6i TIM\n", stats[BIGENTRY_TIM]);
+	printf(" %6i Altered TIM\n", stats[BIGENTRY_ALTEREDTIM]);
+	printf(" %6i VAG\n", stats[BIGENTRY_VAG]);
+	printf(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
+}
+
+/*
+==========================================================================================
+
   BigFile subs
 
 ==========================================================================================
@@ -70,12 +159,10 @@ bigfileheader_t *ReadBigfileHeaderFromListfile(FILE *f)
 	return data;
 }
 
-bigfileheader_t *ReadBigfileHeader(FILE *f, qboolean scanforfiletypes)
+bigfileheader_t *ReadBigfileHeader(FILE *f)
 {	
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
-	fpos_t fpos;
-	byte *contents;
 	unsigned int read[3];
 	int i;
 
@@ -110,31 +197,8 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, qboolean scanforfiletypes)
 
 	printf("\n");
 
-	if (!scanforfiletypes)
-		return data;
-
-	fgetpos(f, &fpos);
-
-	// scan for filetypes
-	for (i = 0; i < (int)data->numentries; i++)
-	{
-		entry = &data->entries[i];
-
-		printf("\rscanning type for entry %i of %i", i + 1, data->numentries);
-		fflush(stdout);
-
-		// seek file contents
-		contents = (byte *)qmalloc(entry->size);
-		BigfileSeekContents(f, contents, entry);
-		qfree(contents);
-	}
-
-	fsetpos(f, &fpos);
-	printf("\n");
-
 	return data;
 }
-
 
 /*
 ==========================================================================================
@@ -152,7 +216,8 @@ int BigFile_List(int argc, char **argv, char *listfile)
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
 	printf("%s opened\n", bigfile);
-	data = ReadBigfileHeader(f, true);
+	data = ReadBigfileHeader(f);
+	BigfileScanFiletypes(f, data);
 	fclose (f);
 
 	// print or...
@@ -182,7 +247,8 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir)
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
 	printf("%s opened\n", bigfile);
-	data = ReadBigfileHeader(f, true);
+	data = ReadBigfileHeader(f);
+	BigfileScanFiletypes(f, data);
 
 	// make directory
 	printf("%s folder created\n", dstdir);
