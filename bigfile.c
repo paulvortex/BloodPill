@@ -8,94 +8,6 @@
 
 char bigfile[MAX_BLOODPATH];
 
-/*
-==========================================================================================
-
-  BigFile filetype scal
-
-==========================================================================================
-*/
-
-qboolean BigFileScanTIM(FILE *f, bigfileentry_t *entry)
-{
-	byte tag;
-	byte version;
-
-	if (fseek(f, entry->offset, SEEK_SET))
-		Error( "error seeking for data on file %.8X", entry->hash);
-
-	// 0x10 should be at beginning of standart TIM
-	if (fread(&tag, sizeof(byte), 1, f) < 1)
-		return false;
-	if (tag != 0x10)
-		return false;
-
-	// second byte is version, should be 0
-	if (fread(&version, sizeof(byte), 1, f) < 1)
-		return false;
-	if (version != 0)
-		return false;
-
-	return true;
-}
-
-qboolean BigFileScanAlteredTIM(FILE *f, bigfileentry_t *entry)
-{
-	unsigned int numobjects;
-	unsigned int clutoffset;
-	unsigned int imgoffset;
-	
-	if (fseek(f, entry->offset, SEEK_SET))
-		Error( "error seeking for data on file %.8X", entry->hash);
-
-	// first int - numobjects
-	if (fread(&numobjects, sizeof(unsigned int), 1, f) < 1)
-		return false;
-//	printf("numobjects: %i\n", numobjects); 
-	// second int - CLUT offset
-	if (fread(&clutoffset, sizeof(unsigned int), 1, f) < 1)
-		return false;
-	// third int - IMG offset
-	if (fread(&imgoffset, sizeof(unsigned int), 1, f) < 1)
-		return false;
-	return false;
-}
-
-void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
-{
-	fpos_t fpos;
-	bigfileentry_t *entry;
-	int stats[BIGFILE_NUM_FILETYPES];
-	int i;
-
-	memset(stats, 0, sizeof(int)*BIGFILE_NUM_FILETYPES);
-	fgetpos(f, &fpos);
-	// scan for filetypes
-	for (i = 0; i < (int)data->numentries; i++)
-	{
-		entry = &data->entries[i];
-
-		printf("\rscanning type for entry %i of %i", i + 1, data->numentries);
-		fflush(stdout);
-
-		// seek file contents
-		if (BigFileScanTIM(f, entry))
-			entry->type = BIGENTRY_TIM;
-		else if (BigFileScanAlteredTIM(f, entry))
-			entry->type = BIGENTRY_ALTEREDTIM;
-		else
-			entry->type = BIGENTRY_UNKNOWN;
-		stats[entry->type]++;
-		sprintf(entry->name, "%.8X%s", entry->hash, bigentryext[entry->type]);
-	}
-	fsetpos(f, &fpos);
-	printf("\n");
-	// print stats
-	printf(" %6i TIM\n", stats[BIGENTRY_TIM]);
-	printf(" %6i Altered TIM\n", stats[BIGENTRY_ALTEREDTIM]);
-	printf(" %6i VAG\n", stats[BIGENTRY_VAG]);
-	printf(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
-}
 
 /*
 ==========================================================================================
@@ -104,6 +16,12 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 
 ==========================================================================================
 */
+
+void BigfileSeekFile(FILE *f, bigfileentry_t *entry)
+{
+	if (fseek(f, entry->offset, SEEK_SET))
+		Error( "error seeking for data on file %.8X", entry->hash);
+}
 
 void BigfileSeekContents(FILE *f, byte *contents, bigfileentry_t *entry)
 {
@@ -198,6 +116,201 @@ bigfileheader_t *ReadBigfileHeader(FILE *f)
 	printf("\n");
 
 	return data;
+}
+
+/*
+==========================================================================================
+
+  BigFile filetype scanner
+
+==========================================================================================
+*/
+
+qboolean BigFileScanTIM(FILE *f, bigfileentry_t *entry)
+{
+	unsigned int tag;
+	unsigned int bpp;
+
+	BigfileSeekFile(f, entry);
+	// 0x10 should be at beginning of standart TIM
+	if (fread(&tag, sizeof(unsigned int), 1, f) < 1)
+		return false;
+	if (tag != 0x10)
+		return false;
+
+	// second uint is BPP
+	// todo: there are files with TIM header but with nasty BPP
+	if (fread(&bpp, sizeof(unsigned int), 1, f) < 1)
+		return false;
+	if (bpp != 0x08 && bpp != 0x09 && bpp != 0x02 && bpp != 0x03)
+		return false;
+
+	return true;
+}
+
+// does not work for now
+qboolean BigFileScanAlteredTIM(FILE *f, bigfileentry_t *entry)
+{
+	unsigned int numobjects;
+	unsigned int clutoffset;
+	unsigned int imgoffset;
+	
+	BigfileSeekFile(f, entry);
+	// first int - numobjects
+	if (fread(&numobjects, sizeof(unsigned int), 1, f) < 1)
+		return false;
+	// second int - CLUT offset
+	if (fread(&clutoffset, sizeof(unsigned int), 1, f) < 1)
+		return false;
+	// third int - IMG offset
+	if (fread(&imgoffset, sizeof(unsigned int), 1, f) < 1)
+		return false;
+	return false;
+}
+
+qboolean BigFileScanRiffWave(FILE *f, bigfileentry_t *entry)
+{
+	byte tag[4];
+
+	BigfileSeekFile(f, entry);
+	// first unsigned int - tag
+	if (fread(&tag, sizeof(char), 4, f) < 1)
+		return false;
+	if (tag[0] != 0x52 || tag[1] != 0x49 || tag[2] != 0x46 || tag[3] != 0x46)
+		return false;
+	// it's a RIFF
+	return true;
+}
+
+void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
+{
+	fpos_t fpos;
+	bigfileentry_t *entry;
+	int stats[BIGFILE_NUM_FILETYPES];
+	int i;
+
+	memset(stats, 0, sizeof(int)*BIGFILE_NUM_FILETYPES);
+	fgetpos(f, &fpos);
+	// scan for filetypes
+	for (i = 0; i < (int)data->numentries; i++)
+	{
+		entry = &data->entries[i];
+
+		printf("\rscanning type for entry %i of %i", i + 1, data->numentries);
+		fflush(stdout);
+		
+		// scan for certain filetype
+		if (BigFileScanTIM(f, entry))
+			entry->type = BIGENTRY_TIM;
+		else if (BigFileScanAlteredTIM(f, entry))
+			entry->type = BIGENTRY_ALTEREDTIM;
+		else if (BigFileScanRiffWave(f, entry))
+			entry->type = BIGENTRY_RIFF_WAVE;
+		else
+			entry->type = BIGENTRY_UNKNOWN;
+		stats[entry->type]++;
+		sprintf(entry->name, "%.8X%s", entry->hash, bigentryext[entry->type]);
+	}
+	fsetpos(f, &fpos);
+	printf("\n");
+	// print stats
+	printf(" %6i TIM\n", stats[BIGENTRY_TIM]);
+	printf(" %6i Altered TIM\n", stats[BIGENTRY_ALTEREDTIM]);
+	printf(" %6i VAG\n", stats[BIGENTRY_VAG]);
+	printf(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
+	printf(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
+}
+
+
+/*
+==========================================================================================
+
+  BigFile analyser
+
+==========================================================================================
+*/
+
+typedef struct
+{
+	unsigned int data;
+	int occurrences;
+}
+bigchunk4_t;
+
+typedef struct
+{
+	unsigned int data;
+	int occurrences;
+}
+bigchunk8_t;
+
+typedef struct
+{
+	// unsigned int chunks
+	bigchunk4_t chunks4[2048];
+	byte chunk4;
+	int numchunks4;
+}
+bigchunkstats_t;
+
+int BigFile_Analyse(int argc, char **argv, char *outfile)
+{
+	FILE *f;
+	bigfileheader_t *data;
+	bigfileentry_t *entry;
+	bigchunkstats_t *chunkstats;
+	int i, k;
+
+	// open file & load header
+	f = SafeOpen(bigfile, "rb");
+	printf("%s opened\n", bigfile);
+	data = ReadBigfileHeader(f);
+	BigfileScanFiletypes(f, data);
+
+	// analyse headers
+	chunkstats = (bigchunkstats_t *)qmalloc(sizeof(bigchunkstats_t));
+	for (i = 0; i < (int)data->numentries; i++)
+	{
+		entry = &data->entries[i];
+		if (entry->type != BIGENTRY_UNKNOWN)
+			continue;
+		printf("\ranalysing entry %i of %i", i + 1, data->numentries);
+		fflush(stdout);
+
+		// chunk4 stats
+		BigfileSeekFile(f, entry);
+		if (fread(&chunkstats->chunk4, sizeof(unsigned int), 1, f) > 0)
+		{
+			// try find chunk
+			for (k = 0; k < chunkstats->numchunks4; k++)
+			{
+				if (chunkstats->chunks4[k].data != chunkstats->chunk4)
+					continue;
+				chunkstats->chunks4[k].occurrences++;
+				break;
+			}
+			if (k >= chunkstats->numchunks4) // not found, allocate new
+			{
+				chunkstats->chunks4[chunkstats->numchunks4].data = chunkstats->chunk4;
+				chunkstats->chunks4[chunkstats->numchunks4].occurrences = 1;
+				chunkstats->numchunks4++;
+			}
+		}
+	}
+	printf("\n");
+
+	// print stats
+	printf("=== Chunk (unsigned int) ===\n");
+	printf("  occurence threshold = 4\n");
+	for (i = 0; i < chunkstats->numchunks4; i++)
+		if (chunkstats->chunks4[i].occurrences > 4)
+			printf("  %.8X = %i occurences\n", chunkstats->chunks4[i].data, chunkstats->chunks4[i].occurrences);
+
+	fclose(f);
+	qfree(chunkstats);
+
+	return 0;
+
 }
 
 /*
@@ -386,7 +499,6 @@ int BigFile_Pack(int argc, char **argv, char *srcdir)
 	return 0;
 }
 
-
 /*
 ==========================================================================================
 
@@ -449,10 +561,12 @@ int BigFile_Main(int argc, char **argv)
 	// action
 	if (!strcmp(argv[i], "-list"))
 		returncode = BigFile_List(argc-i, argv+i, tofile);
+	else if (!strcmp(argv[i], "-analyse"))
+		returncode = BigFile_Analyse(argc-i, argv+i, tofile);
 	else if (!strcmp(argv[i], "-unpack"))
 		returncode = BigFile_Unpack(argc-i, argv+i, dstdir);
 	else if (!strcmp(argv[i], "-pack"))
-		returncode = BigFile_Pack(argc-i, argv+i, srcdir);
+		returncode = BigFile_Pack(argc-i, argv+i, tofile);
 	else
 		printf("unknown option %s", argv[i]);
 
