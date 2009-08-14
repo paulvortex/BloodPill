@@ -75,13 +75,7 @@ bigklist_t *BigfileLoadKList(char *filename)
 
 	klist = BigfileEmptyKList();
 
-	f = fopen(filename, "r");
-	if (f < 0)
-	{
-		printf("cannot load known-filetypes list %s: %s\n", filename, strerror(errno));
-		return klist;
-	}
-
+	f = SafeOpen(filename, "r");
 	// first pass - scan klist to determine how many string we should allocate
 	while(!feof(f))
 	{
