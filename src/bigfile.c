@@ -70,7 +70,8 @@ bigklist_t *BigfileLoadKList(char *filename)
 	bigklist_t *klist;
 	int linenum = 0;
 	char line[256], typestr[256];
-	int parm1, parms;
+	unsigned int hash;
+	int parm1, parms, i;
 	FILE *f;
 
 	klist = BigfileEmptyKList();
@@ -99,13 +100,19 @@ bigklist_t *BigfileLoadKList(char *filename)
 			continue;
 
 		// scan
-		parms = sscanf(line,"%X=%s %i", &klist->entries[klist->numentries].hash, typestr, &parm1);
+		parms = sscanf(line,"%X=%s %i", &hash, typestr, &parm1);
 		if (parms < 2)
 		{
 			printf("%s: parse error on line %i: %s", filename, linenum, line);
 			continue;
 		}
+		klist->entries[klist->numentries].hash = hash;
 		klist->entries[klist->numentries].type = BigfileTypeForExt(typestr);
+
+		// warn for double defienition
+		for (i = 0; i < klist->numentries; i++)
+			if (klist->entries[i].hash == hash)
+				printf("warning: redefenition of hash %.8X on line %i\n", hash, linenum);
 
 		// VAG - sampling rate
 		if (klist->entries[klist->numentries].type == BIGENTRY_RAW_VAG)
@@ -485,15 +492,17 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir)
 		// open
 		sprintf(savefile, "%s/%.8X.%s", dstdir, entry->hash, bigentryext[entry->type]);
 		f2 = SafeOpen(savefile, "wb");
-
-		// read contents
-		contents = (byte *)qmalloc(entry->size);
-		BigfileSeekContents(f, contents, entry);
-
-		// write contents
-		fwrite(contents, 1, entry->size, f2);
+  
+		// read and write contents
+		// VorteX: original pill.big has 'funky' files with zero len, export them as empty ones
+		if (entry->size > 0)
+		{
+			contents = (byte *)qmalloc(entry->size);
+			BigfileSeekContents(f, contents, entry);
+			fwrite(contents, 1, entry->size, f2);
+			qfree(contents);
+		}
 		fclose(f2);
-		qfree(contents);
 	}
 	printf("\n");
 
@@ -616,8 +625,7 @@ int BigFile_Pack(int argc, char **argv, char *srcdir)
 int BigFile_Main(int argc, char **argv)
 {
 	int i = 1, k, returncode = 0;
-	char *tofile, *srcdir, *dstdir, *knownfiles;
-	char *c;
+	char *tofile, *srcdir, *dstdir, *knownfiles, *c;
 
 	printf("=== BigFile ===\n");
 
