@@ -7,15 +7,138 @@
 #define DEFAULT_PACKPATH	"bigfile"
 
 char bigfile[MAX_BLOODPATH];
-char knownfiles[MAX_BLOODPATH];
 
 // knowledge base
 typedef struct
 {
 	unsigned int hash;
+	int samplingrate;
 	bigentrytype_t type;
 }
-bigknowlegde_t;
+bigkentry_t;
+
+typedef struct
+{
+	int numentries;
+	bigkentry_t *entries;
+}
+bigklist_t;
+
+bigklist_t *bigklist;
+
+
+/*
+==========================================================================================
+
+  BigFile known-files
+
+==========================================================================================
+*/
+
+bigentrytype_t BigfileTypeForExt(char *ext)
+{
+	int i, numbytes;
+
+	Q_strlower(ext);
+	numbytes = strlen(ext);
+
+	// null-length ext?
+	if (!numbytes)
+		return BIGENTRY_UNKNOWN;
+
+	// find type
+	for (i = 0; i < BIGFILE_NUM_FILETYPES; i++)
+		if (!memcmp(bigentryext[i], ext, numbytes))
+			return i;
+
+	return BIGENTRY_UNKNOWN;
+}
+
+bigklist_t *BigfileEmptyKList()
+{
+	bigklist_t *klist;
+
+	klist = qmalloc(sizeof(bigklist_t));
+	klist->entries = NULL;
+	klist->numentries = 0;
+
+	return klist;
+}
+
+bigklist_t *BigfileLoadKList(char *filename)
+{
+	bigklist_t *klist;
+	int linenum = 0;
+	char line[256], typestr[256];
+	int parm1, parms;
+	FILE *f;
+
+	klist = BigfileEmptyKList();
+
+	f = fopen(filename, "r");
+	if (f < 0)
+	{
+		printf("cannot load known-filetypes list %s: %s\n", filename, strerror(errno));
+		return klist;
+	}
+
+	// first pass - scan klist to determine how many string we should allocate
+	while(!feof(f))
+	{
+		fgets(line, 1024, f);
+		if (line[0] == '#')
+			continue;
+		linenum++;
+	}
+
+	// allocate
+	klist->entries = qmalloc(linenum * sizeof(bigkentry_t));
+
+	// seconds pass - parse klist
+	fseek(f, 0, SEEK_SET);
+	linenum = 0;
+	while(!feof(f))
+	{
+		linenum++;
+		fgets(line, 1024, f);
+		if (line[0] == '#')
+			continue;
+
+		// scan
+		parms = sscanf(line,"%X=%s %i", &klist->entries[klist->numentries].hash, typestr, &parm1);
+		if (parms < 2)
+		{
+			printf("%s: parse error on line %i: %s", filename, linenum, line);
+			continue;
+		}
+		klist->entries[klist->numentries].type = BigfileTypeForExt(typestr);
+
+		// VAG - sampling rate
+		if (klist->entries[klist->numentries].type == BIGENTRY_RAW_VAG)
+			klist->entries[klist->numentries].samplingrate = (parms < 3) ? 11025 : parm1;
+
+		// parsed
+		klist->numentries++;
+	}
+
+	printf("loaded known-files list with %i entries\n", klist->numentries);
+
+//	for (parms = 0; parms < klist->numentries; parms++)
+//		printf("%.8X = type %i sampling %i\n", klist->entries[parms].hash, klist->entries[parms].type, klist->entries[parms].samplingrate);
+
+	return klist;
+}
+
+bigkentry_t *BigfileSearchKList(unsigned int hash)
+{
+	int i;
+
+	for (i = 0; i < bigklist->numentries; i++)
+		if (bigklist->entries[i].hash == hash)
+			return &bigklist->entries[i];
+
+	return NULL;
+}
 
 /*
 ==========================================================================================
@@ -54,7 +177,7 @@ void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 	}
 }
 
-bigfileheader_t *ReadBigfileHeaderFromListfile(FILE *f)
+bigfileheader_t *ReadBigfileHeaderFromListfile(FILE *f, char *filename)
 {
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
@@ -66,7 +189,7 @@ bigfileheader_t *ReadBigfileHeaderFromListfile(FILE *f)
 	data = qmalloc(sizeof(bigfileheader_t));
 	if (fscanf(f, "numentries %i\n", &data->numentries) != 1)
 		Error("broken numentries record");
-	printf("%i entries\n", data->numentries);
+	printf("%s: %i entries\n", filename, data->numentries);
 
 	// read all entries
 	data->entries = qmalloc(data->numentries * sizeof(bigfileentry_t));
@@ -85,7 +208,7 @@ bigfileheader_t *ReadBigfileHeaderFromListfile(FILE *f)
 	return data;
 }
 
-bigfileheader_t *ReadBigfileHeader(FILE *f)
+bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename)
 {	
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
@@ -99,10 +222,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f)
 		Error("BigfileHeader: wrong of broken file\n");
 	if (!data->numentries)
 		Error("BigfileHeader: funny entries count, perhaps file is broken\n");
-	printf("%i entries\n", data->numentries);
-
-	// load up knowledge base
-
+	printf("%s: %i entries\n", filename, data->numentries);
 
 	// read entries
 	data->entries = qmalloc(data->numentries * sizeof(bigfileentry_t));
@@ -119,7 +239,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f)
 		entry->size = read[1];
 		entry->offset = read[2];
 		entry->type = BIGENTRY_UNKNOWN;
-		sprintf(entry->name, "%.8X%s", read[0], bigentryext[BIGENTRY_UNKNOWN]);
+		sprintf(entry->name, "%.8X.%s", read[0], bigentryext[BIGENTRY_UNKNOWN]);
 		if (!entry->hash || !entry->offset)
 			Error("BigfileHeader: entry %i is broken\n", i);
 	}
@@ -177,6 +297,8 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 {
 	fpos_t fpos;
 	bigfileentry_t *entry;
+	bigkentry_t *kentry;
+
 	int stats[BIGFILE_NUM_FILETYPES];
 	int i;
 
@@ -191,14 +313,20 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 		fflush(stdout);
 		
 		// scan for certain filetype
-		if (BigFileScanTIM(f, entry))
+		kentry = BigfileSearchKList(entry->hash); // check for known filetype
+		if (kentry != NULL)
+		{
+			entry->type = kentry->type;
+			entry->samplingrate = kentry->samplingrate;
+		}
+		else if (BigFileScanTIM(f, entry))
 			entry->type = BIGENTRY_TIM;
 		else if (BigFileScanRiffWave(f, entry))
 			entry->type = BIGENTRY_RIFF_WAVE;
 		else
 			entry->type = BIGENTRY_UNKNOWN;
 		stats[entry->type]++;
-		sprintf(entry->name, "%.8X%s", entry->hash, bigentryext[entry->type]);
+		sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
 	}
 	fsetpos(f, &fpos);
 	printf("\n");
@@ -251,8 +379,7 @@ int BigFile_Analyse(int argc, char **argv, char *outfile)
 
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
-	printf("%s opened\n", bigfile);
-	data = ReadBigfileHeader(f);
+	data = ReadBigfileHeader(f, bigfile);
 	BigfileScanFiletypes(f, data);
 
 	// analyse headers
@@ -316,8 +443,7 @@ int BigFile_List(int argc, char **argv, char *listfile)
 
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
-	printf("%s opened\n", bigfile);
-	data = ReadBigfileHeader(f);
+	data = ReadBigfileHeader(f, bigfile);
 	BigfileScanFiletypes(f, data);
 	fclose (f);
 
@@ -347,8 +473,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir)
 
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
-	printf("%s opened\n", bigfile);
-	data = ReadBigfileHeader(f);
+	data = ReadBigfileHeader(f, bigfile);
 	BigfileScanFiletypes(f, data);
 
 	// make directory
@@ -364,7 +489,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir)
 		fflush(stdout);
 
 		// open
-		sprintf(savefile, "%s/%.8X%s", dstdir, entry->hash, bigentryext[entry->type]);
+		sprintf(savefile, "%s/%.8X.%s", dstdir, entry->hash, bigentryext[entry->type]);
 		f2 = SafeOpen(savefile, "wb");
 
 		// read contents
@@ -402,10 +527,9 @@ int BigFile_Pack(int argc, char **argv, char *srcdir)
 	// open list file
 	sprintf(openpath, "%s/listfile.txt", srcdir);
 	f = SafeOpen(openpath, "r");
-	printf("%s opened\n", openpath);
 
 	// read list file to header
-	data = ReadBigfileHeaderFromListfile(f);
+	data = ReadBigfileHeaderFromListfile(f, openpath);
 	fclose(f);
 
 	// check header
@@ -498,7 +622,7 @@ int BigFile_Pack(int argc, char **argv, char *srcdir)
 int BigFile_Main(int argc, char **argv)
 {
 	int i = 1, k, returncode = 0;
-	char *tofile, *srcdir, *dstdir;
+	char *tofile, *srcdir, *dstdir, *knownfiles;
 	char *c;
 
 	printf("=== BigFile ===\n");
@@ -521,9 +645,11 @@ int BigFile_Main(int argc, char **argv)
 	tofile = qmalloc(MAX_BLOODPATH);
 	srcdir = qmalloc(MAX_BLOODPATH);
 	dstdir = qmalloc(MAX_BLOODPATH);
+	knownfiles = qmalloc(MAX_BLOODPATH);
 	strcpy(tofile, "-");
 	strcpy(dstdir, DEFAULT_PACKPATH);
 	strcpy(srcdir, DEFAULT_PACKPATH);
+	strcpy(knownfiles, "-");
 	for (k = 2; k < argc; k++)
 	{
 		if (!strcmp(argv[k],"-to"))
@@ -544,13 +670,19 @@ int BigFile_Main(int argc, char **argv)
 			if (k < argc)
 				strcpy(srcdir, argv[k]);
 		}
-		else if (!strcmp(argv[k],"-knownfiles"))
+		else if (!strcmp(argv[k],"-klist"))
 		{
 			k++;
 			if (k < argc)
 				strcpy(knownfiles, argv[k]);
 		}
 	}
+
+	// load up knowledge base
+	if (knownfiles[0] == '-')
+		bigklist = BigfileEmptyKList();
+	else
+		bigklist = BigfileLoadKList(knownfiles);
 
 	// action
 	if (!strcmp(argv[i], "-list"))

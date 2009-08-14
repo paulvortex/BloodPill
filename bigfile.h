@@ -11,20 +11,23 @@ typedef enum
 // filetype extensions
 static char *bigentryext[BIGFILE_NUM_FILETYPES] = 
 { 
-	".dat", 
-	".tim", 
-	".vag", 
-	".wav"
+	"dat", 
+	"tim", 
+	"vag", 
+	"wav"
 };
 
 // bigfile entry
 typedef struct
 {
+	// base info
 	unsigned int hash; // hashed name
 	unsigned int size; // file size
 	unsigned int offset; // file offset
-	char name[16]; // only of loaded from 
+	// used by tool
 	bigentrytype_t type;
+	char name[16];
+	int samplingrate; // for VAG 
 }
 bigfileentry_t;
 

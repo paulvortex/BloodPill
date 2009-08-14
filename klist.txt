@@ -1,1 +1,6 @@
-# this is known filetypes database5B68710A=VAG|-5B68740A=VAG|-5B657509=VAG|-5026730C=VAG|-5026740E=VAG|-
+# this is known filetypes database
+5B68710A=VAG 11025
+5B68740A=VAG
+5B657509=VAG
+5026730C=VAG
+5026740E=VAG
