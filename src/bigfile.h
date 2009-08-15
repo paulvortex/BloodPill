@@ -1,5 +1,5 @@
 // filetypes
-#define BIGFILE_NUM_FILETYPES 4
+#define BIGFILE_NUM_FILETYPES		6
 typedef enum
 {
 	BIGENTRY_UNKNOWN,		// unknown data

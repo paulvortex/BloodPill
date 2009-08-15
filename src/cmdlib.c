@@ -1,3 +1,5 @@
+// code (c) Forest [LordHavoc] Hale
+
 // cmdlib.c
 
 #ifndef WIN32

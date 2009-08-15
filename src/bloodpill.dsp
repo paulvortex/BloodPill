@@ -103,6 +103,10 @@ SOURCE=.\cmdlib.c
 
 SOURCE=.\mem.c
 # End Source File
+# Begin Source File
+
+SOURCE=.\timfile.c
+# End Source File
 # End Group
 # Begin Group "Header Files"
 
@@ -122,6 +126,10 @@ SOURCE=.\cmdlib.h
 # Begin Source File
 
 SOURCE=.\mem.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\timfile.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"

@@ -1,3 +1,5 @@
+// code (c) Forest [LordHavoc] Hale
+
 #include "cmdlib.h"
 #include "mem.h"
 

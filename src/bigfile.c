@@ -1,5 +1,6 @@
 #include "bloodpill.h"
 #include "bigfile.h"
+#include "timfile.h"
 #include "cmdlib.h"
 #include "mem.h"
 
@@ -26,6 +27,8 @@ bigklist_t;
 
 bigklist_t *bigklist;
 
+// timfile.c
+tim_image_t *TIM_LoadFromStream(FILE *f, int filesize);
 
 /*
 ==========================================================================================
@@ -298,8 +301,8 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 {
 	fpos_t fpos;
 	bigfileentry_t *entry;
+	tim_image_t *tim;
 	bigkentry_t *kentry;
-
 	int stats[BIGFILE_NUM_FILETYPES];
 	int i;
 
@@ -336,6 +339,29 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 	printf(" %6i RAW VAG\n", stats[BIGENTRY_RAW_VAG]);
 	printf(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
 	printf(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
+
+	// test stats
+	for (i = 0; i < (int)data->numentries; i++)
+	{
+		entry = &data->entries[i];
+		if (entry->type != BIGENTRY_TIM)
+			continue;
+		BigfileSeekFile(f, entry);
+		tim = TIM_LoadFromStream(f, entry->size);
+		if (tim->error)
+			printf("%.8X: TIM load error: %s\n", entry->hash, tim->errorstr);
+		else
+		{
+			if (tim->type == TIM_4Bit)
+				printf("%.8X: 4bit TIM %ix%i = %i\n", entry->hash, tim->dim.xsize, tim->dim.ysize, tim->pixelbytes);
+			else if (tim->type == TIM_8Bit)
+				printf("%.8X: 8bit TIM %ix%i = %i\n", entry->hash, tim->dim.xsize, tim->dim.ysize, tim->pixelbytes);
+			else if (tim->type == TIM_16Bit)
+				printf("%.8X: 16bit TIM %ix%i = %i\n", entry->hash, tim->dim.xsize, tim->dim.ysize, tim->pixelbytes);
+			else if (tim->type == TIM_24Bit)
+				printf("%.8X: 24bit TIM %ix%i = %i\n", entry->hash, tim->dim.xsize, tim->dim.ysize, tim->pixelbytes);
+		}
+	}
 }
 
 
@@ -463,7 +489,7 @@ int BigFile_List(int argc, char **argv, char *listfile)
 	return 0;
 }
 
-int BigFile_Unpack(int argc, char **argv, char *dstdir)
+int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga)
 {
 	FILE *f, *f2;
 	char savefile[MAX_BLOODPATH];
@@ -626,6 +652,7 @@ int BigFile_Main(int argc, char **argv)
 {
 	int i = 1, k, returncode = 0;
 	char *tofile, *srcdir, *dstdir, *knownfiles, *c;
+	qboolean tim2tga;
 
 	printf("=== BigFile ===\n");
 
@@ -652,6 +679,7 @@ int BigFile_Main(int argc, char **argv)
 	strcpy(dstdir, DEFAULT_PACKPATH);
 	strcpy(srcdir, DEFAULT_PACKPATH);
 	strcpy(knownfiles, "-");
+	tim2tga = false;
 	for (k = 2; k < argc; k++)
 	{
 		if (!strcmp(argv[k],"-to"))
@@ -678,6 +706,10 @@ int BigFile_Main(int argc, char **argv)
 			if (k < argc)
 				strcpy(knownfiles, argv[k]);
 		}
+		else if (!strcmp(argv[k],"-tim2tga"))
+		{
+			tim2tga = true;
+		}
 	}
 
 	// load up knowledge base
@@ -692,7 +724,7 @@ int BigFile_Main(int argc, char **argv)
 	else if (!strcmp(argv[i], "-analyse"))
 		returncode = BigFile_Analyse(argc-i, argv+i, tofile);
 	else if (!strcmp(argv[i], "-unpack"))
-		returncode = BigFile_Unpack(argc-i, argv+i, dstdir);
+		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, tim2tga);
 	else if (!strcmp(argv[i], "-pack"))
 		returncode = BigFile_Pack(argc-i, argv+i, tofile);
 	else
