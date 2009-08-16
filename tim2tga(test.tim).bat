@@ -1,0 +1,1 @@
+bpill -w -tim2tga test.tim test_16.tga

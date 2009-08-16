@@ -3,6 +3,8 @@
 #include "mem.h"
 
 int BigFile_Main(int argc, char **argv);
+int Tim2Targa_Main(int argc, char **argv);
+int Targa2Tim_Main(int argc, char **argv);
 
 //
 // Help section
@@ -22,14 +24,26 @@ int Help_Main()
 	"   tip: some filetypes like VAG couldn't be detected automatically\n"
 	"   so known-files-list is only way to determine them\n"
 	"\n"
-	"-bigfile [bigfilename] -unpack [-dstdir dir] [-klist filename] [-tim2tga]\n"
+	"-bigfile [bigfilename] -unpack [-dstdir dir] [-klist filename] [-tim2tga] [-16to24]\n"
 	"  unpacks all entries of bigfile and saves listfile\n"
 	"    -dstdir: outputs to other folder instead of 'bigfile'\n"
-	"    -tim2tga: converts all TIM files to TGA images\n"
+	"    -tim2tga: converts all TIM files to Targa images\n"
+	"    -16to24: when write TGA, convert 16 bit colors 24 bit\n"
+	"     including colormaps, quite useful because not many tools has support\n"
+	"     for 16 Bit TGA's\n"
 	"\n"
 	"-bigfile [bigfilename] -pack [-srcdir dir]\n"
 	"  creates a bigfile from a folder containing all files and listfile\n"
 	"    -srcdir: inputs from other folder instead of 'bigfile'\n"
+	"\n"
+	"-tim2tga timfile [tgafile] [-16to24]\n"
+	"  convert TIM image to Truevision TGA\n"
+	"  -16to24: convert 16 bit to 24 (including colormap)\n"
+	"\n"
+	"-tga2tim tgafile [timfile] [-type X]\n"
+	"  convert Truevision TGA image to TIM\n"
+	"  -type: manually set type of TIM, could be 8, 16, 24\n"
+	"\n"
 	);
 	return 0;
 }
@@ -83,6 +97,10 @@ int main(int argc, char **argv)
 	// do the action
 	if (!strcmp(argv[i], "-bigfile"))
 		returncode = BigFile_Main(argc-i, argv+i);
+	else if (!strcmp(argv[i], "-tim2tga"))
+		returncode = Tim2Targa_Main(argc-i, argv+i);
+	else if (!strcmp(argv[i], "-tga2tim"))
+		returncode = Targa2Tim_Main(argc-i, argv+i);
 	else if (!strcmp (argv[i], "-help"))
 		returncode = Help_Main();
 	else
