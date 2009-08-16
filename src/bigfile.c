@@ -226,8 +226,6 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 	}
 	printf("\n");
 
-	printf("first offset %i\n", data->entries[0].offset);
-
 	// load contents
 	if (loadfilecontents)
 	{

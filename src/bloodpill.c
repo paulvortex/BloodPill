@@ -16,6 +16,7 @@ int Help_Main()
 	"usage: bpill [-w] [-mem] action\n"
 	" -w : wait for a key press before exit\n"
 	" -mem : print a memory usage stats\n"
+	" -nc : disable printing of caption\n"
 	"\n"
 	"=== ACTIONS ===\n"
 	"-bigfile [bigfilename] -list [-to filename] [-klist filename]\n"
@@ -55,33 +56,45 @@ int Help_Main()
 int main(int argc, char **argv)
 {
 	int i, returncode = 0;
-
-	// print welcome string
-	printf(BLOODPILL_WELCOME);
+	qboolean printcap;
 
 	// get program name
 	ExtractFileBase(argv[0], progname);
 
 	// check command line flags
+	printcap = true;
 	waitforkey = false;
 	memstats = false;
 	for (i = 1; i < argc; i++)
 	{
+		if (!strcmp(argv[i],"-nc")) // disable caption
+		{
+			printcap = false;
+			continue;
+		}
 		if (!strcmp(argv[i],"-mem"))
 		{
-			printf("memstats = true\n");
 			memstats = true;
 			continue;
 		}
 		if (!strcmp(argv[i], "-w"))
 		{
-			printf("waitforkey = true\n");
 			waitforkey = true;
 			continue;
 		}
 		break;
 	}
-	printf( "\n" );
+
+	// print caption
+	if (printcap)
+	{
+		printf(BLOODPILL_WELCOME);
+		if (memstats)
+			printf("memstats = true\n");
+		if (waitforkey)
+			printf("waitforkey = true\n");
+		printf( "\n" );
+	}
 
 	// no args check
 	if (argc == 1)
