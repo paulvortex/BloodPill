@@ -1,6 +1,5 @@
 #include "bloodpill.h"
 #include "bigfile.h"
-#include "timfile.h"
 #include "cmdlib.h"
 #include "mem.h"
 
@@ -124,9 +123,6 @@ bigklist_t *BigfileLoadKList(char *filename)
 
 	printf("loaded known-files list with %i entries\n", klist->numentries);
 
-//	for (parms = 0; parms < klist->numentries; parms++)
-//		printf("%.8X = type %i sampling %i\n", klist->entries[parms].hash, klist->entries[parms].type, klist->entries[parms].samplingrate);
-
 	return klist;
 }
 
@@ -148,6 +144,12 @@ bigkentry_t *BigfileSearchKList(unsigned int hash)
 
 ==========================================================================================
 */
+
+void BigfileEmptyEntry(bigfileentry_t *entry)
+{
+	entry->timdim = NULL;
+	entry->data = NULL;
+}
 
 void BigfileSeekFile(FILE *f, bigfileentry_t *entry)
 {
@@ -180,11 +182,25 @@ void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 	int i;
 
 	if (f != stdout)
-		fprintf(f, "numentries %i\n", data->numentries);
+		fprintf(f, "numentries=%i\n", data->numentries);
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
-		fprintf(f, "%i size %i offset %i type %i name %s\n", entry->hash, entry->size, entry->offset, entry->type, entry->name);
+		// write general data
+		fprintf(f, "[%.8X]\n", entry->hash);
+		fprintf(f, "type=%i\n", (int)entry->type);
+		fprintf(f, "size=%i\n", (int)entry->size);
+		fprintf(f, "offset=%i\n", (int)entry->offset);
+		fprintf(f, "file=%s\n", entry->name);
+
+		// write specific data for TIM images
+		if (entry->timdim)
+		{
+			fprintf(f, "tim.xskip=%i\n", entry->timdim->xskip);
+			fprintf(f, "tim.yskip=%i\n", entry->timdim->yskip);
+			fprintf(f, "tim.xsize=%i\n", entry->timdim->xsize);
+			fprintf(f, "tim.ysize=%i\n", entry->timdim->ysize);
+		}
 	}
 }
 
@@ -209,7 +225,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
-		entry->data = NULL;
+		BigfileEmptyEntry(entry);
 
 		printf("\rreading entry %i of %i", i + 1, data->numentries);
 		fflush(stdout);
@@ -270,14 +286,33 @@ void BigfileHeaderRecalcOffsets(bigfileheader_t *data)
 	}
 }
 
+// check & fix entry that was loaded from listfile
+void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry)
+{
+	char ext[16], filename[MAX_BLOODPATH];
+	FILE *f;
+
+	// check extension
+	ExtractFileExtension(entry->name, ext);
+	if (strcmp(ext, bigentryext[entry->type]) != 0)
+		Error("%s - packing conversion not yet supported", entry->name);
+	
+	// try open file, update filesize
+	sprintf(filename, "%s/%s", srcdir, entry->name);
+	f = SafeOpen(filename, "rb");
+	entry->size = (unsigned int)Q_filelength(f);
+	fclose(f);
+}
+
+
 // read bigfile header from listfile
 bigfileheader_t *BigfileOpenListfile(char *srcdir)
 {
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
-	FILE *f, *f2;
-	char ext[16], filename[MAX_BLOODPATH];
-	int i;
+	char line[256], temp[128], filename[MAX_BLOODPATH];
+	int numentries, linenum, val;
+	FILE *f;
 
 	// open file
 	sprintf(filename, "%s/listfile.txt", srcdir);
@@ -285,34 +320,64 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 
 	// read number of entries
 	data = qmalloc(sizeof(bigfileheader_t));
-	if (fscanf(f, "numentries %i\n", &data->numentries) != 1)
+	if (fscanf(f, "numentries=%i\n", &numentries) != 1)
 		Error("broken numentries record");
-	printf("%s: %i entries\n", filename, data->numentries);
+	printf("%s: %i entries\n", filename, numentries);
 
 	// read all entries
-	data->entries = qmalloc(data->numentries * sizeof(bigfileentry_t));
-	for (i = 0; i < (int)data->numentries; i++)
+	linenum = 1;
+	entry = NULL;
+	data->entries = qmalloc(numentries * sizeof(bigfileentry_t));
+	data->numentries = 0;
+	while(!feof(f))
 	{
-		entry = &data->entries[i];
-		entry->data = NULL;
+		linenum++;
+		fgets(line, 256, f);
 
-		printf("\rreading entry %i of %i", i + 1, data->numentries);
-		fflush(stdout);
+		// new entry
+		if (line[0] == '[')
+		{
+			if (sscanf(line, "[%X]", &val) < 1)
+				Error("bad entry definition on line %i: %s\n", linenum, line);
 
-		if (fscanf(f, "%i size %i offset %i type %i name %s\n", &entry->hash, &entry->size, &entry->offset, &entry->type, &entry->name) != 5)
-			Error("broken entry record %i", i+1);
+			// check old entry
+			if (entry != NULL)
+				BigfileFixListfileEntry(srcdir, entry);
 
-		// check extension
-		ExtractFileExtension(entry->name, ext);
-		if (strcmp(ext, bigentryext[entry->type]) != 0)
-			Error("%s - packing conversion not yet supported\n", entry->name);
+			if ((int)data->numentries >= numentries)
+				Error("entries overflow, numentries is out of date\n");
 
-		// try open file, update filesize
-		sprintf(filename, "%s/%s", srcdir, entry->name);
-		f2 = SafeOpen(filename, "rb");
-		entry->size = (unsigned int)Q_filelength(f2);
-		fclose(f2);
+			entry = &data->entries[data->numentries];
+			BigfileEmptyEntry(entry);
+			entry->hash = (unsigned int)val;
+			data->numentries++;
+			
+			printf("\rreading entry %i of %i", data->numentries, numentries);
+			fflush(stdout);
+			continue;
+		}
+
+		// scan parameter
+		if (entry == NULL)
+			Error("Entry data without actual entry on line %i: %s\n", linenum, line);
+
+		// parse it
+		if (sscanf(line, "type=%i", &val))
+			entry->type = (bigentrytype_t)val;
+		else if (sscanf(line, "size=%i", &val))
+			entry->size = (int)val;
+		else if (sscanf(line, "offset=%i", &val))
+			entry->offset = (int)val;
+		else if (sscanf(line, "file=%s", &temp))
+			strcpy(entry->name, temp);
+
+		// otherwise ignore it
 	}
+
+	// check last entry
+	if (entry != NULL)
+		BigfileFixListfileEntry(srcdir, entry);
+
 	printf("\n");
 	fclose(f);
 
@@ -333,6 +398,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 
 qboolean BigFileScanTIM(FILE *f, bigfileentry_t *entry, unsigned int type)
 {
+	tim_image_t *tim;
 	unsigned int tag;
 	unsigned int bpp;
 
@@ -348,6 +414,18 @@ qboolean BigFileScanTIM(FILE *f, bigfileentry_t *entry, unsigned int type)
 		return false;
 	if (bpp != type)
 		return false;
+	// try load that TIM
+	BigfileSeekFile(f, entry);
+	tim = TIM_LoadFromStream(f, entry->size);
+	if (tim->error)
+	{
+		FreeTIM(tim);
+		return false;
+	}
+	// fill diminfo section
+	entry->timdim = qmalloc(sizeof(tim_diminfo_t));
+	memcpy(entry->timdim, &tim->dim, sizeof(tim_diminfo_t));
+	FreeTIM(tim);
 	return true;
 }
 
@@ -518,26 +596,27 @@ int BigFile_Analyse(int argc, char **argv, char *outfile)
 
 int BigFile_List(int argc, char **argv, char *listfile)
 {
-	FILE *f;
+	FILE *f, *f2;
 	bigfileheader_t *data;
 
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
 	data = ReadBigfileHeader(f, bigfile, false);
 	BigfileScanFiletypes(f, data);
-	fclose (f);
 
 	// print or...
 	if (listfile[0] == '-')
 		BigfileWriteListfile(stdout, data);
 	else // output to file
 	{
-		f = SafeOpen(listfile, "w");
-		BigfileWriteListfile(f, data);
+		f2 = SafeOpen(listfile, "w");
+		BigfileWriteListfile(f2, data);
 		printf("wrote %s\n", listfile);
-		fclose(f);
+		fclose(f2);
 	}
 	printf("done.\n");
+
+	fclose (f);
 
 	return 0;
 }

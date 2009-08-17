@@ -6,6 +6,8 @@ int BigFile_Main(int argc, char **argv);
 int Tim2Targa_Main(int argc, char **argv);
 int Targa2Tim_Main(int argc, char **argv);
 
+#include <windows.h>
+
 //
 // Help section
 //
@@ -13,7 +15,7 @@ int Targa2Tim_Main(int argc, char **argv);
 int Help_Main()
 {
 	printf(
-	"usage: bpill [-w] [-mem] action\n"
+	"usage: bpill [-w] [-mem] [-nc] action\n"
 	" -w : wait for a key press before exit\n"
 	" -mem : print a memory usage stats\n"
 	" -nc : disable printing of caption\n"

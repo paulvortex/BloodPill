@@ -1,3 +1,5 @@
+#include "timfile.h"
+
 // filetypes
 #define BIGFILE_NUM_FILETYPES 7
 typedef enum
@@ -30,11 +32,13 @@ typedef struct
 	unsigned int hash; // hashed name
 	unsigned int size; // file size
 	unsigned int offset; // file offset
-	// used by tool
+
+	// loaded by tool
 	bigentrytype_t type;
 	char name[16];
 	int samplingrate; // for VAG 
 	byte *data; // only presented if loaded
+	tim_diminfo_t *timdim; // TIM dimensions
 }
 bigfileentry_t;
 
