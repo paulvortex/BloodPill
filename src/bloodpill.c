@@ -1,3 +1,10 @@
+////////////////////////////////////////////////////////////////
+//
+// Blood Pill - utility main
+// coded by Pavel [VorteX] Timofeyev and placed to public domain
+//
+////////////////////////////////
+
 #include "bloodpill.h"
 #include "cmdlib.h"
 #include "mem.h"
@@ -43,9 +50,9 @@ int Help_Main()
 	"  convert TIM image to Truevision TGA\n"
 	"  -16to24: convert 16 bit to 24 (including colormap)\n"
 	"\n"
-	"-tga2tim tgafile [timfile] [-type X]\n"
+	"-tga2tim tgafile [timfile] [-bpp X]\n"
 	"  convert Truevision TGA image to TIM\n"
-	"  -type: manually set type of TIM, could be 8, 16, 24\n"
+	"  -bpp: manually set type of TIM, could be 8 (paletted), 16, 24\n"
 	"\n"
 	);
 	return 0;

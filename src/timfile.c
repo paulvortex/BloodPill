@@ -1,7 +1,23 @@
+////////////////////////////////////////////////////////////////
+//
+// TIM files loader/writer
+// coded by Pavel [VorteX] Timofeyev and placed to public domain
+// thanks to Klarth (stevemonaco@hotmail.com) and  Raul Sobon (Cheekyboy@2-hot.com) for TIM spec's
+//
+////////////////////////////////
+
 #include "bloodpill.h"
 #include "timfile.h"
 #include "cmdlib.h"
 #include "mem.h"
+
+/*
+==========================================================================================
+
+  General loader/writer
+
+==========================================================================================
+*/
 
 tim_image_t *EmptyTIM(unsigned int type)
 {
@@ -145,12 +161,20 @@ void TIM_WriteToStream(tim_image_t *tim, FILE *f)
 	else if (tim->type == TIM_8Bit)
 		diminfo.xsize = (short)(diminfo.xsize / 2);
 	else if (tim->type == TIM_24Bit)
-		tim->dim.xsize = (short)(tim->dim.xsize * 1.5);
+		diminfo.xsize = (short)(diminfo.xsize * 1.5);
 	fwrite(&diminfo, sizeof(tim_diminfo_t), 1, f);
 
 	// write pixels
 	fwrite(tim->pixels, tim->pixelbytes, 1, f);
 }
+
+/*
+==========================================================================================
+
+  TGA CONVERTER
+
+==========================================================================================
+*/
 
 tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 {
@@ -167,7 +191,7 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 		return TimError(tim, feof(f) ? "unexpected EOF at targa header" : "unable to read targa header");
 	width = targaheader[12] + targaheader[13]*256;
 	height = targaheader[14] + targaheader[15]*256;
-	colormaplen = targaheader[5] + targaheader[6]*256;
+	colormaplen = (targaheader[1] == 1) ? targaheader[5] + targaheader[6]*256 : 0;
 
 	// autopick type
 	if (!type)
@@ -226,15 +250,18 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 
 			// fill CLUT, write 15-bit colormap, swap bgr->rgb
 			out = tim->CLUT->data;
-			for (y = 0;y < colormaplen;y++)
+			if (targaheader[7] == 24)
 			{
-				if (targaheader[7] == 24)
+				for (y = 0;y < colormaplen;y++)
 				{
 					in = colormapdata + y*3;
 					*out++ = (int)(in[2]/8) + (((int)(in[1]/8) << 5) & 0xE0);
 					*out++ = (((int)(in[1]/8) >> 3) & 0x03) + ((int)(in[0]/8) << 2);
 				}
-				else
+			}
+			else
+			{
+				for (y = 0;y < colormaplen;y++)
 				{
 					in = colormapdata + y*2;
 					*out++ = (in[0] & 0xE0) + ((in[1] & 0x7C) >> 2); 
@@ -253,8 +280,117 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 			}
 			break;
 		case TIM_16Bit:
+			// check header
+			if (colormaplen)
+				return TimError(tim, "16-bit TIM require unmapped TGA)");
+			if (targaheader[2] != 2)
+				return TimError(tim, "16-bit TIM require uncompressed RGB TGA)");
+			if (targaheader[16] != 16 && targaheader[16] != 24)
+				return TimError(tim, "16-bit TIM require 16 or 24-bit TGA");
+
+			// load pixel data
+			pixeldata = qmalloc(width * height * ((targaheader[16] == 16) ? 2 : 3));
+			if (fread(pixeldata, width * height * ((targaheader[16] == 16) ? 2 : 3), 1, f) < 1)
+				return TimError(tim, feof(f) ? "unexpected EOF at TGA pixeldata" : "unable to read TGA pixeldata");
+
+			// fill TIM header
+			tim->type = TIM_16Bit;
+			tim->dim.xskip = targaheader[8] + targaheader[9]*256;
+			tim->dim.yskip = targaheader[10] + targaheader[11]*256;
+			tim->dim.xsize = width;
+			tim->dim.ysize = height;
+			tim->CLUT = NULL;
+			tim->pixelbytes = tim->dim.xsize*tim->dim.ysize*2;
+			tim->pixels = qmalloc(tim->pixelbytes);
+			tim->bpp = 16;
+			tim->filelen = 32 + sizeof(tim_clutinfo_t) + 4 + tim->pixelbytes - 12;
+
+			// fill pixels, flip upside down, swap bgr->rgb, convert 24-bit to 16 if needed
+			out = tim->pixels;
+			if (targaheader[16] == 24)
+			{
+				for (y = height - 1;y >= 0;y--)
+				{
+					in = pixeldata + y * width * 3;
+					end = in + width * 3;
+					for (;in < end; in += 3)
+					{
+						*out++ = (int)(in[2]/8) + (((int)(in[1]/8) << 5) & 0xE0);
+						*out++ = (((int)(in[1]/8) >> 3) & 0x03) + ((int)(in[0]/8) << 2);
+					}
+				}
+			}
+			else
+			{
+				for (y = height - 1;y >= 0;y--)
+				{
+					in = pixeldata + y * width * 2;
+					end = in + width * 2;
+					for (;in < end; in += 2)
+					{
+						*out++ = (in[0] & 0xE0) + ((in[1] & 0x7C) >> 2); 
+						*out++ = (in[1] & 0x03) + ((in[0] & 0x1F) << 2);
+					}
+				}
+			}
 			break;
+		// VorteX: pretty same as 24 bit
 		case TIM_24Bit:
+			// check header
+			if (colormaplen)
+				return TimError(tim, "24-bit TIM require unmapped TGA)");
+			if (targaheader[2] != 2)
+				return TimError(tim, "24-bit TIM require uncompressed RGB TGA)");
+			if (targaheader[16] != 16 && targaheader[16] != 24)
+				return TimError(tim, "24-bit TIM require 16 or 24-bit TGA");
+
+			// load pixel data
+			pixeldata = qmalloc(width * height * ((targaheader[16] == 16) ? 2 : 3));
+			if (fread(pixeldata, width * height * ((targaheader[16] == 16) ? 2 : 3), 1, f) < 1)
+				return TimError(tim, feof(f) ? "unexpected EOF at TGA pixeldata" : "unable to read TGA pixeldata");
+
+			// fill TIM header
+			tim->type = TIM_24Bit;
+			tim->dim.xskip = targaheader[8] + targaheader[9]*256;
+			tim->dim.yskip = targaheader[10] + targaheader[11]*256;
+			tim->dim.xsize = width;
+			tim->dim.ysize = height;
+			tim->CLUT = NULL;
+			tim->pixelbytes = tim->dim.xsize*tim->dim.ysize*3;
+			tim->pixels = qmalloc(tim->pixelbytes);
+			tim->bpp = 24;
+			tim->filelen = 32 + sizeof(tim_clutinfo_t) + 4 + tim->pixelbytes - 12;
+
+			// fill pixels, flip upside down, swap bgr->rgb, convert 24-bit to 16 if needed
+			out = tim->pixels;
+			if (targaheader[16] == 24)
+			{
+				for (y = height - 1;y >= 0;y--)
+				{
+					in = pixeldata + y * width * 3;
+					end = in + width * 3;
+					for (;in < end; in += 3)
+					{
+						*out++ = in[2];
+						*out++ = in[1];
+						*out++ = in[0];	
+					}
+				}
+			}
+			else
+			{
+				for (y = height - 1;y >= 0;y--)
+				{
+					in = pixeldata + y * width * 2;
+					end = in + width * 2;
+					for (;in < end; in += 2)
+					{
+						*out++ = ((in[1] & 0x7C) >> 2) * 8;
+						*out++ = (((in[0] & 0xE0) >> 5) + ((in[1] & 0x3) << 3)) * 8;
+						*out++ = (in[0] & 0x1F) * 8; 
+					}
+				}
+			}
 			break;
 		default:
 			return TimError(tim, "unknown TIM type %.8X requested", type);
@@ -395,6 +531,14 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
 	fclose(f);
 }
 
+/*
+==========================================================================================
+
+  UTIL MAIN
+
+==========================================================================================
+*/
+
 int Tim2Targa_Main(int argc, char **argv)
 {
 	int i = 1, filelen;
@@ -487,7 +631,7 @@ int Targa2Tim_Main(int argc, char **argv)
 	type = 0;
 	for (i = i; i < argc; i++)
 	{
-		if (!strcmp(argv[i], "-type"))
+		if (!strcmp(argv[i], "-bpp"))
 		{
 			i++;
 			if (i < argc)
@@ -499,7 +643,7 @@ int Targa2Tim_Main(int argc, char **argv)
 				else if (!strcmp(argv[i], "24"))
 					type = TIM_24Bit;
 				else
-					Error("parse commandline: bad type %i", argv[i]);
+					Error("parse commandline: bad bpp %i", argv[i]);
 			}
 		}
 	}

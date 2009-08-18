@@ -1,3 +1,11 @@
+////////////////////////////////////////////////////////////////
+//
+// Bigfile operations
+// coded by Pavel [VorteX] Timofeyev and placed to public domain
+// thanks to XentaX (www.xentax.com) community for providing bigfile specs
+//
+////////////////////////////////
+
 #include "bloodpill.h"
 #include "bigfile.h"
 #include "cmdlib.h"
@@ -29,7 +37,7 @@ bigklist_t *bigklist;
 /*
 ==========================================================================================
 
-  BigFile known-files
+  KNOWN-FILES FEATURE
 
 ==========================================================================================
 */

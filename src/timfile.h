@@ -1,4 +1,5 @@
-// thanks to Raul Sobon (Cheekyboy@2-hot.com) for this specs
+// thanks to Klarth (stevemonaco@hotmail.com) and  Raul Sobon (Cheekyboy@2-hot.com) for TIM spec's
+
 #include "bloodpill.h"
 
 // TIM magic numbers
@@ -11,8 +12,8 @@
 typedef struct 
 {
 	long	flags;
-	short	ncols;
-	short	npals;
+	short	columns;
+	short	palettes;
 	byte	data[512];
 }tim_clutinfo_t;
 
@@ -29,15 +30,17 @@ typedef struct
 	unsigned int tag;
 	unsigned int type;
 	tim_diminfo_t dim;
+
 	// CLUT
 	// todo: handle multiple CLUT's?
 	tim_clutinfo_t *CLUT;
 	unsigned char *pixels;
+
+	// no a part of format spec's
 	// filled by loader
 	int bpp;
 	int pixelbytes; 
 	int filelen;
-	// error data
 	qboolean error;
 	char *errorstr;
 }tim_image_t;

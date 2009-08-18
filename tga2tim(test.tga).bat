@@ -1,1 +1,1 @@
-bpill -w -tga2tim test.tga test.tim 
+bpill -w -tga2tim test.tga test.tim

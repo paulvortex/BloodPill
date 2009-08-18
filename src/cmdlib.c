@@ -1,6 +1,9 @@
-// code (c) Forest [LordHavoc] Hale
-
-// cmdlib.c
+////////////////////////////////////////////////////////////////
+//
+// Useful Functions Library
+// coded by  Forest [LordHavoc] Hale
+//
+////////////////////////////////
 
 #ifndef WIN32
 #define USEGETTIMEOFDAY 1

@@ -1,3 +1,5 @@
+// thanks to XentaX (www.xentax.com) community for providing bigfile specs
+
 #include "timfile.h"
 
 // filetypes
