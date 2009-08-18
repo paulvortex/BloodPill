@@ -2,6 +2,9 @@
 
 #include "bloodpill.h"
 
+// max allowed sub-tims stored in single .TIM
+#define MAX_TIM_MASKS	4
+
 // TIM magic numbers
 #define	TIM_TAG		0x00000010
 #define	TIM_4Bit	0x08		/* 4 bit, USE CLUT  */
@@ -19,8 +22,8 @@ typedef struct
 
 typedef struct 
 {
-	short yskip;
-	short xskip;
+	short ypos;
+	short xpos;
 	short xsize;
 	short ysize;
 }tim_diminfo_t;
@@ -43,11 +46,23 @@ typedef struct
 	int filelen;
 	qboolean error;
 	char *errorstr;
+
 }tim_image_t;
+
+typedef struct
+{
+	tim_image_t *image;
+	int masknum;
+	tim_image_t *masks[MAX_TIM_MASKS];
+}tim_file_t;
 
 // timfile.c
 void FreeTIM(tim_image_t *tim);
 
-tim_image_t *TIM_LoadFromStream(FILE *f, int filelen);
+tim_image_t *TIM_LoadFromStream(FILE *f);
+
+void TIM_WriteToStream(tim_image_t *tim, FILE *f);
+
+tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type);
 
 void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24);

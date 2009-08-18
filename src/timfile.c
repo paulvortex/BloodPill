@@ -59,11 +59,10 @@ tim_image_t *TimError(tim_image_t *tim, char *error, ...)
 	return tim;
 }
 
-tim_image_t *TIM_LoadFromStream(FILE *f, int filelen)
+tim_image_t *TIM_LoadFromStream(FILE *f, int streamlen)
 {
 	tim_image_t *tim;
 	long nextobjlen;
-	int pixelbytes;
 	int filepos = 0;
 
 	tim = EmptyTIM(0);
@@ -110,24 +109,28 @@ tim_image_t *TIM_LoadFromStream(FILE *f, int filelen)
 	if (tim->type == TIM_4Bit)
 	{
 		tim->dim.xsize = tim->dim.xsize * 4;
-		pixelbytes = (int)(tim->dim.xsize*tim->dim.ysize/2);
+		tim->pixelbytes = (int)(tim->dim.xsize*tim->dim.ysize/2);
+		tim->filelen = 20 + sizeof(tim_clutinfo_t) + 4 + tim->pixelbytes;
 	}
 	else if (tim->type == TIM_8Bit)
 	{
 		tim->dim.xsize = tim->dim.xsize * 2;
-		pixelbytes = tim->dim.xsize*tim->dim.ysize;
+		tim->pixelbytes = tim->dim.xsize*tim->dim.ysize;
+		tim->filelen = 20 + sizeof(tim_clutinfo_t) + 4 + tim->pixelbytes;
 	}
 	else if (tim->type == TIM_16Bit)
-		pixelbytes = tim->dim.xsize*tim->dim.ysize*2;
+	{
+		tim->pixelbytes = tim->dim.xsize*tim->dim.ysize*2;
+		tim->filelen = 20 + tim->pixelbytes;
+	}
 	else if (tim->type == TIM_24Bit)
 	{
 		tim->dim.xsize = (short)(tim->dim.xsize / 1.5);
-		pixelbytes = tim->dim.xsize*tim->dim.ysize*3;
+		tim->pixelbytes = tim->dim.xsize*tim->dim.ysize*3;
+		tim->filelen = 20 + tim->pixelbytes;
 	}
 
-	// read pixel data
-	tim->filelen = filelen;
-	tim->pixelbytes = (pixelbytes < nextobjlen) ? pixelbytes : nextobjlen;
+	// read pixels
 	tim->pixels = qmalloc(tim->pixelbytes);
 	if (fread(tim->pixels, tim->pixelbytes, 1, f) < 1)
 		return TimError(tim, feof(f) ? "unexpected EOF at pixel data (%i bytes)" : "unable to read pixel data (%i bytes)", tim->pixelbytes);
@@ -162,6 +165,7 @@ void TIM_WriteToStream(tim_image_t *tim, FILE *f)
 		diminfo.xsize = (short)(diminfo.xsize / 2);
 	else if (tim->type == TIM_24Bit)
 		diminfo.xsize = (short)(diminfo.xsize * 1.5);
+
 	fwrite(&diminfo, sizeof(tim_diminfo_t), 1, f);
 
 	// write pixels
@@ -215,7 +219,7 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 		case TIM_8Bit:
 			// check header
 			if (targaheader[1] != 1)
-				return TimError(tim, "8-bit TIM require colormapped TGA)");
+				return TimError(tim, "8-bit TIM require colormapped TGA");
 			if (targaheader[2] != 1)
 				return TimError(tim, "8-bit TIM require uncompressed TGA (type 1)");
 			if (colormaplen > 256)
@@ -237,8 +241,8 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 
 			// fill TIM header
 			tim->type = TIM_8Bit;
-			tim->dim.xskip = targaheader[8] + targaheader[9]*256;
-			tim->dim.yskip = targaheader[10] + targaheader[11]*256;
+			tim->dim.xpos = targaheader[8] + targaheader[9]*256;
+			tim->dim.ypos = targaheader[10] + targaheader[11]*256;
 			tim->dim.xsize = width;
 			tim->dim.ysize = height;
 			tim->CLUT = qmalloc(sizeof(tim_clutinfo_t));
@@ -246,7 +250,7 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 			tim->pixelbytes = tim->dim.xsize*tim->dim.ysize;
 			tim->pixels = qmalloc(tim->pixelbytes);
 			tim->bpp = 8;
-			tim->filelen = 32 + sizeof(tim_clutinfo_t) + 4 + tim->pixelbytes - 12;
+			tim->filelen = 20 + sizeof(tim_clutinfo_t) + 4 + tim->pixelbytes;
 
 			// fill CLUT, write 15-bit colormap, swap bgr->rgb
 			out = tim->CLUT->data;
@@ -278,13 +282,16 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 				for (;in < end; in++)
 					*out++ = in[0];
 			}
+
+			qfree(colormapdata);
+			qfree(pixeldata);
 			break;
 		case TIM_16Bit:
 			// check header
 			if (colormaplen)
-				return TimError(tim, "16-bit TIM require unmapped TGA)");
+				return TimError(tim, "16-bit TIM require unmapped TGA");
 			if (targaheader[2] != 2)
-				return TimError(tim, "16-bit TIM require uncompressed RGB TGA)");
+				return TimError(tim, "16-bit TIM require uncompressed RGB TGA");
 			if (targaheader[16] != 16 && targaheader[16] != 24)
 				return TimError(tim, "16-bit TIM require 16 or 24-bit TGA");
 
@@ -295,15 +302,15 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 
 			// fill TIM header
 			tim->type = TIM_16Bit;
-			tim->dim.xskip = targaheader[8] + targaheader[9]*256;
-			tim->dim.yskip = targaheader[10] + targaheader[11]*256;
+			tim->dim.xpos = targaheader[8] + targaheader[9]*256;
+			tim->dim.ypos = targaheader[10] + targaheader[11]*256;
 			tim->dim.xsize = width;
 			tim->dim.ysize = height;
 			tim->CLUT = NULL;
 			tim->pixelbytes = tim->dim.xsize*tim->dim.ysize*2;
 			tim->pixels = qmalloc(tim->pixelbytes);
 			tim->bpp = 16;
-			tim->filelen = 32 + sizeof(tim_clutinfo_t) + 4 + tim->pixelbytes - 12;
+			tim->filelen = 20 + tim->pixelbytes;
 
 			// fill pixels, flip upside down, swap bgr->rgb, convert 24-bit to 16 if needed
 			out = tim->pixels;
@@ -333,14 +340,16 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 					}
 				}
 			}
+
+			qfree(pixeldata);
 			break;
 		// VorteX: pretty same as 24 bit
 		case TIM_24Bit:
 			// check header
 			if (colormaplen)
-				return TimError(tim, "24-bit TIM require unmapped TGA)");
+				return TimError(tim, "24-bit TIM require unmapped TGA");
 			if (targaheader[2] != 2)
-				return TimError(tim, "24-bit TIM require uncompressed RGB TGA)");
+				return TimError(tim, "24-bit TIM require uncompressed RGB TGA");
 			if (targaheader[16] != 16 && targaheader[16] != 24)
 				return TimError(tim, "24-bit TIM require 16 or 24-bit TGA");
 
@@ -351,15 +360,15 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 
 			// fill TIM header
 			tim->type = TIM_24Bit;
-			tim->dim.xskip = targaheader[8] + targaheader[9]*256;
-			tim->dim.yskip = targaheader[10] + targaheader[11]*256;
+			tim->dim.xpos = targaheader[8] + targaheader[9]*256;
+			tim->dim.ypos = targaheader[10] + targaheader[11]*256;
 			tim->dim.xsize = width;
 			tim->dim.ysize = height;
 			tim->CLUT = NULL;
 			tim->pixelbytes = tim->dim.xsize*tim->dim.ysize*3;
 			tim->pixels = qmalloc(tim->pixelbytes);
 			tim->bpp = 24;
-			tim->filelen = 32 + sizeof(tim_clutinfo_t) + 4 + tim->pixelbytes - 12;
+			tim->filelen = 20 + tim->pixelbytes;
 
 			// fill pixels, flip upside down, swap bgr->rgb, convert 24-bit to 16 if needed
 			out = tim->pixels;
@@ -391,6 +400,8 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 					}
 				}
 			}
+
+			qfree(pixeldata);
 			break;
 		default:
 			return TimError(tim, "unknown TIM type %.8X requested", type);
@@ -423,10 +434,10 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
 			buffer[5] = (256 >> 0) & 0xFF;
 			buffer[6] = (256 >> 8) & 0xFF;
 			buffer[7] = (bpp16to24 ? 24 : 16); // colormap BPP
-			buffer[8] = (tim->dim.xskip >> 0) & 0xFF;
-			buffer[9] = (tim->dim.xskip >> 8) & 0xFF;
-			buffer[10] = (tim->dim.yskip >> 0) & 0xFF;
-			buffer[11] = (tim->dim.yskip >> 8) & 0xFF;
+			buffer[8] = (tim->dim.xpos >> 0) & 0xFF;
+			buffer[9] = (tim->dim.xpos >> 8) & 0xFF;
+			buffer[10] = (tim->dim.ypos >> 0) & 0xFF;
+			buffer[11] = (tim->dim.ypos >> 8) & 0xFF;
 			buffer[12] = (tim->dim.xsize >> 0) & 0xFF;
 			buffer[13] = (tim->dim.xsize >> 8) & 0xFF;
 			buffer[14] = (tim->dim.ysize >> 0) & 0xFF;
@@ -465,10 +476,10 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
 			buffer = qmalloc(tim->dim.xsize*tim->dim.ysize*(bpp16to24 ? 3 : 2) + 18);
 			memset(buffer, 0, 18);
 			buffer[2] = 2; // uncompressed
-			buffer[8] = (tim->dim.xskip >> 0) & 0xFF;
-			buffer[9] = (tim->dim.xskip >> 8) & 0xFF;
-			buffer[10] = (tim->dim.yskip >> 0) & 0xFF;
-			buffer[11] = (tim->dim.yskip >> 8) & 0xFF;
+			buffer[8] = (tim->dim.xpos >> 0) & 0xFF;
+			buffer[9] = (tim->dim.xpos >> 8) & 0xFF;
+			buffer[10] = (tim->dim.ypos >> 0) & 0xFF;
+			buffer[11] = (tim->dim.ypos >> 8) & 0xFF;
 			buffer[12] = (tim->dim.xsize >> 0) & 0xFF;
 			buffer[13] = (tim->dim.xsize >> 8) & 0xFF;
 			buffer[14] = (tim->dim.ysize >> 0) & 0xFF;
@@ -501,10 +512,10 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
 			buffer = qmalloc(tim->dim.xsize*tim->dim.ysize*3 + 18);
 			memset(buffer, 0, 18);
 			buffer[2] = 2; // uncompressed
-			buffer[8] = (tim->dim.xskip >> 0) & 0xFF;
-			buffer[9] = (tim->dim.xskip >> 8) & 0xFF;
-			buffer[10] = (tim->dim.yskip >> 0) & 0xFF;
-			buffer[11] = (tim->dim.yskip >> 8) & 0xFF;
+			buffer[8] = (tim->dim.xpos >> 0) & 0xFF;
+			buffer[9] = (tim->dim.xpos >> 8) & 0xFF;
+			buffer[10] = (tim->dim.ypos >> 0) & 0xFF;
+			buffer[11] = (tim->dim.ypos >> 8) & 0xFF;
 			buffer[12] = (tim->dim.xsize >> 0) & 0xFF;
 			buffer[13] = (tim->dim.xsize >> 8) & 0xFF;
 			buffer[14] = (tim->dim.ysize >> 0) & 0xFF;
@@ -541,7 +552,7 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
 
 int Tim2Targa_Main(int argc, char **argv)
 {
-	int i = 1, filelen;
+	int i = 1;
 	char filename[MAX_BLOODPATH], ext[5], outfile[MAX_BLOODPATH], *c;
 	tim_image_t *tim;
 	qboolean bpp16to24;
@@ -579,8 +590,7 @@ int Tim2Targa_Main(int argc, char **argv)
 
 	// open source file, try load it
 	f = SafeOpen(filename, "rb");
-	filelen = Q_filelength(f);
-	tim = TIM_LoadFromStream(f, filelen);
+	tim = TIM_LoadFromStream(f);
 	fclose(f);
 	if (tim->error)
 		Error("Error loading %s: %s", filename, tim->errorstr);
@@ -588,7 +598,7 @@ int Tim2Targa_Main(int argc, char **argv)
 	// print TIM stats
 	printf("%s loaded\n", filename);
 	printf("        type: %i-bit TIM\n", tim->bpp);
-	printf(" orientation: %ix%i\n", tim->dim.xskip, tim->dim.yskip);
+	printf(" orientation: %ix%i\n", tim->dim.xpos, tim->dim.ypos);
 	printf("        size: %ix%i\n", tim->dim.xsize, tim->dim.ysize);
 	printf(" pixel bytes: %i\n", tim->pixelbytes);
 	printf(" file length: %i\n", tim->filelen);
@@ -603,6 +613,7 @@ int Tim2Targa_Main(int argc, char **argv)
 int Targa2Tim_Main(int argc, char **argv)
 {
 	char filename[MAX_BLOODPATH], ext[5], outfile[MAX_BLOODPATH], *c;
+	short ofsx = -1, ofsy = -1;
 	unsigned int type;
 	tim_image_t *tim;
 	int i = 1;
@@ -646,6 +657,17 @@ int Targa2Tim_Main(int argc, char **argv)
 					Error("parse commandline: bad bpp %i", argv[i]);
 			}
 		}
+		if (!strcmp(argv[i], "-ofs"))
+		{
+			i++;
+			if (i < argc)
+			{
+				ofsx = (short)atof(argv[i]);
+				i++;
+				if (i < argc)
+					ofsy = (short)atof(argv[i]);
+			}
+		}
 	}
 
 	// open source file, try load it
@@ -655,10 +677,16 @@ int Targa2Tim_Main(int argc, char **argv)
 	if (tim->error)
 		Error("Error loading %s: %s", filename, tim->errorstr);
 
+	// override offsets
+	if (ofsx >= 0)
+		tim->dim.xpos = ofsx;
+	if (ofsy >= 0)
+		tim->dim.ypos = ofsy;
+
 	// print TIM stats
 	printf("%s loaded\n", filename);
 	printf("        type: %i-bit TIM\n", tim->bpp);
-	printf(" orientation: %ix%i\n", tim->dim.xskip, tim->dim.yskip);
+	printf(" orientation: %ix%i\n", tim->dim.xpos, tim->dim.ypos);
 	printf("        size: %ix%i\n", tim->dim.xsize, tim->dim.ysize);
 	printf(" pixel bytes: %i\n", tim->pixelbytes);
 	printf(" file length: %i\n", tim->filelen);

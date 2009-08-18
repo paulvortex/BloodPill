@@ -20,7 +20,7 @@ char bigfile[MAX_BLOODPATH];
 typedef struct
 {
 	unsigned int hash;
-	int samplingrate;
+	int vagrate;
 	bigentrytype_t type;
 }
 bigkentry_t;
@@ -61,18 +61,7 @@ bigentrytype_t BigfileTypeForExt(char *ext)
 	return BIGENTRY_UNKNOWN;
 }
 
-bigklist_t *BigfileEmptyKList()
-{
-	bigklist_t *klist;
-
-	klist = qmalloc(sizeof(bigklist_t));
-	klist->entries = NULL;
-	klist->numentries = 0;
-
-	return klist;
-}
-
-bigklist_t *BigfileLoadKList(char *filename)
+bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 {
 	bigklist_t *klist;
 	int linenum = 0;
@@ -81,10 +70,20 @@ bigklist_t *BigfileLoadKList(char *filename)
 	int parm1, parms, i;
 	FILE *f;
 
-	klist = BigfileEmptyKList();
+	// create empty klist
+	klist = qmalloc(sizeof(bigklist_t));
+	klist->entries = NULL;
+	klist->numentries = 0;
 
-	f = SafeOpen(filename, "r");
-	// first pass - scan klist to determine how many string we should allocate
+	if (stopOnError)
+		f = SafeOpen(filename, "r");
+	else
+	{
+		f = fopen(filename, "r");
+		if (!f)
+			return klist;
+	}
+	// first pass - scan klist to determine how many strings we should allocate
 	while(!feof(f))
 	{
 		fgets(line, 1024, f);
@@ -123,7 +122,7 @@ bigklist_t *BigfileLoadKList(char *filename)
 
 		// VAG - sampling rate
 		if (klist->entries[klist->numentries].type == BIGENTRY_RAW_VAG)
-			klist->entries[klist->numentries].samplingrate = (parms < 3) ? 11025 : parm1;
+			klist->entries[klist->numentries].vagrate = (parms < 3) ? 11025 : parm1;
 
 		// parsed
 		klist->numentries++;
@@ -155,7 +154,6 @@ bigkentry_t *BigfileSearchKList(unsigned int hash)
 
 void BigfileEmptyEntry(bigfileentry_t *entry)
 {
-	entry->timdim = NULL;
 	entry->data = NULL;
 }
 
@@ -187,14 +185,16 @@ void BigFileUnpackFile(FILE *f, bigfileentry_t *entry, FILE *dstf)
 void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 {
 	bigfileentry_t *entry;
-	int i;
+	int i, k;
 
 	if (f != stdout)
 		fprintf(f, "numentries=%i\n", data->numentries);
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
+
 		// write general data
+		fprintf(f, "\n", entry->hash);
 		fprintf(f, "[%.8X]\n", entry->hash);
 		fprintf(f, "type=%i\n", (int)entry->type);
 		fprintf(f, "size=%i\n", (int)entry->size);
@@ -202,12 +202,22 @@ void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 		fprintf(f, "file=%s\n", entry->name);
 
 		// write specific data for TIM images
-		if (entry->timdim)
+		switch(entry->type)
 		{
-			fprintf(f, "tim.xskip=%i\n", entry->timdim->xskip);
-			fprintf(f, "tim.yskip=%i\n", entry->timdim->yskip);
-			fprintf(f, "tim.xsize=%i\n", entry->timdim->xsize);
-			fprintf(f, "tim.ysize=%i\n", entry->timdim->ysize);
+			case BIGENTRY_TIM:
+				fprintf(f, "tim.layers=%i\n", entry->timlayers);
+				for(k = 0; k < entry->timlayers; k++)
+				{
+					fprintf(f, "tim[%i].type=%i\n", k, entry->timtype[k]);
+					fprintf(f, "tim[%i].xskip=%i\n", k, entry->timxpos[k]);
+					fprintf(f, "tim[%i].yskip=%i\n", k, entry->timypos[k]);
+				}
+				break;
+			case BIGENTRY_RAW_VAG:
+				fprintf(f, "vag.rate=%i\n", entry->vagrate);
+				break;
+			default:
+				break;
 		}
 	}
 }
@@ -269,12 +279,14 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 	}
 
 	// warnings
+	/*
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
 		if (entry->size <= 0)
 			printf("warning: entry %.8X size = %i bytes\n", entry->hash, entry->size);
 	}
+	*/
 
 	return data;
 }
@@ -295,31 +307,112 @@ void BigfileHeaderRecalcOffsets(bigfileheader_t *data)
 }
 
 // check & fix entry that was loaded from listfile
-void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry)
+// this functino laso does autoconvert job
+void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry, qboolean lowmem)
 {
-	char ext[16], filename[MAX_BLOODPATH];
+	char ext[16], filename[MAX_BLOODPATH], basename[MAX_BLOODPATH];
+	tim_image_t *tim;
+	int i;
 	FILE *f;
 
-	// check extension
+	// extract extension
+	ExtractFileBase(entry->name, basename);
 	ExtractFileExtension(entry->name, ext);
-	if (strcmp(ext, bigentryext[entry->type]) != 0)
-		Error("%s - packing conversion not yet supported", entry->name);
-	
-	// try open file, update filesize
-	sprintf(filename, "%s/%s", srcdir, entry->name);
-	f = SafeOpen(filename, "rb");
-	entry->size = (unsigned int)Q_filelength(f);
-	fclose(f);
+	Q_strlower(ext);
+
+	// standart file
+	if (!strcmp(ext, bigentryext[entry->type]))
+	{
+		sprintf(filename, "%s/%s", srcdir, entry->name);
+		f = SafeOpen(filename, "rb");
+		entry->data = NULL; // load as-is
+		entry->size = (unsigned int)Q_filelength(f);
+		fclose(f);
+		return;
+	}
+
+	// TGA -> TIM autoconversion
+	if (!strcmp(ext, "tga") && entry->type == BIGENTRY_TIM)
+	{
+		// main tim
+		entry->size = 0;
+		if (!entry->timlayers)
+			Error("bad TIM layer info for entry %.8X", entry->hash);
+		for (i = 0; i < entry->timlayers; i++)
+		{
+			if (i == 0)
+				sprintf(filename, "%s/%s", srcdir, entry->name);
+			else
+				sprintf(filename, "%s/%s_layer%i.tga", srcdir, basename, i);
+			f = SafeOpen(filename, "rb");
+			tim = TIM_LoadFromTarga(f, entry->timtype[i]); 
+			if (tim->error)
+				Error("conversion error on %s layer %i: %s", entry->name, i, tim->errorstr);
+
+			entry->size += (unsigned int)tim->filelen;
+			if (i == 0)
+				entry->data = tim;
+			if (i != 0 || lowmem) // VorteX: -lomem key support, read that again later
+				FreeTIM(tim);
+			fclose(f);
+		}
+
+		return;
+	}
+
+	Error("can't identify file %s", entry->name);
+
 }
 
+// print stats about loaded bigfile entry
+void BigfileEmitStats(bigfileheader_t *data)
+{
+	bigfileentry_t *entry;
+	int stats[BIGFILE_NUM_FILETYPES], timstats[4];
+	int i;
+
+	// calc stats
+	memset(stats, 0, sizeof(int)*BIGFILE_NUM_FILETYPES);
+	memset(timstats, 0, sizeof(int)*4);
+	for (i = 0; i < (int)data->numentries; i++)
+	{
+		entry = &data->entries[i];
+
+		if (entry->type == BIGENTRY_TIM)
+		{
+			if (entry->timtype[0] == TIM_4Bit)
+				timstats[0]++;
+			else if (entry->timtype[0] == TIM_8Bit)
+				timstats[1]++;
+			else if (entry->timtype[0] == TIM_16Bit)
+				timstats[2]++;	
+			else if (entry->timtype[0] == TIM_24Bit)
+				timstats[3]++;
+		}
+		stats[entry->type]++;
+	}
+
+	// print
+	printf(" %6i 4-bit TIM\n", timstats[0]);
+	printf(" %6i 8-bit TIM\n", timstats[1]);
+	printf(" %6i 16-bit TIM\n", timstats[2]);
+	printf(" %6i 24-bit TIM\n", timstats[3]);
+	printf(" %6i TIM total\n", stats[BIGENTRY_TIM]);
+	printf(" %6i RAW VAG\n", stats[BIGENTRY_RAW_VAG]);
+	printf(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
+	printf(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
+	printf(" %6i TOTAL\n", data->numentries);
+}
 
 // read bigfile header from listfile
-bigfileheader_t *BigfileOpenListfile(char *srcdir)
+bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
 {
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
 	char line[256], temp[128], filename[MAX_BLOODPATH];
-	int numentries, linenum, val;
+	int numentries, linenum, val, num;
+	unsigned int uval;
+	short valshort;
 	FILE *f;
 
 	// open file
@@ -350,7 +443,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 
 			// check old entry
 			if (entry != NULL)
-				BigfileFixListfileEntry(srcdir, entry);
+				BigfileFixListfileEntry(srcdir, entry, lowmem);
 
 			if ((int)data->numentries >= numentries)
 				Error("entries overflow, numentries is out of date\n");
@@ -369,7 +462,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 		if (entry == NULL)
 			Error("Entry data without actual entry on line %i: %s\n", linenum, line);
 
-		// parse it
+		// parse base parms
 		if (sscanf(line, "type=%i", &val))
 			entry->type = (bigentrytype_t)val;
 		else if (sscanf(line, "size=%i", &val))
@@ -378,16 +471,27 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 			entry->offset = (int)val;
 		else if (sscanf(line, "file=%s", &temp))
 			strcpy(entry->name, temp);
-
-		// otherwise ignore it
+		// for TIM
+		else if (sscanf(line, "tim[%i].type=%i", &num, &uval))
+			entry->timtype[num] = uval;
+		else if (sscanf(line, "tim[%i].xpos=%f", &num, &valshort))
+			entry->timxpos[num] = valshort;
+		else if (sscanf(line, "tim[%i].ypos=%f", &num, &valshort))
+			entry->timypos[num] = valshort;
+		else if (sscanf(line, "tim.layers=%i", &val))
+			entry->timlayers = val;
+		// for VAG
+		else if (sscanf(line, "vag.rate=%i", &val))
+			entry->vagrate = val;
 	}
+	printf("\n");
 
 	// check last entry
 	if (entry != NULL)
-		BigfileFixListfileEntry(srcdir, entry);
+		BigfileFixListfileEntry(srcdir, entry, lowmem);
 
-	printf("\n");
-	fclose(f);
+	// emit some ststs
+	BigfileEmitStats(data);
 
 	// recalc offsets
 	BigfileHeaderRecalcOffsets(data);
@@ -404,36 +508,62 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 ==========================================================================================
 */
 
-qboolean BigFileScanTIM(FILE *f, bigfileentry_t *entry, unsigned int type)
+qboolean BigFileScanTIM(FILE *f, bigfileentry_t *entry)
 {
 	tim_image_t *tim;
+	fpos_t fpos;
 	unsigned int tag;
 	unsigned int bpp;
+	int bytes;
+
+	// VorteX: Blood Omen has *weird* TIM files - they could be 2 or more TIM's in one file
+	// they could be easily detected however, as second TIM goes right after base TIM 
 
 	BigfileSeekFile(f, entry);
-	// 0x10 should be at beginning of standart TIM
-	if (fread(&tag, sizeof(unsigned int), 1, f) < 1)
-		return false;
-	if (tag != 0x10)
-		return false;
-	// second uint is BPP
-	// todo: there are files with TIM header but with nasty BPP
-	if (fread(&bpp, sizeof(unsigned int), 1, f) < 1)
-		return false;
-	if (bpp != type)
-		return false;
-	// try load that TIM
-	BigfileSeekFile(f, entry);
-	tim = TIM_LoadFromStream(f, entry->size);
-	if (tim->error)
+
+	bytes = 0;
+	entry->timlayers = 0;
+	while(1)
 	{
+		fgetpos(f, &fpos);
+
+		// 0x10 should be at beginning of standart TIM
+		if (fread(&tag, sizeof(unsigned int), 1, f) < 1)
+			return (entry->timlayers != 0) ? true : false;
+		if (tag != 0x10)
+			return (entry->timlayers != 0) ? true : false;
+
+		// second uint is BPP
+		// todo: there are files with TIM header but with nasty BPP
+		if (fread(&bpp, sizeof(unsigned int), 1, f) < 1)
+			return (entry->timlayers != 0) ? true : false;
+		if (bpp != TIM_4Bit && bpp != TIM_8Bit && bpp != TIM_16Bit && bpp != TIM_24Bit) 
+			return (entry->timlayers != 0) ? true : false;
+
+		// try load that TIM
+		fsetpos(f, &fpos);
+		tim = TIM_LoadFromStream(f);
+		if (tim->error)
+		{
+			FreeTIM(tim);
+			return false;
+		}
+		bytes += tim->filelen;
+
+		// fill diminfo section
+		if (entry->timlayers >= (MAX_TIM_MASKS + 1))
+			Error("TIM layers overflow on entry %.8X", entry->hash);
+
+		entry->timtype[entry->timlayers] = tim->type;
+		entry->timxpos[entry->timlayers] = tim->dim.xpos;
+		entry->timypos[entry->timlayers] = tim->dim.ypos;
+		entry->timlayers++;
 		FreeTIM(tim);
-		return false;
+
+		if (bytes >= (int)entry->size)
+			break;
 	}
-	// fill diminfo section
-	entry->timdim = qmalloc(sizeof(tim_diminfo_t));
-	memcpy(entry->timdim, &tim->dim, sizeof(tim_diminfo_t));
-	FreeTIM(tim);
+
 	return true;
 }
 
@@ -442,11 +572,13 @@ qboolean BigFileScanRiffWave(FILE *f, bigfileentry_t *entry)
 	byte tag[4];
 
 	BigfileSeekFile(f, entry);
+
 	// first unsigned int - tag
 	if (fread(&tag, sizeof(char), 4, f) < 1)
 		return false;
 	if (tag[0] != 0x52 || tag[1] != 0x49 || tag[2] != 0x46 || tag[3] != 0x46)
 		return false;
+
 	// it's a RIFF
 	return true;
 }
@@ -456,10 +588,8 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 	fpos_t fpos;
 	bigfileentry_t *entry;
 	bigkentry_t *kentry;
-	int stats[BIGFILE_NUM_FILETYPES];
 	int i;
 
-	memset(stats, 0, sizeof(int)*BIGFILE_NUM_FILETYPES);
 	fgetpos(f, &fpos);
 	// scan for filetypes
 	for (i = 0; i < (int)data->numentries; i++)
@@ -474,33 +604,23 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 		if (kentry != NULL)
 		{
 			entry->type = kentry->type;
-			entry->samplingrate = kentry->samplingrate;
+			entry->vagrate = kentry->vagrate;
 		}
-		else if (BigFileScanTIM(f, entry, TIM_4Bit))
-			entry->type = BIGENTRY_TIM4;
-		else if (BigFileScanTIM(f, entry, TIM_8Bit))
-			entry->type = BIGENTRY_TIM8;
-		else if (BigFileScanTIM(f, entry, TIM_16Bit))
-			entry->type = BIGENTRY_TIM16;
-		else if (BigFileScanTIM(f, entry, TIM_24Bit))
-			entry->type = BIGENTRY_TIM24;
+		else if (BigFileScanTIM(f, entry))
+			entry->type = BIGENTRY_TIM;
 		else if (BigFileScanRiffWave(f, entry))
 			entry->type = BIGENTRY_RIFF_WAVE;
 		else
 			entry->type = BIGENTRY_UNKNOWN;
-		stats[entry->type]++;
+
+		// make name
 		sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
 	}
 	fsetpos(f, &fpos);
 	printf("\n");
-	// print stats
-	printf(" %6i 4-bit TIM\n", stats[BIGENTRY_TIM4]);
-	printf(" %6i 8-bit TIM\n", stats[BIGENTRY_TIM8]);
-	printf(" %6i 16-bit TIM\n", stats[BIGENTRY_TIM16]);
-	printf(" %6i 24-bit TIM\n", stats[BIGENTRY_TIM24]);
-	printf(" %6i RAW VAG\n", stats[BIGENTRY_RAW_VAG]);
-	printf(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
-	printf(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
+	
+	// emit some stats
+	BigfileEmitStats(data);
 }
 
 
@@ -637,7 +757,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
 	tim_image_t *tim;
-	int i;
+	int i, k;
 
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
@@ -671,19 +791,25 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 		fflush(stdout);
 
 		// extract TGA
-		if ((entry->type == BIGENTRY_TIM8 || entry->type == BIGENTRY_TIM16 || entry->type == BIGENTRY_TIM24) && tim2tga)
+		if (tim2tga && entry->type == BIGENTRY_TIM)
 		{
 			BigfileSeekFile(f, entry);
-			tim = TIM_LoadFromStream(f, (int)entry->size);
-			if (!tim->error)
+			for (k = 0; k < entry->timlayers; k++)
 			{
-				sprintf(savefile, "%s/%.8X.tga", dstdir, entry->hash);
+				tim = TIM_LoadFromStream(f);
+				if (k == 0)
+					sprintf(savefile, "%s/%.8X.tga", dstdir, entry->hash);
+				else
+					sprintf(savefile, "%s/%.8X_layer%i.tga", dstdir, entry->hash, k);
+
+				if (tim->error)
+					Error("error saving %s: %s\n", savefile, tim->error);
+			
 				sprintf(entry->name, "%.8X.tga", entry->hash); // write 'good' listfile.txt
 				TIM_WriteTarga(tim, savefile, bpp16to24);
 				FreeTIM(tim);
-				continue;
 			}
-			FreeTIM(tim);
+			continue;
 		}
 
 		// extract original file
@@ -706,16 +832,17 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 	return 0;
 }
 
-int BigFile_Pack(int argc, char **argv, char *srcdir)
+int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 {
-	FILE *f;
+	FILE *f, *f2;
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
-	char savefile[MAX_BLOODPATH];
+	tim_image_t *tim;
+	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH];
 	byte *contents;
-	int i, size;
+	int i, k, size;
 
-	data = BigfileOpenListfile(srcdir);
+	data = BigfileOpenListfile(srcdir, lowmem);
 
 	// open bigfile
 	f = fopen(bigfile, "rb");
@@ -752,16 +879,52 @@ int BigFile_Pack(int argc, char **argv, char *srcdir)
 		// if file is already loaded
 		if (entry->data != NULL)
 		{
-			fwrite(entry->data, entry->size, 1, f);
-			continue;
+			if (entry->type == BIGENTRY_TIM)
+			{
+				// VorteX: -lomem key support
+				if (lowmem)
+				{
+					sprintf(savefile, "%s/%s", srcdir, entry->name);
+					f2 = SafeOpen(savefile, "rb");
+					tim = TIM_LoadFromTarga(f2, entry->timtype[0]); 
+					if (tim->error)
+						Error("conversion error on %s: %s", entry->name, tim->errorstr);
+					fclose(f2);
+					entry->data = tim;
+				}
+				TIM_WriteToStream(entry->data, f);
+				FreeTIM(entry->data);
+
+				// add sublayers
+				ExtractFileBase(entry->name, basename);
+				for (k = 1; k < entry->timlayers; k++)
+				{
+					sprintf(savefile, "%s/%s_layer%i.tga", srcdir, basename, k);
+					f2 = SafeOpen(savefile, "rb");
+					tim = TIM_LoadFromTarga(f2, entry->timtype[k]); 
+					if (tim->error)
+						Error("conversion error on %s: %s", entry->name, tim->errorstr);
+					fclose(f2);
+					TIM_WriteToStream(tim, f);
+					FreeTIM(tim);
+				}
+			}
+			else
+			{
+				fwrite(entry->data, entry->size, 1, f);
+				qfree(entry->data);
+			}
 		}
 		// read file from HDD
-		sprintf(savefile, "%s/%s", srcdir, entry->name);
-		size = LoadFile(savefile, &contents);
-		if (size != (int)entry->size)
-			Error("entry %.8X: file size changed while packing\n", entry->hash);
-		fwrite(contents, size, 1, f);
-		qfree(contents);
+		else
+		{
+			sprintf(savefile, "%s/%s", srcdir, entry->name);
+			size = LoadFile(savefile, &contents);
+			if (size != (int)entry->size)
+				Error("entry %.8X: file size changed (%s%i bytes, newsize %i) while packing\n", entry->hash, (size - (int)entry->size) < 0 ? "-" : "+", size - (int)entry->size, size);
+			fwrite(contents, size, 1, f);
+			qfree(contents);
+		}
 	}
 	printf("\n");
 
@@ -783,7 +946,7 @@ int BigFile_Main(int argc, char **argv)
 {
 	int i = 1, k, returncode = 0;
 	char *tofile, *srcdir, *dstdir, *knownfiles, *c;
-	qboolean tim2tga, bpp16to24;
+	qboolean tim2tga, bpp16to24, lowmem;
 
 	printf("=== BigFile ===\n");
 	if (i < 1)
@@ -814,6 +977,7 @@ int BigFile_Main(int argc, char **argv)
 	strcpy(knownfiles, "-");
 	tim2tga = false;
 	bpp16to24 = false;
+	lowmem = false;
 	for (k = 2; k < argc; k++)
 	{
 		if (!strcmp(argv[k],"-to"))
@@ -844,13 +1008,15 @@ int BigFile_Main(int argc, char **argv)
 			tim2tga = true;
 		else if (!strcmp(argv[k],"-16to24"))
 			bpp16to24 = true;
+		else if (!strcmp(argv[k],"-lowmem"))
+			lowmem = true;
 	}
 	
 	// load up knowledge base
 	if (knownfiles[0] == '-')
-		bigklist = BigfileEmptyKList();
+		bigklist = BigfileLoadKList("klist.txt", true);
 	else
-		bigklist = BigfileLoadKList(knownfiles);
+		bigklist = BigfileLoadKList(knownfiles, false);
 
 	// action
 	if (!strcmp(argv[i], "-list"))
@@ -860,7 +1026,7 @@ int BigFile_Main(int argc, char **argv)
 	else if (!strcmp(argv[i], "-unpack"))
 		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, tim2tga, bpp16to24);
 	else if (!strcmp(argv[i], "-pack"))
-		returncode = BigFile_Pack(argc-i, argv+i, srcdir);
+		returncode = BigFile_Pack(argc-i, argv+i, srcdir, lowmem);
 	else
 		printf("unknown option %s", argv[i]);
 
