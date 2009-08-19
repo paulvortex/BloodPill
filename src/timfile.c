@@ -897,3 +897,175 @@ int Targa2Tim_Main(int argc, char **argv)
 
 	return 0;
 }
+
+/*
+==========================================================================================
+
+  RAW TIM UTIL
+  for burrowing other picture formats
+
+==========================================================================================
+*/
+
+void RawPalettedTGA(char *outfile, int width, int height, const char *colormapdata, int pixelbytes, const char *pixeldata)
+{
+	unsigned char *buffer, *out;
+	const unsigned char *in, *end;
+	int i;
+	FILE *f;
+
+	// create colormapped targa header
+	buffer = qmalloc(pixelbytes + 768 + 18);
+	memset(buffer, 0, 18);
+	buffer[1] = 1;
+	buffer[2] = 1;
+	buffer[5] = (256 >> 0) & 0xFF;
+	buffer[6] = (256 >> 8) & 0xFF;
+	buffer[7] = 24; // colormap BPP
+	buffer[12] = (width >> 0) & 0xFF;
+	buffer[13] = (width >> 8) & 0xFF;
+	buffer[14] = (height >> 0) & 0xFF;
+	buffer[15] = (height >> 8) & 0xFF;
+	buffer[16] = 8;
+
+	// 24-bit colormap, swap bgr->rgb
+	out = buffer + 18;
+	for (i = 0;i < 256;i++)
+	{
+		in = colormapdata + i*3;
+		*out++ = in[2];
+		*out++ = in[1];
+		*out++ = in[0];
+	}
+
+	// flip upside down, write
+	out = buffer + 768 + 18;
+	for (i = height - 1;i >= 0;i--)
+	{
+		in = pixeldata + i * width;
+		end = in + width;
+		for (;in < end; in++)
+			*out++ = in[0];
+	}
+
+	f = SafeOpen(outfile, "wb");
+	fwrite(buffer, pixelbytes + 768 + 18, 1, f);
+	fclose(f);
+
+	qfree(buffer);
+}
+
+#define RAWTAG_ITEM 0x00000001
+#define RAWTAG_TILE 0x0000000C
+
+int RawTim_Main(int argc, char **argv)
+{
+	char filename[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], ext[5], outfile[MAX_BLOODPATH], *c;
+	unsigned char *pixeldata, *colormapdata;
+	int i = 1;
+	FILE *f;
+
+	unsigned int objtag, num1, num2;
+	char objectname[MAX_BLOODPATH];
+	int obj, objsize;
+	unsigned char objwidth, objheight, objx, objy;
+	fpos_t fpos;
+	
+	printf("=== TimRaw ===\n");
+	printf("%s\n", argv[i]);
+
+	// get inner file
+	strcpy(filename, argv[i]);
+	StripFileExtension(filename, basefilename);
+	ExtractFileExtension(filename, ext);
+	i++;
+
+	// get out file
+	sprintf(outfile, "%s.tga", basefilename); 
+	if (i < argc)
+	{
+		c = argv[i];
+		if (c[0] != '-')
+			strcpy(outfile, c);
+	}
+
+	f = SafeOpen(filename, "rb");
+
+	// number of objects
+	fread(&objtag, 4, 1, f);
+	printf("tag: 0x%.8X\n", objtag);
+	// size
+	fread(&objsize, 4, 1, f);
+	printf("size = %i\n", objsize);
+	// colormap data
+	colormapdata = qmalloc(768);
+	fread(colormapdata, 768, 1, f);
+	for(obj = 0; 1; obj++)
+	{
+		printf("== object %i ==\n", obj);
+
+		// 8 unknown bytes
+		fread(&num1, 4, 1, f);
+		printf(" num1 = %i\n", num1);
+		fread(&num2, 4, 1, f);
+		printf(" num2 = %i\n", num2);
+		if (feof(f))
+			break;
+
+		// width and height
+		fread(&objwidth, 1, 1, f);
+		printf(" width = %i\n", objwidth);
+		fread(&objheight, 1, 1, f);
+		printf(" height = %i\n", objheight);
+
+		// x and y
+		fread(&objx, 1, 1, f);
+		printf(" x = %i\n", objx);
+		fread(&objy, 1, 1, f);
+		printf(" y = %i\n", objy);
+
+		if (objtag == RAWTAG_TILE)
+		{
+			fread(&objy, 1, 1, f);
+			printf(" 1 = %i\n", objy);
+			fread(&objy, 1, 1, f);
+			printf(" 2 = %i\n", objy);
+			fread(&objy, 1, 1, f);
+			printf(" 3 = %i\n", objy);
+			fread(&objy, 1, 1, f);
+			printf(" 4 = %i\n", objy);
+			fread(&objy, 1, 1, f);
+			printf(" 5 = %i\n", objy);
+			fread(&objy, 1, 1, f);
+			printf(" 6 = %i\n", objy);
+			//objheight = objy;
+			fread(&objy, 1, 1, f);
+			printf(" 7 = %i\n", objy);
+			fread(&objy, 1, 1, f);
+			printf(" 8 = %i\n", objy);
+			fread(&objy, 1, 1, f);
+			printf(" 9 = %i\n", objy);
+		}
+
+		// read pixels
+		pixeldata = qmalloc(objwidth*objheight);
+		fread(pixeldata, objwidth*objheight, 1, f);
+
+		// save TGA
+		sprintf(objectname, "%s_object%i.tga", outfile, obj);
+		printf(" name %s\n", objectname);
+		RawPalettedTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, pixeldata);
+
+		// fref mem
+		qfree(pixeldata);
+
+		// debug!
+		//fgetpos(f, &fpos);
+		//printf(" filepos: %i\n", fpos);
+		//fsetpos(f, &fpos);
+	}
+	qfree(colormapdata);
+	fclose(f);
+
+	return 0;
+}

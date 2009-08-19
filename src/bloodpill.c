@@ -12,6 +12,8 @@
 int BigFile_Main(int argc, char **argv);
 int Tim2Targa_Main(int argc, char **argv);
 int Targa2Tim_Main(int argc, char **argv);
+int RawTim_Main(int argc, char **argv);
+
 
 #include <windows.h>
 
@@ -126,6 +128,8 @@ int main(int argc, char **argv)
 		returncode = Tim2Targa_Main(argc-i, argv+i);
 	else if (!strcmp(argv[i], "-tga2tim"))
 		returncode = Targa2Tim_Main(argc-i, argv+i);
+	else if (!strcmp(argv[i], "-raw"))
+		returncode = RawTim_Main(argc-i, argv+i);
 	else if (!strcmp (argv[i], "-help"))
 		returncode = Help_Main();
 	else
