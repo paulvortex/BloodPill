@@ -59,6 +59,7 @@ extern void ReplaceExtension (char *path, char *oldextension, char *replacemente
 
 extern void ExtractFilePath (char *path, char *dest);
 extern void ExtractFileBase (char *path, char *dest);
+extern void StripFileExtension (char *path, char *dest);
 extern void ExtractFileExtension (char *path, char *dest);
 
 extern int ParseNum (char *str);

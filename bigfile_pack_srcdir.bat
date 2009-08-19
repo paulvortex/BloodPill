@@ -1,1 +1,0 @@
-bpill -w -bigfile pill2.big -pack -srcdir bigfile

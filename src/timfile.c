@@ -31,6 +31,8 @@ tim_image_t *EmptyTIM(unsigned int type)
 	tim->errorstr = NULL;
 	tim->CLUT = NULL;
 	tim->pixels = NULL;
+	tim->pixelmask = NULL;
+	tim->maskfile = NULL;
 
 	return tim;
 }
@@ -43,6 +45,10 @@ void FreeTIM(tim_image_t *tim)
 		qfree(tim->CLUT); 
 	if (tim->pixels != NULL)
 		qfree(tim->pixels); 
+	if (tim->pixelmask != NULL) 
+		qfree(tim->pixelmask); 
+	if (tim->maskfile != NULL)
+		qfree(tim->maskfile);
 	qfree(tim); 
 }
 
@@ -59,11 +65,12 @@ tim_image_t *TimError(tim_image_t *tim, char *error, ...)
 	return tim;
 }
 
-tim_image_t *TIM_LoadFromStream(FILE *f, int streamlen)
+tim_image_t *TIM_LoadFromStream(FILE *f)
 {
 	tim_image_t *tim;
 	long nextobjlen;
-	int filepos = 0;
+	unsigned char *out;
+	int filepos = 0, y;
 
 	tim = EmptyTIM(0);
 
@@ -135,6 +142,22 @@ tim_image_t *TIM_LoadFromStream(FILE *f, int streamlen)
 	if (fread(tim->pixels, tim->pixelbytes, 1, f) < 1)
 		return TimError(tim, feof(f) ? "unexpected EOF at pixel data (%i bytes)" : "unable to read pixel data (%i bytes)", tim->pixelbytes);
 
+	// extract pixel mask for 16-bit TIM
+	if (tim->type == TIM_16Bit)
+	{
+		tim->pixelmask = qmalloc(tim->dim.xsize*tim->dim.ysize);
+		out = tim->pixelmask;
+		for (y = 0; y < tim->dim.xsize*tim->dim.ysize; y++)
+		{
+			if ((tim->pixels[y*2 + 1]) & 0x80)
+			{
+				tim->pixels[y*2 + 1] -= 0x80;
+				*out++ = 255;
+			}
+			else
+				*out++ = 0;
+		}
+	}
 	return tim;
 }
 
@@ -142,6 +165,8 @@ void TIM_WriteToStream(tim_image_t *tim, FILE *f)
 {
 	tim_diminfo_t diminfo;
 	unsigned int temp;
+	unsigned char *data;
+	int i;
 
 	// write header
 	temp = TIM_TAG;
@@ -169,7 +194,34 @@ void TIM_WriteToStream(tim_image_t *tim, FILE *f)
 	fwrite(&diminfo, sizeof(tim_diminfo_t), 1, f);
 
 	// write pixels
-	fwrite(tim->pixels, tim->pixelbytes, 1, f);
+	if (tim->type == TIM_16Bit)
+	{
+		// interleave pixelmask into tim
+		data = qmalloc(tim->pixelbytes);
+		if (tim->pixelmask != NULL)
+		{
+			for (i = 0; i < tim->pixelbytes; i += 2)
+			{
+				data[i] = tim->pixels[i];
+				data[i + 1] = (tim->pixels[i+1] & 0x7F);
+				if (tim->pixelmask[i / 2])
+					data[i + 1] += 0x80;
+			}
+		}
+		// interleave with default white pixelmask
+		else
+		{
+			for (i = 0; i < tim->pixelbytes; i += 2)
+			{
+				data[i] = tim->pixels[i];
+				data[i + 1] = (tim->pixels[i+1] & 0x7F) + 0x80;
+			}
+		}
+		fwrite(data, tim->pixelbytes, 1, f);
+		qfree(data);
+	}
+	else
+		fwrite(tim->pixels, tim->pixelbytes, 1, f);
 }
 
 /*
@@ -180,7 +232,53 @@ void TIM_WriteToStream(tim_image_t *tim, FILE *f)
 ==========================================================================================
 */
 
-tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
+tim_image_t *TIM_LoadPixelmaskFromTargaStream(FILE *f, tim_image_t *tim)
+{
+	unsigned char targaheader[18];
+	unsigned char *pixeldata, *out;
+	const unsigned char *in, *end;
+	int width, height, colormaplen, y;
+
+	if (tim->type != TIM_16Bit)
+		return TimError(tim, "maskfiles only matter for 16-bit TIM");
+
+	// read header
+	if (fread(&targaheader, 18, 1, f) < 1)
+		return TimError(tim, feof(f) ? "unexpected EOF at targa header" : "unable to read targa header");
+	width = targaheader[12] + targaheader[13]*256;
+	height = targaheader[14] + targaheader[15]*256;
+	colormaplen = (targaheader[1] == 1) ? targaheader[5] + targaheader[6]*256 : 0;
+
+	if (colormaplen)
+		return TimError(tim, "colormapped TGA not supported for maskfiles");
+	if (targaheader[2] != 2 || targaheader[16] != 8)
+		return TimError(tim, "maskfiles only supportuncompressed 8-bit TGA");
+	if (tim->dim.xsize != width)
+		return TimError(tim, "image width do not match");
+	if (tim->dim.ysize != height)
+		return TimError(tim, "image height do not match");
+
+	// load pixel data
+	pixeldata = qmalloc(width * height);
+	if (fread(pixeldata, width * height, 1, f) < 1)
+		return TimError(tim, feof(f) ? "unexpected EOF at maskfile pixeldata" : "unable to read TGA pixeldata");
+
+	tim->pixelmask = qmalloc(width * height);
+	// fill pixels, flip upside down
+	out = tim->pixelmask;
+	for (y = height - 1;y >= 0;y--)
+	{
+		in = pixeldata + y * width;
+		end = in + width;
+		for (;in < end; in++)
+			*out++ = (in[0]) ? 1 : 0;
+	}
+	qfree(pixeldata);
+
+	return tim;
+}
+
+tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type)
 {
 	tim_image_t *tim;
 	unsigned char targaheader[18];
@@ -400,7 +498,6 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 					}
 				}
 			}
-
 			qfree(pixeldata);
 			break;
 		default:
@@ -408,6 +505,74 @@ tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type)
 	}
 
 	return tim;
+}
+
+tim_image_t *TIM_LoadFromTarga(char *filename, unsigned int type)
+{
+	tim_image_t *tim;
+	char basename[MAX_BLOODPATH], ext[15], maskfile[MAX_BLOODPATH];
+	FILE *f;
+
+	// open base TIM
+	f = SafeOpen(filename, "rb");
+	tim = TIM_LoadFromTargaStream(f, type);
+	if (tim->error)
+		Error("Error loading %s: %s", filename, tim->errorstr);
+	fclose(f);
+
+	// try open mask file
+	if (tim->type != TIM_16Bit)
+		return tim;
+	StripFileExtension(filename, basename);
+	ExtractFileExtension(filename, ext);
+	sprintf(maskfile, "%s_mask.%s", basename, ext);
+
+	f = fopen(maskfile, "rb");
+	if (!f)
+		Error("Error loading %s: mask file %s not found", filename, maskfile);
+
+	tim->maskfile = qmalloc(MAX_BLOODPATH);
+	strcpy(tim->maskfile, maskfile);
+	TIM_LoadPixelmaskFromTargaStream(f, tim);
+	if (tim->error)
+		Error("Error loading maskfile %s: %s", maskfile, tim->errorstr);
+	fclose(f);
+
+	return tim;
+}
+
+void TIM_WriteTargaGrayscale(char *data, short width, short height, char *savefile)
+{
+	unsigned char *buffer, *out;
+	const unsigned char *in, *end;
+	int i;
+	FILE *f;
+
+	// create grayscale targa header
+	buffer = qmalloc(width*height + 18);
+	memset(buffer, 0, 18);
+	buffer[2] = 2;
+	buffer[12] = (width >> 0) & 0xFF;
+	buffer[13] = (width >> 8) & 0xFF;
+	buffer[14] = (height >> 0) & 0xFF;
+	buffer[15] = (height >> 8) & 0xFF;
+	buffer[16] = 8;
+
+	// flip upside down, write grayscale
+	out = buffer + 18;
+	for (i = height - 1;i >= 0;i--)
+	{
+		in = data + i * width;
+		end = in + width;
+		for (;in < end; in++)
+			*out++ = in[0];
+	}
+
+	// write file
+	f = SafeOpen(savefile, "wb");
+	fwrite(buffer, width*height + 18, 1, f);
+	fclose(f);
+	qfree(buffer);
 }
 
 void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
@@ -550,6 +715,24 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
 ==========================================================================================
 */
 
+void TimEmitStats(tim_image_t *tim)
+{
+	printf("        type: %i-bit TIM\n", tim->bpp);
+	printf(" orientation: %ix%i\n", tim->dim.xpos, tim->dim.ypos);
+	printf("        size: %ix%i\n", tim->dim.xsize, tim->dim.ysize);
+	if (tim->CLUT == NULL)
+		printf("        CLUT: no\n");
+	else
+	{
+		printf("        CLUT: yes\n");
+		printf("   CLUT flag: %i\n", tim->CLUT->flags);
+		printf("   CLUT cols: %i\n", tim->CLUT->columns);
+		printf("   CLUT pals: %i\n", tim->CLUT->palettes);
+	}
+	printf(" pixel bytes: %i\n", tim->pixelbytes);
+	printf(" file length: %i\n", tim->filelen);
+}
+
 int Tim2Targa_Main(int argc, char **argv)
 {
 	int i = 1;
@@ -597,14 +780,21 @@ int Tim2Targa_Main(int argc, char **argv)
 
 	// print TIM stats
 	printf("%s loaded\n", filename);
-	printf("        type: %i-bit TIM\n", tim->bpp);
-	printf(" orientation: %ix%i\n", tim->dim.xpos, tim->dim.ypos);
-	printf("        size: %ix%i\n", tim->dim.xsize, tim->dim.ysize);
-	printf(" pixel bytes: %i\n", tim->pixelbytes);
-	printf(" file length: %i\n", tim->filelen);
+	TimEmitStats(tim);
 
+	// write basefile
 	printf("writing %s\n", outfile);
 	TIM_WriteTarga(tim, outfile, bpp16to24);
+
+	// write maskfile
+	if (tim->pixelmask != NULL)
+	{
+		ExtractFileExtension(outfile, ext);
+		StripFileExtension(outfile, outfile);
+		sprintf(outfile, "%s_mask.%s", outfile, ext); 
+		printf("writing %s\n", outfile);
+		TIM_WriteTargaGrayscale(tim->pixelmask, tim->dim.xsize, tim->dim.ysize, outfile);
+	}
 	printf("done.");
 
 	return 0;
@@ -612,7 +802,7 @@ int Tim2Targa_Main(int argc, char **argv)
 
 int Targa2Tim_Main(int argc, char **argv)
 {
-	char filename[MAX_BLOODPATH], ext[5], outfile[MAX_BLOODPATH], *c;
+	char filename[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], ext[5], outfile[MAX_BLOODPATH], maskfile[MAX_BLOODPATH], *c;
 	short ofsx = -1, ofsy = -1;
 	unsigned int type;
 	tim_image_t *tim;
@@ -625,12 +815,13 @@ int Targa2Tim_Main(int argc, char **argv)
 
 	// get inner file
 	strcpy(filename, argv[i]);
+	StripFileExtension(filename, basefilename);
 	ExtractFileExtension(filename, ext);
 	i++;
 
 	// get out file
-	strcpy(outfile, filename);
-	ReplaceExtension(outfile, ext, "tim", "tim");
+	sprintf(outfile, "%s.tga", basefilename); 
+	sprintf(maskfile, "%s_mask.tga", basefilename); 
 	if (i < argc)
 	{
 		c = argv[i];
@@ -657,7 +848,7 @@ int Targa2Tim_Main(int argc, char **argv)
 					Error("parse commandline: bad bpp %i", argv[i]);
 			}
 		}
-		if (!strcmp(argv[i], "-ofs"))
+		else if(!strcmp(argv[i], "-ofs"))
 		{
 			i++;
 			if (i < argc)
@@ -668,14 +859,23 @@ int Targa2Tim_Main(int argc, char **argv)
 					ofsy = (short)atof(argv[i]);
 			}
 		}
+		else if (!strcmp(argv[i], "-mask"))
+		{
+			i++;
+			if (i < argc)
+				strcpy(maskfile, argv[i]);
+		}
 	}
 
+	// check if maskfile exist
+	f = fopen(maskfile, "rb");
+	if (f)
+		fclose(f);
+	else
+		strcpy(maskfile, "");
+	
 	// open source file, try load it
-	f = SafeOpen(filename, "rb");
-	tim = TIM_LoadFromTarga(f, type);
-	fclose(f);
-	if (tim->error)
-		Error("Error loading %s: %s", filename, tim->errorstr);
+	tim = TIM_LoadFromTarga(filename, type);
 
 	// override offsets
 	if (ofsx >= 0)
@@ -685,11 +885,9 @@ int Targa2Tim_Main(int argc, char **argv)
 
 	// print TIM stats
 	printf("%s loaded\n", filename);
-	printf("        type: %i-bit TIM\n", tim->bpp);
-	printf(" orientation: %ix%i\n", tim->dim.xpos, tim->dim.ypos);
-	printf("        size: %ix%i\n", tim->dim.xsize, tim->dim.ysize);
-	printf(" pixel bytes: %i\n", tim->pixelbytes);
-	printf(" file length: %i\n", tim->filelen);
+	if (tim->maskfile != NULL)
+		printf("%s loaded\n", tim->maskfile);
+	TimEmitStats(tim);
 
 	printf("writing %s\n", outfile);
 	f = SafeOpen(outfile, "wb");

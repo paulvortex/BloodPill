@@ -1,1 +1,0 @@
-bpill -w -bigfile pill.big -unpack -tim2tga -16to24

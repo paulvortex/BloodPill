@@ -38,6 +38,8 @@ typedef struct
 	// todo: handle multiple CLUT's?
 	tim_clutinfo_t *CLUT;
 	unsigned char *pixels;
+	unsigned char *pixelmask; //  16-bit TIM's only
+	char *maskfile;
 
 	// no a part of format spec's
 	// filled by loader
@@ -63,6 +65,10 @@ tim_image_t *TIM_LoadFromStream(FILE *f);
 
 void TIM_WriteToStream(tim_image_t *tim, FILE *f);
 
-tim_image_t *TIM_LoadFromTarga(FILE *f, unsigned int type);
+tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type);
+
+tim_image_t *TIM_LoadFromTarga(char *filename, unsigned int type);
 
 void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24);
+
+void TIM_WriteTargaGrayscale(char *data, short width, short height, char *savefile);

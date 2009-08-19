@@ -1,1 +1,0 @@
-bpill -w -bigfile pill.big -unpack -dstdir mybigfile

@@ -1,1 +1,1 @@
-bpill -w -bigfile pill.big -list 
+bpill -w -bigfile pill.big -list -to listfile.txt

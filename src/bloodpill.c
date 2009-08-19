@@ -47,14 +47,15 @@ int Help_Main()
 	"    -srcdir: inputs from other folder instead of 'bigfile'\n"
 	"    -lowmem: use smaller amount of memory but a bit slower\n"
 	"\n"
-	"-tim2tga timfile [tgafile] [-16to24]\n"
+	"-tim2tga timfile [tgafile] [-16to24] \n"
 	"  convert TIM image to Truevision TGA\n"
 	"  -16to24: convert 16 bit to 24 (including colormap)\n"
 	"\n"
-	"-tga2tim tgafile [timfile] [-bpp X] [-ofs X Y]\n"
-	"  convert Truevision TGA image to TIM\n"
+	"-tga2tim tgafile [timfile] [-bpp X] [-ofs X Y] [-mask X]\n"
+	"  convert Truevision TGA image (or several images) to TIM\n"
 	"  -bpp: manually set type of TIM, could be 8 (paletted), 16, 24\n"
 	"  -ofs: override TIM image offset\n"
+	"  -mask: use a custom maskfile (default is filename_mask.tga)\n"
 	"\n"
 	);
 	return 0;

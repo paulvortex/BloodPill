@@ -573,6 +573,13 @@ void ExtractFileBase (char *path, char *dest)
   *dest = 0;
 }
 
+void StripFileExtension (char *path, char *dest)
+{
+  while (*path && *path != '.')
+      *dest++ = *path++;
+  *dest = 0;
+}
+
 void ExtractFileExtension (char *path, char *dest)
 {
   char    *src;

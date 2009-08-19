@@ -316,7 +316,7 @@ void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry, qboolean lowme
 	FILE *f;
 
 	// extract extension
-	ExtractFileBase(entry->name, basename);
+	StripFileExtension(entry->name, basename);
 	ExtractFileExtension(entry->name, ext);
 	Q_strlower(ext);
 
@@ -340,21 +340,17 @@ void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry, qboolean lowme
 			Error("bad TIM layer info for entry %.8X", entry->hash);
 		for (i = 0; i < entry->timlayers; i++)
 		{
+			// get base filename
 			if (i == 0)
 				sprintf(filename, "%s/%s", srcdir, entry->name);
 			else
 				sprintf(filename, "%s/%s_layer%i.tga", srcdir, basename, i);
-			f = SafeOpen(filename, "rb");
-			tim = TIM_LoadFromTarga(f, entry->timtype[i]); 
-			if (tim->error)
-				Error("conversion error on %s layer %i: %s", entry->name, i, tim->errorstr);
-
+			tim = TIM_LoadFromTarga(filename, entry->timtype[i]); 
 			entry->size += (unsigned int)tim->filelen;
 			if (i == 0)
 				entry->data = tim;
 			if (i != 0 || lowmem) // VorteX: -lomem key support, read that again later
 				FreeTIM(tim);
-			fclose(f);
 		}
 
 		return;
@@ -796,17 +792,28 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 			BigfileSeekFile(f, entry);
 			for (k = 0; k < entry->timlayers; k++)
 			{
+				// extract base
 				tim = TIM_LoadFromStream(f);
 				if (k == 0)
 					sprintf(savefile, "%s/%.8X.tga", dstdir, entry->hash);
 				else
 					sprintf(savefile, "%s/%.8X_layer%i.tga", dstdir, entry->hash, k);
-
 				if (tim->error)
 					Error("error saving %s: %s\n", savefile, tim->error);
 			
+				// write basefile
 				sprintf(entry->name, "%.8X.tga", entry->hash); // write 'good' listfile.txt
 				TIM_WriteTarga(tim, savefile, bpp16to24);
+
+				// write maskfile
+				if (tim->pixelmask != NULL)
+				{
+					if (k == 0)
+						sprintf(savefile, "%s/%.8X_mask.tga", dstdir, entry->hash); 
+					else
+						sprintf(savefile, "%s/%.8X_layer%i_mask.tga", dstdir, entry->hash, k);
+					TIM_WriteTargaGrayscale(tim->pixelmask, tim->dim.xsize, tim->dim.ysize, savefile);
+				}
 				FreeTIM(tim);
 			}
 			continue;
@@ -834,7 +841,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 
 int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 {
-	FILE *f, *f2;
+	FILE *f;
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
 	tim_image_t *tim;
@@ -885,26 +892,19 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 				if (lowmem)
 				{
 					sprintf(savefile, "%s/%s", srcdir, entry->name);
-					f2 = SafeOpen(savefile, "rb");
-					tim = TIM_LoadFromTarga(f2, entry->timtype[0]); 
-					if (tim->error)
-						Error("conversion error on %s: %s", entry->name, tim->errorstr);
-					fclose(f2);
-					entry->data = tim;
+					entry->data = TIM_LoadFromTarga(savefile, entry->timtype[0]); 
 				}
+				
+				tim = entry->data;
 				TIM_WriteToStream(entry->data, f);
 				FreeTIM(entry->data);
 
 				// add sublayers
-				ExtractFileBase(entry->name, basename);
+				StripFileExtension(entry->name, basename);
 				for (k = 1; k < entry->timlayers; k++)
 				{
 					sprintf(savefile, "%s/%s_layer%i.tga", srcdir, basename, k);
-					f2 = SafeOpen(savefile, "rb");
-					tim = TIM_LoadFromTarga(f2, entry->timtype[k]); 
-					if (tim->error)
-						Error("conversion error on %s: %s", entry->name, tim->errorstr);
-					fclose(f2);
+					tim = TIM_LoadFromTarga(savefile, entry->timtype[k]); 
 					TIM_WriteToStream(tim, f);
 					FreeTIM(tim);
 				}
