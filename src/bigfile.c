@@ -4,7 +4,23 @@
 // coded by Pavel [VorteX] Timofeyev and placed to public domain
 // thanks to XentaX (www.xentax.com) community for providing bigfile specs
 //
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+//
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ////////////////////////////////
+
 
 #include "bloodpill.h"
 #include "bigfile.h"
@@ -20,7 +36,7 @@ char bigfile[MAX_BLOODPATH];
 typedef struct
 {
 	unsigned int hash;
-	int vagrate;
+	int adpcmrate;
 	bigentrytype_t type;
 }
 bigkentry_t;
@@ -121,8 +137,8 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 				printf("warning: redefenition of hash %.8X on line %i\n", hash, linenum);
 
 		// VAG - sampling rate
-		if (klist->entries[klist->numentries].type == BIGENTRY_RAW_VAG)
-			klist->entries[klist->numentries].vagrate = (parms < 3) ? 11025 : parm1;
+		if (klist->entries[klist->numentries].type == BIGENTRY_RAW_ADPCM)
+			klist->entries[klist->numentries].adpcmrate = (parms < 3) ? 11025 : parm1;
 
 		// parsed
 		klist->numentries++;
@@ -213,8 +229,8 @@ void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 					fprintf(f, "tim[%i].yskip=%i\n", k, entry->timypos[k]);
 				}
 				break;
-			case BIGENTRY_RAW_VAG:
-				fprintf(f, "vag.rate=%i\n", entry->vagrate);
+			case BIGENTRY_RAW_ADPCM:
+				fprintf(f, "adpcm.rate=%i\n", entry->adpcmrate);
 				break;
 			default:
 				break;
@@ -394,7 +410,7 @@ void BigfileEmitStats(bigfileheader_t *data)
 	printf(" %6i 16-bit TIM\n", timstats[2]);
 	printf(" %6i 24-bit TIM\n", timstats[3]);
 	printf(" %6i TIM total\n", stats[BIGENTRY_TIM]);
-	printf(" %6i RAW VAG\n", stats[BIGENTRY_RAW_VAG]);
+	printf(" %6i RAW ADPCM (VAG)\n", stats[BIGENTRY_RAW_ADPCM]);
 	printf(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
 	printf(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
 	printf(" %6i TOTAL\n", data->numentries);
@@ -477,8 +493,8 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
 		else if (sscanf(line, "tim.layers=%i", &val))
 			entry->timlayers = val;
 		// for VAG
-		else if (sscanf(line, "vag.rate=%i", &val))
-			entry->vagrate = val;
+		else if (sscanf(line, "adpcm.rate=%i", &val))
+			entry->adpcmrate = val;
 	}
 	printf("\n");
 
@@ -600,7 +616,7 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 		if (kentry != NULL)
 		{
 			entry->type = kentry->type;
-			entry->vagrate = kentry->vagrate;
+			entry->adpcmrate = kentry->adpcmrate;
 		}
 		else if (BigFileScanTIM(f, entry))
 			entry->type = BIGENTRY_TIM;

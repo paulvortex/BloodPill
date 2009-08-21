@@ -10,7 +10,7 @@ typedef enum
 {
 	BIGENTRY_UNKNOWN,		// unknown data
 	BIGENTRY_TIM,			// 4 bit TIM texture
-	BIGENTRY_RAW_VAG,		// RAW 4 bit ADPCM
+	BIGENTRY_RAW_ADPCM,		// RAW 4 bit ADPCM
 	BIGENTRY_RIFF_WAVE,		// RIFF wave file
 }bigentrytype_t;
 
@@ -42,7 +42,7 @@ typedef struct
 	short timxpos[1 + MAX_TIM_MASKS];
 
 	// for VAG
-	int vagrate;  
+	int adpcmrate;  
 
 	// only presented if loaded
 	void *data; 
