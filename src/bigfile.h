@@ -32,7 +32,7 @@ typedef struct
 	unsigned int offset; // file offset
 
 	// loaded by tool
-	char name[16];
+	char name[MAX_BLOODPATH];
 	bigentrytype_t type;
 
 	// for TIM

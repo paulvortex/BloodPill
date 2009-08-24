@@ -122,6 +122,10 @@ int main(int argc, char **argv)
 			printf("memstats = true\n");
 		if (waitforkey)
 			printf("waitforkey = true\n");
+		if (CheckSoX())
+			printf("SoX found\n");
+		else
+			printf("SoX not found\n");
 		printf( "\n" );
 	}
 

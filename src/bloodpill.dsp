@@ -72,6 +72,10 @@ SOURCE=.\mem.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\soxsupp.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\timfile.c
 # End Source File
 # End Group

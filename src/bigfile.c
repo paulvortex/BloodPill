@@ -37,6 +37,7 @@ typedef struct
 {
 	unsigned int hash;
 	int adpcmrate;
+	char path[MAX_BLOODPATH];
 	bigentrytype_t type;
 }
 bigkentry_t;
@@ -80,10 +81,11 @@ bigentrytype_t BigfileTypeForExt(char *ext)
 bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 {
 	bigklist_t *klist;
+	bigkentry_t *entry;
 	int linenum = 0;
-	char line[256], typestr[256];
+	char line[256], temp[256], ext[15];
 	unsigned int hash;
-	int parm1, parms, i;
+	int val, i;
 	FILE *f;
 
 	// create empty klist
@@ -99,13 +101,13 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 		if (!f)
 			return klist;
 	}
+
 	// first pass - scan klist to determine how many strings we should allocate
 	while(!feof(f))
 	{
 		fgets(line, 1024, f);
-		if (line[0] == '#')
-			continue;
-		linenum++;
+		if (line[0] == '[')
+			linenum++;
 	}
 
 	// allocate
@@ -118,33 +120,76 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 	{
 		linenum++;
 		fgets(line, 1024, f);
-		if (line[0] == '#')
-			continue;
 
-		// scan
-		parms = sscanf(line,"%X=%s %i", &hash, typestr, &parm1);
-		if (parms < 2)
+		// new entry
+		if (line[0] == '[')
 		{
-			printf("%s: parse error on line %i: %s", filename, linenum, line);
+			if (sscanf(line, "[%X]", &hash) < 1)
+				Error("bad entry definition on line %i: %s\n", linenum, line);
+
+			entry = &klist->entries[klist->numentries];
+			entry->hash = hash;
+			entry->adpcmrate = 11025; // default VAG sampling rate
+			entry->type = BIGENTRY_UNKNOWN;
+			strcpy(entry->path, "");
+			
+			// warn for double defienition
+			for (i = 0; i < klist->numentries; i++)
+				if (klist->entries[i].hash == hash)
+					printf("warning: redefenition of hash %.8X on line %i\n", hash, linenum);
+
+			klist->numentries++;
 			continue;
 		}
-		klist->entries[klist->numentries].hash = hash;
-		klist->entries[klist->numentries].type = BigfileTypeForExt(typestr);
 
-		// warn for double defienition
-		for (i = 0; i < klist->numentries; i++)
-			if (klist->entries[i].hash == hash)
-				printf("warning: redefenition of hash %.8X on line %i\n", hash, linenum);
+		if (entry == NULL)
+			continue;
 
-		// VAG - sampling rate
-		if (klist->entries[klist->numentries].type == BIGENTRY_RAW_ADPCM)
-			klist->entries[klist->numentries].adpcmrate = (parms < 3) ? 11025 : parm1;
+		// todo: fools check
 
-		// parsed
-		klist->numentries++;
+		// parms
+		if (sscanf(line,"type=%s", &temp))
+		{
+			entry->type = BigfileTypeForExt(temp);
+			continue;
+		}
+
+		// path=%s - force file path
+		// if file with extension (eg sound/kain1.vag) - a full path override
+		// otherwise just add path to hashed name
+		if (sscanf(line,"path=%s", &temp))
+		{
+			ExtractFileExtension(temp, ext);
+			// no extension, so this is a path
+			if (!ext[0]) 
+				sprintf(entry->path, "%s/%.8X.%s", temp, entry->hash, bigentryext[entry->type]);
+			// full name override
+			else
+				strcpy(entry->path, temp);
+
+			// warn for double path defienition
+			for (i = 0; i < (klist->numentries - 1); i++)
+				if (!strcmp(klist->entries[i].path, entry->path))
+					printf("warning: path redefenition on entry #%.8X on line %i (previously defined for entry #%.8X\n", entry->hash, linenum, klist->entries[i].hash);
+			continue;
+		}
+
+		// rate=%i - force ADPCM rate (conversion needs to know)
+		if (sscanf(line,"rate=%i", &val))
+		{
+			entry->adpcmrate = val;
+			continue;
+		}
+
+		// warn for bad syntax
+		if (line[0] == '\n')
+			continue;
+		if (line[0] == '#')
+			continue;
+		printf("warning: bad line %i: %s", linenum, line);
 	}
 
-	printf("loaded known-files list with %i entries\n", klist->numentries);
+	printf("%s: %i entries\n", filename, klist->numentries);
 
 	return klist;
 }
@@ -384,12 +429,11 @@ void BigfileEmitStats(bigfileheader_t *data)
 	int i;
 
 	// calc stats
-	memset(stats, 0, sizeof(int)*BIGFILE_NUM_FILETYPES);
-	memset(timstats, 0, sizeof(int)*4);
+	memset(stats, 0, sizeof(stats));
+	memset(timstats, 0, sizeof(timstats));
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
-
 		if (entry->type == BIGENTRY_TIM)
 		{
 			if (entry->timtype[0] == TIM_4Bit)
@@ -595,6 +639,15 @@ qboolean BigFileScanRiffWave(FILE *f, bigfileentry_t *entry)
 	return true;
 }
 
+bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry)
+{
+	if (BigFileScanTIM(f, entry))
+		return BIGENTRY_TIM;
+	if (BigFileScanRiffWave(f, entry))
+		return BIGENTRY_RIFF_WAVE;
+	return BIGENTRY_UNKNOWN;
+}
+
 void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 {
 	fpos_t fpos;
@@ -615,21 +668,23 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 		kentry = BigfileSearchKList(entry->hash); // check for known filetype
 		if (kentry != NULL)
 		{
-			entry->type = kentry->type;
-			entry->adpcmrate = kentry->adpcmrate;
+			if (kentry->path[0])
+				sprintf(entry->name, "%s", kentry->path);
+			else
+				sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
+			entry->type = (bigentrytype_t)kentry->type;
+			entry->adpcmrate = (int)kentry->adpcmrate;
 		}
-		else if (BigFileScanTIM(f, entry))
-			entry->type = BIGENTRY_TIM;
-		else if (BigFileScanRiffWave(f, entry))
-			entry->type = BIGENTRY_RIFF_WAVE;
-		else
-			entry->type = BIGENTRY_UNKNOWN;
-
-		// make name
-		sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
+		else 
+		{
+			entry->type = BigfileDetectFiletype(f, entry);
+			sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
+		}	
 	}
 	fsetpos(f, &fpos);
 	printf("\n");
+
+
 	
 	// emit some stats
 	BigfileEmitStats(data);
@@ -758,14 +813,23 @@ int BigFile_List(int argc, char **argv, char *listfile)
 
 	fclose (f);
 
+/*
+	CheckSoX();
+	printf("sox is running...\n");
+	sox = RunSoX("-t ima -r 11025 -c 1 test.vag -r 11025 -e signed-integer test.wav");
+	printf("sox: %i\n", (int)sox);
+	f = SafeOpen("test.wav", "rb");
+	fclose(f);
+	printf("done\n");
+*/
+
 	return 0;
 }
 
-
-int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboolean bpp16to24)
+int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths)
 {
 	FILE *f, *f2;
-	char savefile[MAX_BLOODPATH];
+	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
 	tim_image_t *tim;
@@ -784,6 +848,8 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 		printf("TIM->TGA conversion enabled\n");
 	if (bpp16to24)
 		printf("Targa compatibility mode enabled (converting 16-bit to 24-bit)\n");
+	if (nopaths)
+		printf("Disallow klist-set subpaths\n");
 
 	// export all files
 	for (i = 0; i < (int)data->numentries; i++)
@@ -799,8 +865,16 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 			continue;
 		}
 
-		printf("\runpacking file %i of %i", i + 1, data->numentries);
+		printf("\runpacking entry %i of %i", i + 1, data->numentries);
 		fflush(stdout);
+
+		// make directory
+		ExtractFilePath(entry->name, path);
+		if (path[0])
+		{
+			sprintf(savefile, "%s/%s", dstdir, path);
+			Q_mkdir(savefile);
+		}
 
 		// extract TGA
 		if (tim2tga && entry->type == BIGENTRY_TIM)
@@ -808,26 +882,27 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 			BigfileSeekFile(f, entry);
 			for (k = 0; k < entry->timlayers; k++)
 			{
+				StripFileExtension(entry->name, basename);
 				// extract base
 				tim = TIM_LoadFromStream(f);
 				if (k == 0)
-					sprintf(savefile, "%s/%.8X.tga", dstdir, entry->hash);
+					sprintf(savefile, "%s/%s.tga", dstdir, basename);
 				else
-					sprintf(savefile, "%s/%.8X_layer%i.tga", dstdir, entry->hash, k);
+					sprintf(savefile, "%s/%s_layer%i.tga", dstdir, basename, k);
 				if (tim->error)
 					Error("error saving %s: %s\n", savefile, tim->error);
 			
 				// write basefile
-				sprintf(entry->name, "%.8X.tga", entry->hash); // write 'good' listfile.txt
+				sprintf(entry->name, "%s.tga", basename); // write 'good' listfile.txt
 				TIM_WriteTarga(tim, savefile, bpp16to24);
 
 				// write maskfile
 				if (tim->pixelmask != NULL)
 				{
 					if (k == 0)
-						sprintf(savefile, "%s/%.8X_mask.tga", dstdir, entry->hash); 
+						sprintf(savefile, "%s/%s_mask.tga", dstdir, basename); 
 					else
-						sprintf(savefile, "%s/%.8X_layer%i_mask.tga", dstdir, entry->hash, k);
+						sprintf(savefile, "%s/%s_layer%i_mask.tga", dstdir, basename, k);
 					TIM_WriteTargaGrayscale(tim->pixelmask, tim->dim.xsize, tim->dim.ysize, savefile);
 				}
 				FreeTIM(tim);
@@ -836,7 +911,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 		}
 
 		// extract original file
-		sprintf(savefile, "%s/%.8X.%s", dstdir, entry->hash, bigentryext[entry->type]);
+		sprintf(savefile, "%s/%s", dstdir, entry->name);
 		f2 = SafeOpen(savefile, "wb");
 		BigFileUnpackFile(f, entry, f2);
 		fclose(f2);
@@ -962,7 +1037,7 @@ int BigFile_Main(int argc, char **argv)
 {
 	int i = 1, k, returncode = 0;
 	char *tofile, *srcdir, *dstdir, *knownfiles, *c;
-	qboolean tim2tga, bpp16to24, lowmem;
+	qboolean tim2tga, bpp16to24, lowmem, nopaths;
 
 	printf("=== BigFile ===\n");
 	if (i < 1)
@@ -994,6 +1069,7 @@ int BigFile_Main(int argc, char **argv)
 	tim2tga = false;
 	bpp16to24 = false;
 	lowmem = false;
+	nopaths = false;
 	for (k = 2; k < argc; k++)
 	{
 		if (!strcmp(argv[k],"-to"))
@@ -1026,6 +1102,8 @@ int BigFile_Main(int argc, char **argv)
 			bpp16to24 = true;
 		else if (!strcmp(argv[k],"-lowmem"))
 			lowmem = true;
+		else if (!strcmp(argv[k],"-nopaths"))
+			nopaths = true;
 	}
 	
 	// load up knowledge base
@@ -1040,7 +1118,7 @@ int BigFile_Main(int argc, char **argv)
 	else if (!strcmp(argv[i], "-analyse"))
 		returncode = BigFile_Analyse(argc-i, argv+i, tofile);
 	else if (!strcmp(argv[i], "-unpack"))
-		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, tim2tga, bpp16to24);
+		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, tim2tga, bpp16to24, nopaths);
 	else if (!strcmp(argv[i], "-pack"))
 		returncode = BigFile_Pack(argc-i, argv+i, srcdir, lowmem);
 	else

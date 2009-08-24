@@ -596,6 +596,16 @@ void ExtractFileExtension (char *path, char *dest)
   strcpy (dest,src);
 }
 
+qboolean FileExists(char *filename) 
+{
+	struct stat fileinfo;
+	int statsucc;
+
+	statsucc = stat(filename, &fileinfo);
+	if (statsucc == 0)
+		return true;
+	return false;
+}
 
 /*
 ==============
