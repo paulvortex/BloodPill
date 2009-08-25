@@ -26,6 +26,7 @@
 #include "bigfile.h"
 #include "cmdlib.h"
 #include "mem.h"
+#include <windows.h>
 
 #define DEFAULT_BIGFILENAME	"pill.big"
 #define DEFAULT_PACKPATH	"bigfile"
@@ -216,6 +217,7 @@ bigkentry_t *BigfileSearchKList(unsigned int hash)
 void BigfileEmptyEntry(bigfileentry_t *entry)
 {
 	entry->data = NULL;
+	entry->adpcmrate = 11025;
 }
 
 void BigfileSeekFile(FILE *f, bigfileentry_t *entry)
@@ -233,14 +235,17 @@ void BigfileSeekContents(FILE *f, byte *contents, bigfileentry_t *entry)
 		Error( "error reading data on file %.8X (%s)", entry->hash, strerror(errno));
 }
 
-void BigFileUnpackFile(FILE *f, bigfileentry_t *entry, FILE *dstf)
+void BigFileUnpackFile(FILE *bigf, bigfileentry_t *entry, char *outfile)
 {
 	byte *contents;
+	FILE *f;
 
+	f = SafeOpen(outfile, "wb");
 	contents = (byte *)qmalloc(entry->size);
-	BigfileSeekContents(f, contents, entry);
-	fwrite(contents, 1, entry->size, dstf);
+	BigfileSeekContents(bigf, contents, entry);
+	SafeWrite(f, contents, entry->size);
 	qfree(contents);
+	fclose(f);
 }
 
 void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
@@ -306,7 +311,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 		entry = &data->entries[i];
 		BigfileEmptyEntry(entry);
 
-		printf("\rreading entry %i of %i", i + 1, data->numentries);
+		printf("\rreading entry %i of %i...\r", i + 1, data->numentries);
 		fflush(stdout);
 
 		if (fread(&read, 12, 1, f) < 1)
@@ -330,7 +335,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 			if (entry->size <= 0)
 				continue;
 
-			printf("\rloading entry %i of %i", i + 1, data->numentries);
+			printf("\rloading entry %i of %i...\r", i + 1, data->numentries);
 			fflush(stdout);
 
 			entry->data = qmalloc(entry->size);
@@ -509,7 +514,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
 			entry->hash = (unsigned int)val;
 			data->numentries++;
 			
-			printf("\rreading entry %i of %i", data->numentries, numentries);
+			printf("\rreading entry %i of %i...\r", data->numentries, numentries);
 			fflush(stdout);
 			continue;
 		}
@@ -661,7 +666,7 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 	{
 		entry = &data->entries[i];
 
-		printf("\rscanning type for entry %i of %i", i + 1, data->numentries);
+		printf("\rscanning type for entry %i of %i...\r", i + 1, data->numentries);
 		fflush(stdout);
 		
 		// scan for certain filetype
@@ -742,7 +747,7 @@ int BigFile_Analyse(int argc, char **argv, char *outfile)
 		entry = &data->entries[i];
 		if (entry->type != BIGENTRY_UNKNOWN)
 			continue;
-		printf("\ranalysing entry %i of %i", i + 1, data->numentries);
+		printf("\ranalysing entry %i of %i...\r", i + 1, data->numentries);
 		fflush(stdout);
 
 		// chunk4 stats
@@ -813,23 +818,13 @@ int BigFile_List(int argc, char **argv, char *listfile)
 
 	fclose (f);
 
-/*
-	CheckSoX();
-	printf("sox is running...\n");
-	sox = RunSoX("-t ima -r 11025 -c 1 test.vag -r 11025 -e signed-integer test.wav");
-	printf("sox: %i\n", (int)sox);
-	f = SafeOpen("test.wav", "rb");
-	fclose(f);
-	printf("done\n");
-*/
-
 	return 0;
 }
 
-int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths)
+int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg)
 {
 	FILE *f, *f2;
-	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
+	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH], inputcmd[2048], outputcmd[2048];
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
 	tim_image_t *tim;
@@ -850,6 +845,15 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 		printf("Targa compatibility mode enabled (converting 16-bit to 24-bit)\n");
 	if (nopaths)
 		printf("Disallow klist-set subpaths\n");
+	if (vagconvert)
+	{
+		if (vagogg)
+			printf("VAG->OGG (quality 5) conversion enabled\n");
+		else if (vagpcm)
+			printf("VAG->WAV (PCM) conversion enabled\n");
+		else
+			printf("VAG->WAV (ADPCM) conversion enabled\n");
+	}
 
 	// export all files
 	for (i = 0; i < (int)data->numentries; i++)
@@ -865,7 +869,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 			continue;
 		}
 
-		printf("\runpacking entry %i of %i", i + 1, data->numentries);
+		printf("\runpacking entry %i of %i...\r", i + 1, data->numentries);
 		fflush(stdout);
 
 		// make directory
@@ -893,7 +897,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 					Error("error saving %s: %s\n", savefile, tim->error);
 			
 				// write basefile
-				sprintf(entry->name, "%s.tga", basename); // write 'good' listfile.txt
+				sprintf(entry->name, "%s.tga", basename); // write correct listfile.txt
 				TIM_WriteTarga(tim, savefile, bpp16to24);
 
 				// write maskfile
@@ -910,11 +914,51 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 			continue;
 		}
 
-		// extract original file
+		// extract VAG
+		if (vagconvert && entry->type == BIGENTRY_RAW_ADPCM)
+		{
+			StripFileExtension(entry->name, basename);
+			// read entry
+			entry->data = qmalloc(entry->size);
+			BigfileSeekContents(f, entry->data, entry);
+
+			// get filename
+			if (vagogg)
+				sprintf(savefile, "%s/%s.ogg", dstdir, basename);
+			else	
+				sprintf(savefile, "%s/%s.wav", dstdir, basename);
+
+			// try to save
+			sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
+			if (vagogg)
+				sprintf(outputcmd, "-t ogg -C 5");
+			else if (vagpcm)
+				sprintf(outputcmd, "-t wav -e signed-integer");
+			else 
+				sprintf(outputcmd, "-t wav");
+			if (SoX_DataToFile(entry->data, entry->size, "", inputcmd, outputcmd, savefile))
+			{
+				// write correct listfile.txt
+				if (vagogg)
+					sprintf(entry->name, "%s.ogg", basename); 
+				else
+					sprintf(entry->name, "%s.wav", basename);
+			}
+			else
+			{
+				printf("warning: unable to convert %s, SoX Error #%i, unpacking original\n", entry->name, GetLastError());
+				sprintf(savefile, "%s/%s", dstdir, entry->name);
+				BigFileUnpackFile(f, entry, savefile);
+			}
+
+			qfree(entry->data);
+			entry->data = NULL;
+			continue;
+		}
+
+		// just unpack
 		sprintf(savefile, "%s/%s", dstdir, entry->name);
-		f2 = SafeOpen(savefile, "wb");
-		BigFileUnpackFile(f, entry, f2);
-		fclose(f2);
+		BigFileUnpackFile(f, entry, savefile);
 	}
 	printf("\n");
 
@@ -952,17 +996,17 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 	f = SafeOpen(bigfile, "wb");
 
 	// write header
-	fwrite(&data->numentries, 4, 1, f);
+	SafeWrite(f, &data->numentries, 4);
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
 
-		printf("\rwriting header %i of %i", i + 1, data->numentries);
+		printf("\rwriting header %i of %i...\r", i + 1, data->numentries);
 		fflush(stdout);
 	
-		fwrite(&entry->hash, 4, 1, f);
-		fwrite(&entry->size, 4, 1, f);
-		fwrite(&entry->offset, 4, 1, f);
+		SafeWrite(f, &entry->hash, 4);
+		SafeWrite(f, &entry->size, 4);
+		SafeWrite(f, &entry->offset, 4);
 	}
 	printf("\n");
 
@@ -971,7 +1015,7 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 	{
 		entry = &data->entries[i];
 
-		printf("\rwriting entry %i of %i", i + 1, data->numentries);
+		printf("\rwriting entry %i of %i...\r", i + 1, data->numentries);
 		fflush(stdout);
 
 		// if file is already loaded
@@ -1002,7 +1046,7 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 			}
 			else
 			{
-				fwrite(entry->data, entry->size, 1, f);
+				SafeWrite(f, entry->data, entry->size);
 				qfree(entry->data);
 			}
 		}
@@ -1013,7 +1057,7 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 			size = LoadFile(savefile, &contents);
 			if (size != (int)entry->size)
 				Error("entry %.8X: file size changed (%s%i bytes, newsize %i) while packing\n", entry->hash, (size - (int)entry->size) < 0 ? "-" : "+", size - (int)entry->size, size);
-			fwrite(contents, size, 1, f);
+			SafeWrite(f, contents, size);
 			qfree(contents);
 		}
 	}
@@ -1037,7 +1081,7 @@ int BigFile_Main(int argc, char **argv)
 {
 	int i = 1, k, returncode = 0;
 	char *tofile, *srcdir, *dstdir, *knownfiles, *c;
-	qboolean tim2tga, bpp16to24, lowmem, nopaths;
+	qboolean tim2tga, bpp16to24, lowmem, nopaths, vagconvert, vagpcm, vagogg;
 
 	printf("=== BigFile ===\n");
 	if (i < 1)
@@ -1070,6 +1114,9 @@ int BigFile_Main(int argc, char **argv)
 	bpp16to24 = false;
 	lowmem = false;
 	nopaths = false;
+	vagconvert = false;
+	vagpcm = false;
+	vagogg = false;
 	for (k = 2; k < argc; k++)
 	{
 		if (!strcmp(argv[k],"-to"))
@@ -1104,6 +1151,12 @@ int BigFile_Main(int argc, char **argv)
 			lowmem = true;
 		else if (!strcmp(argv[k],"-nopaths"))
 			nopaths = true;
+		else if (!strcmp(argv[k],"-vagconvert"))
+			vagconvert = true;
+		else if (!strcmp(argv[k],"-pcm"))
+			vagpcm = true;
+		else if (!strcmp(argv[k],"-ogg"))
+			vagogg = true;
 	}
 	
 	// load up knowledge base
@@ -1118,7 +1171,7 @@ int BigFile_Main(int argc, char **argv)
 	else if (!strcmp(argv[i], "-analyse"))
 		returncode = BigFile_Analyse(argc-i, argv+i, tofile);
 	else if (!strcmp(argv[i], "-unpack"))
-		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, tim2tga, bpp16to24, nopaths);
+		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg);
 	else if (!strcmp(argv[i], "-pack"))
 		returncode = BigFile_Pack(argc-i, argv+i, srcdir, lowmem);
 	else

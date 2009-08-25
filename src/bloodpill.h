@@ -1,6 +1,6 @@
 #include "cmdlib.h"
 
-#define BLOODPILL_WELCOME	"----------------------------------------\nBlood Pill v0.2 by VorteX\nA set of utils to manipulate Blood Omen: Legacy Of Kain files\nbased on portions of code by LordHavoc\npill.big specs by XentaX community (www.xentax.com)\nTIM specs by Klarth and Raul Sobon\n----------------------------------------\n"
+#define BLOODPILL_WELCOME	"----------------------------------------\nBlood Pill v0.2 by VorteX\nA set of utils to manipulate Blood Omen: Legacy Of Kain files\nportions of code by LordHavoc\npill.big specs by XentaX community (www.xentax.com)\nTIM specs by Klarth and Raul Sobon\n----------------------------------------\n"
 
 #define MAX_BLOODPATH 512
 
@@ -8,11 +8,18 @@
 qboolean waitforkey;
 qboolean memstats;
 
-char progname[128];
+extern char progname[128];
 
 // soxsupp.c
-extern qboolean CheckSoX();
-extern qboolean RunSoX(char *cmdline);
+qboolean CheckSoX();
+
+qboolean SoX(char *in, char *generalcmd, char *inputcmd, char *outputcmd, char *out);
+
+qboolean SoX_DataToData(byte *data, int databytes, char *generalcmd, char *inputcmd, char *outputcmd, int *outdatabytesptr, byte **outdataptr);
+
+qboolean SoX_DataToFile(byte *data, int databytes, char *generalcmd, char *inputcmd, char *outputcmd, char *outfile);
+
+qboolean SoX_FileToData(char *in, char *generalcmd, char *inputcmd, char *outputcmd, int *outdatabytesptr, byte **outdataptr);
 
 
 

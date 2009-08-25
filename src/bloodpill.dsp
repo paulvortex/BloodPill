@@ -100,6 +100,10 @@ SOURCE=.\mem.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\soxsupp.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\timfile.h
 # End Source File
 # End Group

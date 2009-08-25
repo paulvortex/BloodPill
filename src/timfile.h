@@ -72,3 +72,5 @@ tim_image_t *TIM_LoadFromTarga(char *filename, unsigned int type);
 void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24);
 
 void TIM_WriteTargaGrayscale(char *data, short width, short height, char *savefile);
+
+

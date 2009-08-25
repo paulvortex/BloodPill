@@ -23,14 +23,20 @@
 #include "bloodpill.h"
 #include "cmdlib.h"
 #include "mem.h"
+#include "soxsupp.h"
 
+char progname[128];
+
+// bigfile.c
 int BigFile_Main(int argc, char **argv);
-int Tim2Targa_Main(int argc, char **argv);
-int Targa2Tim_Main(int argc, char **argv);
+
+// timfile.c
 int RawTim_Main(int argc, char **argv);
+int Targa2Tim_Main(int argc, char **argv);
+int Tim2Targa_Main(int argc, char **argv);
 
-
-#include <windows.h>
+// soxsupp.c
+int VagConvert_Main(int argc, char **argv);
 
 //
 // Help section
@@ -85,12 +91,15 @@ int Help_Main()
 int main(int argc, char **argv)
 {
 	int i, returncode = 0;
+	char customsoxpath[MAX_BLOODPATH];
 	qboolean printcap;
 
 	// get program name
+	memset(progname, 0, 128);
 	ExtractFileBase(argv[0], progname);
 
 	// check command line flags
+	sprintf(customsoxpath, "sox.exe");
 	printcap = true;
 	waitforkey = false;
 	memstats = false;
@@ -111,8 +120,18 @@ int main(int argc, char **argv)
 			waitforkey = true;
 			continue;
 		}
+		if (!strcmp(argv[i], "-soxpath"))
+		{
+			i++;
+			if (i < argc)
+				sprintf(customsoxpath, "%s", argv[i]);
+			continue;
+		}
 		break;
 	}
+
+	// init SoX library
+	SoX_Init(customsoxpath);
 
 	// print caption
 	if (printcap)
@@ -122,7 +141,7 @@ int main(int argc, char **argv)
 			printf("memstats = true\n");
 		if (waitforkey)
 			printf("waitforkey = true\n");
-		if (CheckSoX())
+		if (soxfound)
 			printf("SoX found\n");
 		else
 			printf("SoX not found\n");
@@ -149,6 +168,8 @@ int main(int argc, char **argv)
 		returncode = Targa2Tim_Main(argc-i, argv+i);
 	else if (!strcmp(argv[i], "-raw"))
 		returncode = RawTim_Main(argc-i, argv+i);
+	else if (!strcmp(argv[i], "-vagconvert"))
+		returncode = VagConvert_Main(argc-i, argv+i);
 	else if (!strcmp (argv[i], "-help"))
 		returncode = Help_Main();
 	else

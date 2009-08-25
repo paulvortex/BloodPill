@@ -31,7 +31,6 @@ char **myargv;
 char		com_token[MAXTOKEN];
 qboolean	com_eof;
 
-
 /*
 =================
 Error
