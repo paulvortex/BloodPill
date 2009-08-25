@@ -156,7 +156,7 @@ void Q_getwd (char *out)
 }
 */
 
-
+// single mkdir
 void Q_mkdir (char *path)
 {
 #ifdef WIN32
@@ -167,6 +167,28 @@ void Q_mkdir (char *path)
     return;
   if (errno != EEXIST)
     Error ("mkdir %s: %s",path, strerror(errno));
+}
+
+/*
+============
+FS_CreatePath
+============
+*/
+void FS_CreatePath (char *path)
+{
+	char *ofs, save;
+
+	for (ofs = path+1 ; *ofs ; ofs++)
+	{
+		if (*ofs == '/' || *ofs == '\\')
+		{
+			// create the directory
+			save = *ofs;
+			*ofs = 0;
+			Q_mkdir (path);
+			*ofs = save;
+		}
+	}
 }
 
 /*

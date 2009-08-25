@@ -248,6 +248,110 @@ void BigFileUnpackFile(FILE *bigf, bigfileentry_t *entry, char *outfile)
 	fclose(f);
 }
 
+void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg)
+{
+	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
+	char inputcmd[512], outputcmd[512];
+	tim_image_t *tim;
+	FILE *f;
+	int i;
+
+	// nopaths, clear path
+	if (nopaths)
+	{
+		ExtractFileBase(entry->name, path);
+		strcpy(entry->name, path);
+	}
+
+	// make directory
+	ExtractFilePath(entry->name, path);
+	if (path[0])
+	{
+		sprintf(savefile, "%s/%s", dstdir, path);
+		FS_CreatePath(savefile);
+	}
+
+	// original pill.big has 'funky' files with zero len, export them as empty ones
+	if (entry->size <= 0) 
+	{
+		sprintf(savefile, "%s/%s", dstdir, entry->name);
+		f = SafeOpen(savefile, "wb");
+		fclose(f);
+		return;
+	}
+
+	// autoconvert TGA
+	if (tim2tga && entry->type == BIGENTRY_TIM)
+	{
+		BigfileSeekFile(bigf, entry);
+		for (i = 0; i < entry->timlayers; i++)
+		{
+			StripFileExtension(entry->name, basename);
+			// extract base
+			tim = TIM_LoadFromStream(bigf);
+			if (i == 0)
+				sprintf(savefile, "%s/%s.tga", dstdir, basename);
+			else
+				sprintf(savefile, "%s/%s_layer%i.tga", dstdir, basename, i);
+			if (tim->error)
+				Error("error saving %s: %s\n", savefile, tim->error);
+		
+			// write basefile
+			sprintf(entry->name, "%s.tga", basename); // write correct listfile.txt
+			TIM_WriteTarga(tim, savefile, bpp16to24);
+
+			// write maskfile
+			if (tim->pixelmask != NULL)
+			{
+				if (i == 0)
+					sprintf(savefile, "%s/%s_mask.tga", dstdir, basename); 
+				else
+					sprintf(savefile, "%s/%s_layer%i_mask.tga", dstdir, basename, i);
+				TIM_WriteTargaGrayscale(tim->pixelmask, tim->dim.xsize, tim->dim.ysize, savefile);
+			}
+			FreeTIM(tim);
+		}
+		return;
+	}
+
+	// autoconvert VAG
+	if (vagconvert && entry->type == BIGENTRY_RAW_ADPCM)
+	{
+		StripFileExtension(entry->name, basename);
+
+		//printf("#%.8X\n", entry->hash);
+		// read entry
+		entry->data = qmalloc(entry->size);
+		BigfileSeekContents(bigf, entry->data, entry);
+		
+		// try to save
+		sprintf(savefile, (vagogg) ? "%s/%s.ogg" : "%s/%s.wav", dstdir, basename);
+		sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
+		if (vagogg)
+			sprintf(outputcmd, "-t ogg -C 5");
+		else if (vagpcm)
+			sprintf(outputcmd, "-t wav -e signed-integer");
+		else 
+			sprintf(outputcmd, "-t wav");
+		if (SoX_DataToFile(entry->data, entry->size, "", inputcmd, outputcmd, savefile))
+			sprintf(entry->name, (vagogg) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.tx
+		else
+		{
+			printf("warning: unable to convert %s, SoX Error #%i, unpacking original\n", entry->name, GetLastError());
+			sprintf(savefile, "%s/%s", dstdir, entry->name);
+			BigFileUnpackFile(bigf, entry, savefile);
+		}
+
+		qfree(entry->data);
+		entry->data = NULL;
+		return;
+	}
+
+	// just unpack
+	sprintf(savefile, "%s/%s", dstdir, entry->name);
+	BigFileUnpackFile(bigf, entry, savefile);
+}
+
 void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 {
 	bigfileentry_t *entry;
@@ -261,6 +365,7 @@ void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 
 		// write general data
 		fprintf(f, "\n", entry->hash);
+		fprintf(f, "# entry %i\n", i + 1);
 		fprintf(f, "[%.8X]\n", entry->hash);
 		fprintf(f, "type=%i\n", (int)entry->type);
 		fprintf(f, "size=%i\n", (int)entry->size);
@@ -343,16 +448,6 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 		}
 		printf("\n");
 	}
-
-	// warnings
-	/*
-	for (i = 0; i < (int)data->numentries; i++)
-	{
-		entry = &data->entries[i];
-		if (entry->size <= 0)
-			printf("warning: entry %.8X size = %i bytes\n", entry->hash, entry->size);
-	}
-	*/
 
 	return data;
 }
@@ -666,6 +761,10 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 	{
 		entry = &data->entries[i];
 
+		// ignore null-sized
+		if (!entry->size)
+			continue;
+
 		printf("\rscanning type for entry %i of %i...\r", i + 1, data->numentries);
 		fflush(stdout);
 		
@@ -824,11 +923,9 @@ int BigFile_List(int argc, char **argv, char *listfile)
 int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg)
 {
 	FILE *f, *f2;
-	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH], inputcmd[2048], outputcmd[2048];
+	char savefile[MAX_BLOODPATH];
 	bigfileheader_t *data;
-	bigfileentry_t *entry;
-	tim_image_t *tim;
-	int i, k;
+	int i;
 
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
@@ -839,6 +936,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 	printf("%s folder created\n", dstdir);
 	Q_mkdir(dstdir);
 
+	// show options
 	if (tim2tga)
 		printf("TIM->TGA conversion enabled\n");
 	if (bpp16to24)
@@ -858,107 +956,9 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 	// export all files
 	for (i = 0; i < (int)data->numentries; i++)
 	{
-		entry = &data->entries[i];
-
-		// original pill.big has 'funky' files with zero len, export them as empty ones
-		if (entry->size <= 0) 
-		{
-			sprintf(savefile, "%s/%.8X.%s", dstdir, entry->hash, bigentryext[entry->type]);
-			f2 = SafeOpen(savefile, "wb");
-			fclose(f2);
-			continue;
-		}
-
 		printf("\runpacking entry %i of %i...\r", i + 1, data->numentries);
 		fflush(stdout);
-
-		// make directory
-		ExtractFilePath(entry->name, path);
-		if (path[0])
-		{
-			sprintf(savefile, "%s/%s", dstdir, path);
-			Q_mkdir(savefile);
-		}
-
-		// extract TGA
-		if (tim2tga && entry->type == BIGENTRY_TIM)
-		{
-			BigfileSeekFile(f, entry);
-			for (k = 0; k < entry->timlayers; k++)
-			{
-				StripFileExtension(entry->name, basename);
-				// extract base
-				tim = TIM_LoadFromStream(f);
-				if (k == 0)
-					sprintf(savefile, "%s/%s.tga", dstdir, basename);
-				else
-					sprintf(savefile, "%s/%s_layer%i.tga", dstdir, basename, k);
-				if (tim->error)
-					Error("error saving %s: %s\n", savefile, tim->error);
-			
-				// write basefile
-				sprintf(entry->name, "%s.tga", basename); // write correct listfile.txt
-				TIM_WriteTarga(tim, savefile, bpp16to24);
-
-				// write maskfile
-				if (tim->pixelmask != NULL)
-				{
-					if (k == 0)
-						sprintf(savefile, "%s/%s_mask.tga", dstdir, basename); 
-					else
-						sprintf(savefile, "%s/%s_layer%i_mask.tga", dstdir, basename, k);
-					TIM_WriteTargaGrayscale(tim->pixelmask, tim->dim.xsize, tim->dim.ysize, savefile);
-				}
-				FreeTIM(tim);
-			}
-			continue;
-		}
-
-		// extract VAG
-		if (vagconvert && entry->type == BIGENTRY_RAW_ADPCM)
-		{
-			StripFileExtension(entry->name, basename);
-			// read entry
-			entry->data = qmalloc(entry->size);
-			BigfileSeekContents(f, entry->data, entry);
-
-			// get filename
-			if (vagogg)
-				sprintf(savefile, "%s/%s.ogg", dstdir, basename);
-			else	
-				sprintf(savefile, "%s/%s.wav", dstdir, basename);
-
-			// try to save
-			sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
-			if (vagogg)
-				sprintf(outputcmd, "-t ogg -C 5");
-			else if (vagpcm)
-				sprintf(outputcmd, "-t wav -e signed-integer");
-			else 
-				sprintf(outputcmd, "-t wav");
-			if (SoX_DataToFile(entry->data, entry->size, "", inputcmd, outputcmd, savefile))
-			{
-				// write correct listfile.txt
-				if (vagogg)
-					sprintf(entry->name, "%s.ogg", basename); 
-				else
-					sprintf(entry->name, "%s.wav", basename);
-			}
-			else
-			{
-				printf("warning: unable to convert %s, SoX Error #%i, unpacking original\n", entry->name, GetLastError());
-				sprintf(savefile, "%s/%s", dstdir, entry->name);
-				BigFileUnpackFile(f, entry, savefile);
-			}
-
-			qfree(entry->data);
-			entry->data = NULL;
-			continue;
-		}
-
-		// just unpack
-		sprintf(savefile, "%s/%s", dstdir, entry->name);
-		BigFileUnpackFile(f, entry, savefile);
+		BigFileUnpackEntry(f, &data->entries[i], dstdir, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg);
 	}
 	printf("\n");
 
@@ -967,8 +967,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 	f2 = SafeOpen(savefile, "w");
 	BigfileWriteListfile(f2, data);
 	fclose(f2);
-	printf("wrote %s\n", savefile);
-	printf("done.\n");
+	printf("wrote %s\ndone.\n", savefile);
 
 	fclose (f);
 	return 0;

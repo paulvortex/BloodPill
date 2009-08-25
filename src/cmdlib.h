@@ -39,6 +39,8 @@ extern int	FileTime (char *path);
 
 extern void	Q_mkdir (char *path);
 
+void FS_CreatePath (char *path);
+
 extern double I_DoubleTime (void);
 
 extern void Error (char *error, ...);
