@@ -1,4 +1,4 @@
-Blood Pill
+Blood Pill версия 0.3rc1
 ----
 Комплексная утилита для Blood Omen: Legacy Of Kain, 
 предназначенная для манипуляций с pill.big и внутренними файлами Blood Omen
