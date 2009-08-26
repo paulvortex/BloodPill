@@ -1,8 +1,9 @@
 Blood Pill
 coded by Paul [VorteX] Timofeyev (paul.vortex@gmail.com)
 thanks to:
+  Mean Person : figuring out Blood Omen's VAG internals
   Forest [LordHavoc] Hale : cmdlib and memlib
-  XentaX community (www.xentax.com): pill.big specs
+  Balder and Zench from XentaX community (www.xentax.com): pill.big specs, advices
   Klarth (stevemonaco@hotmail.com) and Raul Sobon (Cheekyboy@2-hot.com) : TIM specs
 ----
 

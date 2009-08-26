@@ -57,13 +57,16 @@ int Help_Main()
 	"   tip: some filetypes like VAG couldn't be detected automatically\n"
 	"   so known-files-list is only way to determine them\n"
 	"\n"
-	"-bigfile [bigfilename] -unpack [-dstdir dir] [-klist filename] [-tim2tga] [-16to24]\n"
+	"-bigfile [bigfilename] -unpack [-dstdir dir] [-klist filename] [-tim2tga] [-16to24] [-vagconvert] [-pcm]/[-oggvorbis]\n"
 	"  unpacks all entries of bigfile and saves listfile\n"
 	"    -dstdir: outputs to other folder instead of 'bigfile'\n"
 	"    -tim2tga: converts all TIM files to Targa images\n"
 	"    -16to24: when write TGA, convert 16 bit colors 24 bit\n"
 	"     including colormaps, quite useful because not many tools has support\n"
 	"     for 16 Bit TGA's\n"
+	"    -vagconvert: enables VAG->WAV conversion, wav will use ADPCM encoding\n"
+	"    -pcm: use with -vagconvert to make 16-bit PCM wavefiles\n"
+	"    -oggvorbis: use with -vagconvert to make Ogg Vorbis files (Q 7)\n"
 	"\n"
 	"-bigfile [bigfilename] -pack [-srcdir dir] [-lowmem]\n"
 	"  creates a bigfile from a folder containing all files and listfile\n"
@@ -80,7 +83,15 @@ int Help_Main()
 	"  -ofs: override TIM image offset\n"
 	"  -mask: use a custom maskfile (default is filename_mask.tga)\n"
 	"\n"
+	"-vagconvert vagfile outfile [-rate X] [-pcm]/[-oggvorbis]/[-custom]\n"
+	" convert a Blood Omen headerless VAG file to someting that WinAmp could play\n"
+	" -rate: VAG sampling rate, defaults to 22050 if not presented\n"
+	" -pcm: make 16-bit PCM wavefile\n"
+	" -oggvorbis: make Ogg Vorbis files (Quality 7)\n"
+	" -custom: custom SoX output options (see SoX docs)\n"
+	"\n"
 	);
+
 	return 0;
 }
 

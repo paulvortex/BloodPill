@@ -24,6 +24,7 @@
 
 #include "bloodpill.h"
 #include "bigfile.h"
+#include "soxsupp.h"
 #include "cmdlib.h"
 #include "mem.h"
 #include <windows.h>
@@ -328,12 +329,12 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 		sprintf(savefile, (vagogg) ? "%s/%s.ogg" : "%s/%s.wav", dstdir, basename);
 		sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
 		if (vagogg)
-			sprintf(outputcmd, "-t ogg -C 5");
+			sprintf(outputcmd, "-t ogg -C 7");
 		else if (vagpcm)
 			sprintf(outputcmd, "-t wav -e signed-integer");
 		else 
 			sprintf(outputcmd, "-t wav");
-		if (SoX_DataToFile(entry->data, entry->size, "", inputcmd, outputcmd, savefile))
+		if (SoX_DataToFile(entry->data, entry->size, "--no-dither", inputcmd, outputcmd, savefile))
 			sprintf(entry->name, (vagogg) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.tx
 		else
 		{
@@ -473,7 +474,8 @@ void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry, qboolean lowme
 {
 	char ext[16], filename[MAX_BLOODPATH], basename[MAX_BLOODPATH];
 	tim_image_t *tim;
-	int i;
+	byte *contents;
+	int i, size;
 	FILE *f;
 
 	// extract extension
@@ -517,8 +519,23 @@ void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry, qboolean lowme
 		return;
 	}
 
-	Error("can't identify file %s", entry->name);
+	// WAV/OGG -> VAG autoconversion
+	if (entry->type == BIGENTRY_RAW_ADPCM)
+	{
+		sprintf(filename, "%s/%s", srcdir, entry->name);
+		if (!SoX_FileToData(filename, "--no-dither", "", "-t ima -c 1", &size, &contents))
+			Error("unable to convert %s, SoX Error #%i\n", entry->name, GetLastError());
+		entry->data = contents;
+		entry->size = (unsigned int)size;
 
+		if (lowmem) // we know the size, convert again later
+			qfree(entry->data);
+
+		return;
+	}
+
+
+	Error("can't identify file %s", entry->name);
 }
 
 // print stats about loaded bigfile entry
@@ -590,6 +607,10 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
 	{
 		linenum++;
 		fgets(line, 256, f);
+
+		// comments
+		if (!line[0] || line[0] == '#')
+			continue;
 
 		// new entry
 		if (line[0] == '[')
@@ -946,11 +967,11 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 	if (vagconvert)
 	{
 		if (vagogg)
-			printf("VAG->OGG (quality 5) conversion enabled\n");
+			printf("VAG->OGG Vorbis Quality 5 conversion enabled\n");
 		else if (vagpcm)
-			printf("VAG->WAV (PCM) conversion enabled\n");
+			printf("VAG->WAV PCM conversion enabled\n");
 		else
-			printf("VAG->WAV (ADPCM) conversion enabled\n");
+			printf("VAG->WAV ADPCM conversion enabled\n");
 	}
 
 	// export all files
@@ -1009,6 +1030,10 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 	}
 	printf("\n");
 
+	// show options
+	if (lowmem)
+		printf("enabling low memory usage\n");
+
 	// write files
 	for (i = 0; i < (int)data->numentries; i++)
 	{
@@ -1020,16 +1045,18 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 		// if file is already loaded
 		if (entry->data != NULL)
 		{
+			// autoconverted TIM
 			if (entry->type == BIGENTRY_TIM)
 			{
 				// VorteX: -lomem key support
 				if (lowmem)
 				{
 					sprintf(savefile, "%s/%s", srcdir, entry->name);
-					entry->data = TIM_LoadFromTarga(savefile, entry->timtype[0]); 
+					entry->data = TIM_LoadFromTarga(savefile, entry->timtype[0]);
 				}
 				
 				tim = entry->data;
+				size = tim->filelen;
 				TIM_WriteToStream(entry->data, f);
 				FreeTIM(entry->data);
 
@@ -1039,23 +1066,46 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 				{
 					sprintf(savefile, "%s/%s_layer%i.tga", srcdir, basename, k);
 					tim = TIM_LoadFromTarga(savefile, entry->timtype[k]); 
+					size += tim->filelen;
 					TIM_WriteToStream(tim, f);
 					FreeTIM(tim);
 				}
+
+				if (size != (int)entry->size)
+					Error("entry %.8X (TIM): file size changed (%s%i bytes, newsize %i) while packing\n", entry->hash, (size - (int)entry->size) < 0 ? "-" : "+", size - (int)entry->size, size);
 			}
+			// autoconverted WAV/OGG
+			else if (entry->type == BIGENTRY_RAW_ADPCM)
+			{
+				// VorteX: -lomem key support
+				if (lowmem)
+				{
+					sprintf(savefile, "%s/%s", srcdir, entry->name);
+					if (!SoX_FileToData(savefile, "--no-dither", "", "-t ima -c 1", &size, &contents))
+						Error("unable to convert %s, SoX Error #%i\n", entry->name, GetLastError());
+					entry->data = contents;
+
+					if (size != (int)entry->size)
+						Error("entry %.8X (RAW ADPCM): file size changed (%s%i bytes, newsize %i) while packing\n", entry->hash, (size - (int)entry->size) < 0 ? "-" : "+", size - (int)entry->size, size);
+				}
+
+				// write
+				SafeWrite(f, entry->data, entry->size);
+				qfree(entry->data);
+			}
+			// just write
 			else
 			{
 				SafeWrite(f, entry->data, entry->size);
 				qfree(entry->data);
 			}
 		}
-		// read file from HDD
 		else
 		{
 			sprintf(savefile, "%s/%s", srcdir, entry->name);
 			size = LoadFile(savefile, &contents);
 			if (size != (int)entry->size)
-				Error("entry %.8X: file size changed (%s%i bytes, newsize %i) while packing\n", entry->hash, (size - (int)entry->size) < 0 ? "-" : "+", size - (int)entry->size, size);
+				Error("entry %.8X (DAT): file size changed (%s%i bytes, newsize %i) while packing\n", entry->hash, (size - (int)entry->size) < 0 ? "-" : "+", size - (int)entry->size, size);
 			SafeWrite(f, contents, size);
 			qfree(contents);
 		}
@@ -1154,7 +1204,7 @@ int BigFile_Main(int argc, char **argv)
 			vagconvert = true;
 		else if (!strcmp(argv[k],"-pcm"))
 			vagpcm = true;
-		else if (!strcmp(argv[k],"-ogg"))
+		else if (!strcmp(argv[k],"-oggvorbis"))
 			vagogg = true;
 	}
 	

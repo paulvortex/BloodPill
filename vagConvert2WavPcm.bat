@@ -1,0 +1,1 @@
+bpill -w -vagconvert test.vag test.wav -rate 22050 -pcm

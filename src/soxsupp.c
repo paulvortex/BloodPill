@@ -80,7 +80,7 @@ qboolean SoX(char *in, char *generalcmd, char *inputcmd, char *outputcmd, char *
 }
 
 // runs SoX on data presented and allocates output data
-qboolean SoX_DataToData(byte *data, int databytes, char *generalcmd, char *inputcmd, char *outputcmd, int *outdatabytesptr, byte **outdataptr)
+qboolean SoX_DataToData(byte *data, int databytes, char *generalcmd, char *inputcmd, char *outputcmd, int *outdatabytesptr, void **outdataptr)
 {	
 	char in[MAX_BLOODPATH], out[MAX_BLOODPATH], *outdata;
 	int outdatabytes;
@@ -140,7 +140,7 @@ qboolean SoX_DataToFile(byte *data, int databytes, char *generalcmd, char *input
 }
 
 // runs SoX on file and allocates output data
-qboolean SoX_FileToData(char *in, char *generalcmd, char *inputcmd, char *outputcmd, int *outdatabytesptr, byte **outdataptr)
+qboolean SoX_FileToData(char *in, char *generalcmd, char *inputcmd, char *outputcmd, int *outdatabytesptr, void **outdataptr)
 {	
 	char out[MAX_BLOODPATH], *outdata;
 	int outdatabytes;
