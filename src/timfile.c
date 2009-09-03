@@ -930,7 +930,7 @@ void RawPalettedTGA(char *outfile, int width, int height, const char *colormapda
 	int i;
 	FILE *f;
 
-	// create colormapped targa header
+	// create targa header
 	buffer = qmalloc(pixelbytes + 768 + 18);
 	memset(buffer, 0, 18);
 	buffer[1] = 1;
@@ -945,13 +945,26 @@ void RawPalettedTGA(char *outfile, int width, int height, const char *colormapda
 	buffer[16] = 8;
 
 	// 24-bit colormap, swap bgr->rgb
-	out = buffer + 18;
-	for (i = 0;i < 256;i++)
+	if (colormapdata == NULL)
 	{
-		in = colormapdata + i*3;
-		*out++ = in[2];
-		*out++ = in[1];
-		*out++ = in[0];
+		out = buffer + 18;
+		for (i = 0;i < 256;i++)
+		{
+			*out++ = i;
+			*out++ = i;
+			*out++ = i;
+		}
+	}
+	else
+	{
+		out = buffer + 18;
+		for (i = 0;i < 256;i++)
+		{
+			in = colormapdata + i*3;
+			*out++ = in[2];
+			*out++ = in[1];
+			*out++ = in[0];
+		}
 	}
 
 	// flip upside down, write
@@ -982,21 +995,160 @@ void printfpos(FILE *f)
 	printf("filepos: %i\n", fpos);
 }
 
+int getfpos(FILE *f)
+{
+	fpos_t fpos;
+
+	fgetpos(f, &fpos);
+	return (int)fpos;
+}
+
+void RawTimExtract_Type0(char *basefilename, char *outfile, FILE *f, int width, int height, int offset)
+{
+	unsigned char *data;
+	char name[MAX_BLOODPATH];
+
+	printf("== raw object ==\n");
+
+	if (width*height < 0)
+		Error("Bad width/height\n"); 
+
+	// load file contents
+	fseek(f, offset, SEEK_SET);
+	data = qmalloc(width*height);
+	fread(data, width*height, 1, f);
+
+	// write file
+	sprintf(name, "%s.tga", outfile);
+	printf("saving %s\n", name);
+	RawPalettedTGA(name, width, height, NULL, width*height, data);
+	qfree(data);
+}
+
+void RawTimExtract_Type1(char *basefilename, char *outfile, FILE *f, int forcewidth, int forceheight, qboolean nopalette)
+{
+	unsigned char *data, *pixeldata, *colormapdata;
+	char objectname[MAX_BLOODPATH];
+	unsigned int objtag;
+	short num1, num2, num3, num4;
+	int obj, objsize, objwidth, objheight;
+	unsigned char objx, objy, temp, *multiobjects, *out;
+
+	// number of objects
+	fread(&objtag, 4, 1, f);
+	printf("tag: 0x%.8X\n", objtag);
+	if (objtag > 32)
+		objtag = 1;
+
+	// size
+	fread(&objsize, 4, 1, f);
+	printf("size = %i\n", objsize);
+
+	// colormap data
+	colormapdata = qmalloc(768);
+	fread(colormapdata, 768, 1, f);
+
+	// 8 unknown bytes
+	fread(&num1, 4, 1, f);
+	printf(" num1 = %i\n", num1);
+	fread(&num2, 2, 1, f);
+	printf(" num2 = %i\n", num2);
+	fread(&num3, 1, 1, f);
+	printf(" num3 = %i\n", num3);
+	fread(&num4, 1, 1, f);
+	printf(" num4 = %i\n", num4);
+
+	// only one image, it seems items only have such
+	if (objtag == 1)
+	{
+		printf("== single object ==\n");
+
+		// width and height - 2 bytes
+		fread(&temp, 1, 1, f);
+		objwidth = (forcewidth > 0) ? forcewidth : (int)temp;
+		fread(&temp, 1, 1, f);
+		objheight = (forceheight > 0) ? forceheight : (int)temp;
+		printf(" width = %i\n", objwidth);
+		printf(" height = %i\n", objheight);
+
+		// x and y - 2 bytes
+		fread(&objx, 1, 1, f);
+		printf(" x = %i\n", objx);
+		fread(&objy, 1, 1, f);
+		printf(" y = %i\n", objy);
+
+		// read pixels
+		printfpos(f);
+		if (objwidth*objheight > 0)
+		{
+			pixeldata = qmalloc(objwidth*objheight);
+			fread(pixeldata, objwidth*objheight, 1, f);
+
+			// save TGA
+			sprintf(objectname, "%s.tga", outfile);
+			printf(" name %s\n", objectname);
+			RawPalettedTGA(objectname, (int)objwidth, (int)objheight, (nopalette) ? NULL : colormapdata, objwidth*objheight, pixeldata);
+			qfree(pixeldata);
+		}
+		qfree(colormapdata);
+		return;
+	}
+
+	// read multiple objects data, each consists of 8 bytes
+	multiobjects = qmalloc(objtag * 8);
+	out = multiobjects;
+	printf("== objects (%i) ==\n", getfpos(f) );
+	for (obj = 0; obj < (int)objtag; obj++)
+	{
+		fread(out, 8, 1, f);
+		printf(" #%2i: %3i %3i + 13 %3i %3i %6i %3i %3i offset %i\n", obj, out[0], out[1] - 13, out[2], out[3], out[4] + out[5]*256, out[6], out[7], getfpos(f));
+		out += 8;
+	}
+
+	// write objects
+	for (objsize = 0, obj = 0; obj < (int)objtag; obj++)
+	{
+		printf("== multiobject #%i (%i) ==\n", obj, getfpos(f) );
+
+		// get width and height
+		objwidth = multiobjects[obj*8 + 0];
+		objheight = multiobjects[obj*8 + 1] - 13;
+		objsize = multiobjects[obj*8 + 4] + multiobjects[obj*8 + 5]*256 - objsize; // object length in bytes
+		printf(" width = %i\n", objwidth);
+		printf(" height = %i\n", objheight);
+		printf(" pixels = %i\n", objwidth*objheight);
+		printf(" size = %i\n", objsize);
+
+		// skip unknown data
+		printfpos(f);	
+		printf("seek: %i\n", objsize - objwidth*objheight);
+		fseek(f, objsize - objwidth*objheight, SEEK_CUR); 
+		fseek(f, 2, SEEK_CUR); 
+	
+		// read pixels
+		if (objwidth*objheight > 0)
+		{
+			data = qmalloc(objwidth*objheight);
+			memset(data, 0, objwidth*objheight);
+			fread(data, objwidth*objheight, 1, f); 
+
+			// save TGA
+			sprintf(objectname, "%s_object%03i.tga", outfile, obj);
+			RawPalettedTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, data);
+			qfree(data);
+		}
+	}
+	qfree(colormapdata);
+}	
+	
 int RawTim_Main(int argc, char **argv)
 {
 	char filename[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], ext[5], outfile[MAX_BLOODPATH], *c;
-	unsigned char *pixeldata, *colormapdata;
-	int i = 1, k;
+	int i = 1, type, forcewidth, forceheight, offset;
+	qboolean nopalette;
 	FILE *f;
 
-	unsigned int objtag;
-	short num1, num2, num3, num4;
-	char objectname[MAX_BLOODPATH];
-	int obj, objsize, objwidth, objheight;
-	unsigned char objx, objy, temp;
-	unsigned char *multiobjects, *out; // multiple objects data, ach 8 bytes
-	int width, height;
-	
+
 	printf("=== TimRaw ===\n");
 	printf("%s\n", argv[i]);
 
@@ -1016,8 +1168,10 @@ int RawTim_Main(int argc, char **argv)
 	}
 
 	// parse cmdline
-	width = -1;
-	height = -1;	
+	nopalette = false;
+	forcewidth = -1;
+	forceheight = -1;	
+	offset = 0;
 	for (i = i; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-width"))
@@ -1025,8 +1179,8 @@ int RawTim_Main(int argc, char **argv)
 			i++;
 			if (i < argc)
 			{
-				width = atoi(argv[i]);
-				printf(" force width = %i\n", width);
+				forcewidth = atoi(argv[i]);
+				printf("force width = %i\n", forcewidth);
 			}
 		}
 		else if(!strcmp(argv[i], "-height"))
@@ -1034,155 +1188,43 @@ int RawTim_Main(int argc, char **argv)
 			i++;
 			if (i < argc)
 			{
-				height = atoi(argv[i]);
-				printf(" force height = %i\n", height);
+				forceheight = atoi(argv[i]);
+				printf("force height = %i\n", forceheight);
 			}
+		}
+		else if(!strcmp(argv[i], "-type"))
+		{
+			i++;
+			if (i < argc)
+				type = atoi(argv[i]);
+		}
+		else if(!strcmp(argv[i], "-offset"))
+		{
+			i++;
+			if (i < argc)
+				offset = atoi(argv[i]);
+		}
+		else if(!strcmp(argv[i], "-noclut"))
+		{
+			nopalette = true;
+			printf("CLUT disabled\n");
 		}
 	}
 
-	// open file
+	// open and convert
 	f = SafeOpen(filename, "rb");
-
-	// number of objects
-	fread(&objtag, 4, 1, f);
-	printf("tag: 0x%.8X\n", objtag);
-	if (objtag > 32)
-		objtag = 1;
-	// size
-	fread(&objsize, 4, 1, f);
-	printf("size = %i\n", objsize);
-	// colormap data
-	colormapdata = qmalloc(768);
-	fread(colormapdata, 768, 1, f);
-	// 8 unknown bytes
-	fread(&num1, 4, 1, f);
-	printf(" num1 = %i\n", num1);
-	fread(&num2, 2, 1, f);
-	printf(" num2 = %i\n", num2);
-	fread(&num3, 1, 1, f);
-	printf(" num3 = %i\n", num3);
-	fread(&num4, 1, 1, f);
-	printf(" num4 = %i\n", num4);
-	// TYPE 1 - only one image, it seems items only have such
-	if (objtag == 1)
+	switch(type)
 	{
-		printf("== single object ==\n");
-		// width and height - 2 bytes
-		fread(&temp, 1, 1, f);
-		objwidth = (width > 0) ? width : (int)temp;
-		fread(&temp, 1, 1, f);
-		objheight = (height > 0) ? height : (int)temp;
-		printf(" width = %i\n", objwidth);
-		printf(" height = %i\n", objheight);
-		// x and y - 2 bytes
-		fread(&objx, 1, 1, f);
-		printf(" x = %i\n", objx);
-		fread(&objy, 1, 1, f);
-		printf(" y = %i\n", objy);
-		// read pixels
-		if (objwidth*objheight > 0)
-		{
-			pixeldata = qmalloc(objwidth*objheight);
-			fread(pixeldata, objwidth*objheight, 1, f);
-			// save TGA
-			sprintf(objectname, "%s.tga", outfile);
-			printf(" name %s\n", objectname);
-			RawPalettedTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, pixeldata);
-			qfree(pixeldata);
-		}
+		case 0:
+			RawTimExtract_Type0(basefilename, outfile, f, forcewidth, forceheight, offset);
+			break;
+		case 1:
+			RawTimExtract_Type1(basefilename, outfile, f, forcewidth, forceheight, nopalette);
+			break;
+		default:
+			Error("Type %i not supported\n", type);
+			break;
 	}
-	else
-	{
-		// read multiple objects data, each consists of 8 bytes
-		multiobjects = qmalloc(objtag * 8);
-		out = multiobjects;
-		printfpos(f);
-		for (obj = 0; obj < (int)objtag; obj++)
-		{
-			fread(out, 8, 1, f);
-			out += 8;
-		}
-		// write objects
-		for (obj = 0; obj < (int)objtag; obj++)
-		{
-			printf("== multiobject #%i ==\n", obj);
-			// print 8 bytes
-			for (k = 0; k < 8; k++)
-				printf(" parm %i = %i\n", k, multiobjects[obj*8 + k]);
-			// width and height - already defined
-			objwidth = multiobjects[obj*8 + 0];
-			objheight = multiobjects[obj*8 + 1];
-			printf(" width = %i\n", objwidth);
-			printf(" height = %i\n", objheight);
-			// ~150 bytes of yet unknown data (different size per object)
-			printfpos(f);
-			if (obj == 0)
-			{
-				for (k = 0; k < 173; k++)
-				{
-					fread(&temp, 1, 1, f);
-					if (k < 8)
-						printf(" %i = %i\n", k, temp);
-				}
-			}
-			else if (obj == 1)
-			{
-				for (k = 0; k < 171; k++)
-				{
-					fread(&temp, 1, 1, f);
-					if (k < 8)
-						printf(" %i = %i\n", k, temp);
-				}
-			}
-			else if (obj == 2)
-			{
-				for (k = 0; k < 173; k++)
-				{
-					fread(&temp, 1, 1, f);
-					if (k < 8)
-						printf(" %i = %i\n", k, temp);
-				}
-			}
-			else if (obj == 3)
-			{
-				for (k = 0; k < 183; k++)
-				{
-					fread(&temp, 1, 1, f);
-					if (k < 8)
-						printf(" %i = %i\n", k, temp);
-				}
-			}
-			else if (obj == 4)
-			{
-				for (k = 0; k < 172; k++)
-				{
-					fread(&temp, 1, 1, f);
-					if (k < 8)
-						printf(" %i = %i\n", k, temp);
-				}
-			}
-			// read pixels (there is some last pixels defined that is black, they are not presented)
-			if (objwidth*objheight > 0)
-			{
-				pixeldata = qmalloc(objwidth*objheight);
-				memset(pixeldata, 0, objwidth*objheight);
-				fread(pixeldata, objwidth*objheight, 1, f); 
-				
-				fseek(f, -416, SEEK_CUR);
-
-				// save TGA
-				sprintf(objectname, "%s_object%03i.tga", outfile, obj);
-				printf(" write %s\n\n", objectname);
-				RawPalettedTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, pixeldata);
-				qfree(pixeldata);
-			}
-		}
-	}	
-	// debug!
-	//fgetpos(f, &fpos);
-	//printf(" filepos: %i\n", fpos);
-	//fsetpos(f, &fpos)
-	qfree(colormapdata);
 	fclose(f);
 
 	return 0;
