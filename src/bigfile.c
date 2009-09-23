@@ -772,6 +772,7 @@ bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry)
 void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 {
 	fpos_t fpos;
+	bigentrytype_t autotype;
 	bigfileentry_t *entry;
 	bigkentry_t *kentry;
 	int i;
@@ -789,28 +790,32 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 		printf("\rscanning type for entry %i of %i...\r", i + 1, data->numentries);
 		fflush(stdout);
 		
-		// scan for certain filetype
-		kentry = BigfileSearchKList(entry->hash); // check for known filetype
-		if (kentry != NULL)
+		// detect filetype automatically
+		autotype = BigfileDetectFiletype(f, entry);
+		if (autotype != BIGENTRY_UNKNOWN) 
 		{
-			if (kentry->path[0])
-				sprintf(entry->name, "%s", kentry->path);
-			else
-				sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
-			entry->type = (bigentrytype_t)kentry->type;
-			entry->adpcmrate = (int)kentry->adpcmrate;
-		}
-		else 
-		{
-			entry->type = BigfileDetectFiletype(f, entry);
+			entry->type = autotype;
 			sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
-		}	
+		}
+		// check listfile
+		else
+		{
+			kentry = BigfileSearchKList(entry->hash);
+			if (kentry != NULL)
+			{
+				if (kentry->path[0])
+					sprintf(entry->name, "%s", kentry->path);
+				else
+					sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
+				entry->type = (bigentrytype_t)kentry->type;
+				entry->adpcmrate = (int)kentry->adpcmrate;
+			}
+		}
 	}
 	fsetpos(f, &fpos);
 	printf("\n");
 
 
-	
 	// emit some stats
 	BigfileEmitStats(data);
 }

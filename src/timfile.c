@@ -1003,6 +1003,7 @@ int getfpos(FILE *f)
 	return (int)fpos;
 }
 
+// not a real extractor - just some hacky way to 'massage' raw pics data
 void RawTimExtract_Type0(char *basefilename, char *outfile, FILE *f, int width, int height, int offset)
 {
 	unsigned char *data;
@@ -1025,6 +1026,7 @@ void RawTimExtract_Type0(char *basefilename, char *outfile, FILE *f, int width, 
 	qfree(data);
 }
 
+// multiobject RAW tim
 void RawTimExtract_Type1(char *basefilename, char *outfile, FILE *f, int forcewidth, int forceheight, qboolean nopalette)
 {
 	unsigned char *data, *pixeldata, *colormapdata;

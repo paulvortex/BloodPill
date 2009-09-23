@@ -147,7 +147,7 @@ int main(int argc, char **argv)
 	// print caption
 	if (printcap)
 	{
-		printf(BLOODPILL_WELCOME);
+		printf(BLOODPILL_WELCOME, BLOODPILL_VERSION);
 		if (memstats)
 			printf("memstats = true\n");
 		if (waitforkey)
