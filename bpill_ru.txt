@@ -19,6 +19,7 @@ Blood Pill версия 0.3rc1
   - Balder и Zench с форумов XentaX (www.xentax.com): спецификации pill.big и помощь советами
   - Klarth (stevemonaco@hotmail.com) и 
     Raul Sobon (Cheekyboy@2-hot.com): спецификации TIM
+  - Андрей [Rackot] Грачев: спецификации Bigfile
 
  приятного чтения
  Павел [VorteX] Тимофеев
