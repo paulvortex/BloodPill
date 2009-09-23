@@ -923,66 +923,143 @@ int Targa2Tim_Main(int argc, char **argv)
 ==========================================================================================
 */
 
-void RawPalettedTGA(char *outfile, int width, int height, const char *colormapdata, int pixelbytes, const char *pixeldata)
+void RawTGA(char *outfile, int width, int height, const char *colormapdata, int pixelbytes, const char *pixeldata, int bpp, qboolean noswap)
 {
 	unsigned char *buffer, *out;
 	const unsigned char *in, *end;
 	int i;
 	FILE *f;
 
+	// check bpp
+	if (bpp != 8 && bpp != 16 && bpp != 24)
+		Error("RawTGA: bad bpp (only 8, 16 and 24 are supported)!\n");
+
 	// create targa header
-	buffer = qmalloc(pixelbytes + 768 + 18);
+	buffer = qmalloc(pixelbytes*(int)(bpp / 8) + ((bpp == 8) ? 768 : 0) + 18);
 	memset(buffer, 0, 18);
-	buffer[1] = 1;
-	buffer[2] = 1;
-	buffer[5] = (256 >> 0) & 0xFF;
-	buffer[6] = (256 >> 8) & 0xFF;
-	buffer[7] = 24; // colormap BPP
-	buffer[12] = (width >> 0) & 0xFF;
-	buffer[13] = (width >> 8) & 0xFF;
-	buffer[14] = (height >> 0) & 0xFF;
-	buffer[15] = (height >> 8) & 0xFF;
-	buffer[16] = 8;
-
-	// 24-bit colormap, swap bgr->rgb
-	if (colormapdata == NULL)
-	{
-		out = buffer + 18;
-		for (i = 0;i < 256;i++)
-		{
-			*out++ = i;
-			*out++ = i;
-			*out++ = i;
-		}
-	}
-	else
-	{
-		out = buffer + 18;
-		for (i = 0;i < 256;i++)
-		{
-			in = colormapdata + i*3;
-			*out++ = in[2];
-			*out++ = in[1];
-			*out++ = in[0];
-		}
-	}
-
-	// flip upside down, write
-	out = buffer + 768 + 18;
-	for (i = height - 1;i >= 0;i--)
-	{
-		in = pixeldata + i * width;
-		end = in + width;
-		for (;in < end; in++)
-			*out++ = in[0];
-	}
-
 	f = SafeOpen(outfile, "wb");
-	fwrite(buffer, pixelbytes + 768 + 18, 1, f);
+	if (bpp == 8)
+	{
+		buffer[1] = 1;
+		buffer[2] = 1;
+		buffer[5] = (256 >> 0) & 0xFF;
+		buffer[6] = (256 >> 8) & 0xFF;
+		buffer[7] = 24; // colormap BPP
+		buffer[12] = (width >> 0) & 0xFF;
+		buffer[13] = (width >> 8) & 0xFF;
+		buffer[14] = (height >> 0) & 0xFF;
+		buffer[15] = (height >> 8) & 0xFF;
+		buffer[16] = 8;
+		// 24-bit colormap, swap bgr->rgb
+		if (colormapdata == NULL)
+		{
+			out = buffer + 18;
+			for (i = 0;i < 256;i++)
+			{
+				*out++ = i;
+				*out++ = i;
+				*out++ = i;
+			}
+		}
+		else
+		{
+			out = buffer + 18;
+			for (i = 0;i < 256;i++)
+			{
+				in = colormapdata + i*3;
+				if (noswap == true)
+				{
+					*out++ = in[0];
+					*out++ = in[1];
+					*out++ = in[2];
+				}
+				else
+				{
+					*out++ = in[2];
+					*out++ = in[1];
+					*out++ = in[0];
+				}
+			}
+		}
+		// flip upside down, write
+		out = buffer + 768 + 18;
+		for (i = height - 1;i >= 0;i--)
+		{
+			in = pixeldata + i * width;
+			end = in + width;
+			for (;in < end; in++)
+				*out++ = in[0];
+		}
+		fwrite(buffer, pixelbytes + 768 + 18, 1, f);
+	}
+	else if (bpp == 16)
+	{
+		buffer[2] = 2; // uncompressed
+		buffer[12] = (width >> 0) & 0xFF;
+		buffer[13] = (width >> 8) & 0xFF;
+		buffer[14] = (height >> 0) & 0xFF;
+		buffer[15] = (height >> 8) & 0xFF;
+		buffer[16] = 16;
+		// flip upside down, write
+		out = buffer + 18;
+		for (i = height - 1;i >= 0;i--)
+		{
+			in = pixeldata + i * width * 2;
+			end = in + width * 2;
+			for (;in < end; in += 2)
+			{
+				// swap bgr->rgb
+				if (noswap == true)
+				{
+					*out++ = in[0]; 
+					*out++ = in[1];
+				}
+				else
+				{
+					*out++ = (in[0] & 0xE0) + ((in[1] & 0x7C) >> 2); 
+					*out++ = (in[1] & 0x03) + ((in[0] & 0x1F) << 2);
+				}
+			}
+		}
+		fwrite(buffer, pixelbytes*2 + 18, 1, f);
+	}
+	else if (bpp == 24)
+	{
+		buffer[2] = 2; // uncompressed
+		buffer[12] = (width >> 0) & 0xFF;
+		buffer[13] = (width >> 8) & 0xFF;
+		buffer[14] = (height >> 0) & 0xFF;
+		buffer[15] = (height >> 8) & 0xFF;
+		buffer[16] = 24;
+		// flip upside down, write
+		out = buffer + 18;
+		for (i = height - 1;i >= 0;i--)
+		{
+			in = pixeldata + i * width * 3;
+			end = in + width * 3;
+			for (;in < end; in += 3)
+			{
+				// swap bgr->rgb
+				if (noswap == true)
+				{
+					*out++ = in[0];
+					*out++ = in[1];
+					*out++ = in[2];
+				}
+				else
+				{
+					*out++ = in[2];
+					*out++ = in[1];
+					*out++ = in[0];
+				}
+			}
+		}
+		fwrite(buffer, pixelbytes*3 + 18, 1, f);
+	}
 	fclose(f);
-
 	qfree(buffer);
 }
+
 
 #define RAWTAG_ITEM 0x00000001
 #define RAWTAG_TILE 0x0000000C
@@ -1004,30 +1081,49 @@ int getfpos(FILE *f)
 }
 
 // not a real extractor - just some hacky way to 'massage' raw pics data
-void RawTimExtract_Type0(char *basefilename, char *outfile, FILE *f, int width, int height, int offset)
+void RawTimExtract_Type0(char *basefilename, char *outfile, FILE *f, int width, int height, int offset, int bytes, qboolean noswap)
 {
 	unsigned char *data;
 	char name[MAX_BLOODPATH];
 
 	printf("== raw object ==\n");
 
+	if (bytes != 1 && bytes != 2 && bytes != 3)
+		Error("Bad bytes %i!\n", bytes); 
+
 	if (width*height < 0)
 		Error("Bad width/height\n"); 
 
 	// load file contents
 	fseek(f, offset, SEEK_SET);
-	data = qmalloc(width*height);
-	fread(data, width*height, 1, f);
+	data = qmalloc(width*height*bytes);
+	fread(data, width*height*bytes, 1, f);
 
 	// write file
 	sprintf(name, "%s.tga", outfile);
 	printf("saving %s\n", name);
-	RawPalettedTGA(name, width, height, NULL, width*height, data);
+	RawTGA(name, width, height, NULL, width*height, data, (int)8*bytes, noswap);
 	qfree(data);
 }
 
 // multiobject RAW tim
-void RawTimExtract_Type1(char *basefilename, char *outfile, FILE *f, int forcewidth, int forceheight, qboolean nopalette)
+// 4 bytes - number of objects
+// 4 bytes - filesize
+// 768 bytes - colormap data (24-bit RGB)
+// 8 unknown bytes
+// if number_of_objects == 1:
+//   object1 width - 1 byte
+//   object1 height - 1 byte
+//   object1 pos.x - 1 byte
+//   object1 pos.y - 1 byte
+//   object1 pixels
+// if number_of_objects > 1:
+//   object headers:
+//     8 bytes per each object
+//   objects:
+//     variable sized unknown data
+//     object pixels
+void RawTimExtract_Type1(char *basefilename, char *outfile, FILE *f, int forcewidth, int forceheight, qboolean nopalette, qboolean noswap)
 {
 	unsigned char *data, *pixeldata, *colormapdata;
 	char objectname[MAX_BLOODPATH];
@@ -1089,7 +1185,7 @@ void RawTimExtract_Type1(char *basefilename, char *outfile, FILE *f, int forcewi
 			// save TGA
 			sprintf(objectname, "%s.tga", outfile);
 			printf(" name %s\n", objectname);
-			RawPalettedTGA(objectname, (int)objwidth, (int)objheight, (nopalette) ? NULL : colormapdata, objwidth*objheight, pixeldata);
+			RawTGA(objectname, (int)objwidth, (int)objheight, (nopalette) ? NULL : colormapdata, objwidth*objheight, pixeldata, 8, noswap);
 			qfree(pixeldata);
 		}
 		qfree(colormapdata);
@@ -1136,18 +1232,112 @@ void RawTimExtract_Type1(char *basefilename, char *outfile, FILE *f, int forcewi
 
 			// save TGA
 			sprintf(objectname, "%s_object%03i.tga", outfile, obj);
-			RawPalettedTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, data);
+			RawTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, data, 8, noswap);
 			qfree(data);
 		}
 	}
 	qfree(colormapdata);
 }	
+
+// multiobject paletted tiles
+// 4 bytes - number of objects
+// 768 bytes - ??? (colormap data)
+// 4 bytes - ???
+// object headers:
+//   768 bytes - colormap
+//   8 bytes - ? ? ? width height ? ? ?
+// object pixels:
+//   realwidth = width * 2
+//   realheight = height * 2
+//   realwidth * realheight bytes - indexes into colormap
+void RawTimExtract_Type2(char *basefilename, char *outfile, FILE *f, qboolean nopalette, qboolean noswap)
+{
+	unsigned int numobjects;
+	unsigned char sbytes[2];
+	unsigned char *colormapdata;
+	unsigned char *objectshead;
+	unsigned char *pixeldata;
+	unsigned char *in;
+	char name[MAX_BLOODPATH];
+	int i, width, height, resolutionmultiplier;
+	fpos_t fpos;
+
+	// number of objects
+	fread(&sbytes, 4, 1, f);
+	numobjects = sbytes[1] * 256 + sbytes[0];
+	printf("tag: %i\n", numobjects);
+	if (numobjects > 200 || numobjects <= 0)
+		Error("bad file\n");
+	if (numobjects > 50)
+		numobjects = 2;
+
+	colormapdata = qmalloc(768 * numobjects);
+	objectshead = qmalloc(8 * numobjects);
+
+	// unknown info
+	fseek(f, 768, SEEK_CUR);
+	in = objectshead + 0;
+	fread(in, 4, 1, f);
+	printf("mystic: %3i %3i %3i %3i\n", in[0], in[1], in[2], in[3] );
+
+	// read colormapdata/head_info for number_of_objects + 1
+	for (i = 0; i < (int)numobjects; i++)
+	{
+		in = colormapdata + 768*i;
+		fread(in, 768, 1, f);
+
+		in = objectshead + 8*i;
+		fread(in, 8, 1, f);
+		printf("object %3i: %3i %3i %3i %3i %3i %3i %3i %3i\n", i + 1, in[0], in[1], in[2], in[3], in[4], in[5], in[6], in[7]);
+	}
+
+	printfpos(f);
+
+	// hacks land
+	// it seems BO has 2 types of such files with exactly same info, 
+	// but one type has true width/height, other it's resulution doubled
+	// our task is to determine 'a bigger' file: we simulate pixel reading
+	// and if reached EOF - it is standart file, otherwise it is bigger file
+	fgetpos(f, &fpos);
+	for (i = 0; i < (int)numobjects; i++)
+		fseek(f, objectshead[8*i + 4]*objectshead[8*i + 5], SEEK_CUR);
+	resolutionmultiplier = 1;
+	printf("Check for double-res...\n");
+	for (i = 0; i < 32; i++)
+	{
+		fread(&width, 1, 1, f);
+		if (!feof(f)) // small file
+		{
+			printf("Double-res file!\n");
+		//	resolutionmultiplier = 2;
+			break;
+		}
+	}
+	fsetpos(f, &fpos);
+
+	// write objects
+	for (i = 0; i < (int)numobjects; i++)
+	{	
+		width = objectshead[8*i + 4] * resolutionmultiplier;
+		height = objectshead[8*i + 5] * resolutionmultiplier;
+		pixeldata = qmalloc(width*height);
+		fread(pixeldata, width*height, 1, f);
+		sprintf(name, "%s_%i.tga", basefilename, i);
+		printf("writing %s\n", name);
+		in = colormapdata + 768*i;
+		RawTGA(name, width, height, in, width*height, pixeldata, 8, noswap);
+		qfree(pixeldata);
+	}
+
+	qfree(colormapdata);
+	qfree(objectshead);
+}
 	
 int RawTim_Main(int argc, char **argv)
 {
 	char filename[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], ext[5], outfile[MAX_BLOODPATH], *c;
-	int i = 1, type, forcewidth, forceheight, offset;
-	qboolean nopalette;
+	int i = 1, type, forcewidth, forceheight, offset, bytes;
+	qboolean nopalette, noswap;
 	FILE *f;
 
 
@@ -1171,6 +1361,8 @@ int RawTim_Main(int argc, char **argv)
 
 	// parse cmdline
 	nopalette = false;
+	noswap = false;
+	bytes = 1;
 	forcewidth = -1;
 	forceheight = -1;	
 	offset = 0;
@@ -1206,6 +1398,18 @@ int RawTim_Main(int argc, char **argv)
 			if (i < argc)
 				offset = atoi(argv[i]);
 		}
+		else if(!strcmp(argv[i], "-noswap"))
+		{
+			noswap = true;
+			printf("BGR->RGB swapping disabled\n");
+		}
+		else if(!strcmp(argv[i], "-bytes"))
+		{
+			i++;
+			if (i < argc)
+				bytes = atoi(argv[i]);
+			printf("bytes set to %i\n", bytes);
+		}
 		else if(!strcmp(argv[i], "-noclut"))
 		{
 			nopalette = true;
@@ -1218,10 +1422,13 @@ int RawTim_Main(int argc, char **argv)
 	switch(type)
 	{
 		case 0:
-			RawTimExtract_Type0(basefilename, outfile, f, forcewidth, forceheight, offset);
+			RawTimExtract_Type0(basefilename, outfile, f, forcewidth, forceheight, offset, bytes, noswap);
 			break;
 		case 1:
-			RawTimExtract_Type1(basefilename, outfile, f, forcewidth, forceheight, nopalette);
+			RawTimExtract_Type1(basefilename, outfile, f, forcewidth, forceheight, nopalette, noswap);
+			break;
+		case 2:
+			RawTimExtract_Type2(basefilename, outfile, f, nopalette, noswap);
 			break;
 		default:
 			Error("Type %i not supported\n", type);
