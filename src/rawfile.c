@@ -21,6 +21,7 @@
 ////////////////////////////////
 
 #include "bloodpill.h"
+#include "rawfile.h"
 #include "cmdlib.h"
 #include "mem.h"
 
@@ -40,6 +41,60 @@ int getfpos(FILE *f)
 	return (int)fpos;
 }
 
+void FlushRawinfo(rawinfo_t *rawinfo)
+{
+	rawinfo->type = RAW_TYPE_UNKNOWN;
+	rawinfo->width = -1;
+	rawinfo->height = -1;
+	rawinfo->offset = 0;
+	rawinfo->bytes = 1;
+	rawinfo->doubleres = rauto;
+	rawinfo->disableCLUT = false;
+	rawinfo->dontSwapBgr = false;
+}
+
+rawswitch_t ParseRawSwitch(char *str)
+{
+	Q_strlower(str);
+	if (!strcmp(str, "auto") || !strcmp(str, "automatic") || !strcmp(str, "a"))
+		return rauto;
+	if (!strcmp(str, "true") || !strcmp(str, "rtrue") || !strcmp(str, "yes") || !strcmp(str, "on") || !strcmp(str, "1"))
+		return rtrue;
+	return rfalse;
+}
+
+char *UnparseRawSwitch(rawswitch_t rawswitch)
+{
+	if (rawswitch == rauto)
+		return "auto";
+	if (rawswitch == rtrue)
+		return "yes";
+	return "no";
+}
+
+rawtype_t ParseRawType(char *str)
+{
+	Q_strlower(str);
+	if (!strcmp(str, "0") || !strcmp(str, "raw"))
+		return RAW_TYPE_0;
+	if (!strcmp(str, "1") || !strcmp(str, "tile1"))
+		return RAW_TYPE_1;
+	if (!strcmp(str, "2") || !strcmp(str, "tile2"))
+		return RAW_TYPE_2;
+	return RAW_TYPE_UNKNOWN;
+}
+
+char *UnparseRawType(rawtype_t rawtype)
+{
+	if (rawtype == RAW_TYPE_0)
+		return "raw";
+	if (rawtype == RAW_TYPE_1)
+		return "tile1";
+	if (rawtype == RAW_TYPE_2)
+		return "tile2";
+	return "unknown";
+}
+
 /*
 ==========================================================================================
 
@@ -48,7 +103,7 @@ int getfpos(FILE *f)
 ==========================================================================================
 */
 
-void RawTGA(char *outfile, int width, int height, const char *colormapdata, int pixelbytes, const char *pixeldata, int bpp, qboolean noswap)
+void RawTGA(char *outfile, int width, int height, const char *colormapdata, int pixelbytes, const char *pixeldata, int bpp, rawinfo_t *rawinfo)
 {
 	unsigned char *buffer, *out;
 	const unsigned char *in, *end;
@@ -77,7 +132,7 @@ void RawTGA(char *outfile, int width, int height, const char *colormapdata, int 
 		buffer[15] = (height >> 8) & 0xFF;
 		buffer[16] = 8;
 		// 24-bit colormap, swap bgr->rgb
-		if (colormapdata == NULL)
+		if (rawinfo->disableCLUT == true || colormapdata == NULL)
 		{
 			out = buffer + 18;
 			for (i = 0;i < 256;i++)
@@ -93,7 +148,7 @@ void RawTGA(char *outfile, int width, int height, const char *colormapdata, int 
 			for (i = 0;i < 256;i++)
 			{
 				in = colormapdata + i*3;
-				if (noswap == true)
+				if (rawinfo->dontSwapBgr == true)
 				{
 					*out++ = in[0];
 					*out++ = in[1];
@@ -135,7 +190,7 @@ void RawTGA(char *outfile, int width, int height, const char *colormapdata, int 
 			for (;in < end; in += 2)
 			{
 				// swap bgr->rgb
-				if (noswap == true)
+				if (rawinfo->dontSwapBgr == true)
 				{
 					*out++ = in[0]; 
 					*out++ = in[1];
@@ -166,7 +221,7 @@ void RawTGA(char *outfile, int width, int height, const char *colormapdata, int 
 			for (;in < end; in += 3)
 			{
 				// swap bgr->rgb
-				if (noswap == true)
+				if (rawinfo->dontSwapBgr == true)
 				{
 					*out++ = in[0];
 					*out++ = in[1];
@@ -196,27 +251,27 @@ void RawTGA(char *outfile, int width, int height, const char *colormapdata, int 
 ==========================================================================================
 */
 
-void RawExtract_Type0(char *basefilename, char *outfile, FILE *f, int width, int height, int offset, int bytes, qboolean noswap)
+void RawExtract_Type0(char *basefilename, char *outfile, FILE *f, rawinfo_t *rawinfo)
 {
 	unsigned char *data;
 	char name[MAX_BLOODPATH];
 
 	Verbose("== raw object ==\n");
 
-	if (bytes != 1 && bytes != 2 && bytes != 3)
-		Error("Bad bytes %i!\n", bytes); 
+	if (rawinfo->bytes != 1 && rawinfo->bytes != 2 && rawinfo->bytes != 3)
+		Error("Bad bytes %i!\n", rawinfo->bytes); 
 
-	if (width*height < 0)
+	if (rawinfo->width*rawinfo->height < 0)
 		Error("Bad width/height\n"); 
 
 	// load file contents
-	fseek(f, offset, SEEK_SET);
-	data = qmalloc(width*height*bytes);
-	fread(data, width*height*bytes, 1, f);
+	fseek(f, rawinfo->offset, SEEK_SET);
+	data = qmalloc(rawinfo->width*rawinfo->height*rawinfo->bytes);
+	fread(data, rawinfo->width*rawinfo->height*rawinfo->bytes, 1, f);
 
 	// write file
 	sprintf(name, "%s.tga", outfile);
-	RawTGA(name, width, height, NULL, width*height, data, (int)8*bytes, noswap);
+	RawTGA(name, rawinfo->width, rawinfo->height, NULL, rawinfo->width*rawinfo->height, data, (int)8*rawinfo->bytes, rawinfo);
 	qfree(data);
 }
 
@@ -237,7 +292,7 @@ void RawExtract_Type0(char *basefilename, char *outfile, FILE *f, int width, int
 //   objects:
 //     variable sized unknown data
 //     object pixels
-void RawExtract_Type1(char *basefilename, char *outfile, FILE *f, int forcewidth, int forceheight, qboolean nopalette, qboolean noswap)
+void RawExtract_Type1(char *basefilename, char *outfile, FILE *f, rawinfo_t *rawinfo)
 {
 	unsigned char *data, *pixeldata, *colormapdata;
 	char objectname[MAX_BLOODPATH];
@@ -277,9 +332,9 @@ void RawExtract_Type1(char *basefilename, char *outfile, FILE *f, int forcewidth
 
 		// width and height - 2 bytes
 		fread(&temp, 1, 1, f);
-		objwidth = (forcewidth > 0) ? forcewidth : (int)temp;
+		objwidth = (rawinfo->width > 0) ? rawinfo->width : (int)temp;
 		fread(&temp, 1, 1, f);
-		objheight = (forceheight > 0) ? forceheight : (int)temp;
+		objheight = (rawinfo->height > 0) ? rawinfo->height : (int)temp;
 		Verbose(" size = %ix%i\n", objwidth, objheight);
 
 		// x and y - 2 bytes
@@ -297,7 +352,7 @@ void RawExtract_Type1(char *basefilename, char *outfile, FILE *f, int forcewidth
 
 			// save TGA
 			sprintf(objectname, "%s.tga", outfile);
-			RawTGA(objectname, (int)objwidth, (int)objheight, (nopalette) ? NULL : colormapdata, objwidth*objheight, pixeldata, 8, noswap);
+			RawTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, pixeldata, 8, rawinfo);
 			qfree(pixeldata);
 		}
 		qfree(colormapdata);
@@ -344,7 +399,7 @@ void RawExtract_Type1(char *basefilename, char *outfile, FILE *f, int forcewidth
 
 			// save TGA
 			sprintf(objectname, "%s_object%03i.tga", outfile, obj);
-			RawTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, data, 8, noswap);
+			RawTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, data, 8, rawinfo);
 			qfree(data);
 		}
 	}
@@ -362,7 +417,7 @@ void RawExtract_Type1(char *basefilename, char *outfile, FILE *f, int forcewidth
 //   realwidth = width * 2
 //   realheight = height * 2
 //   realwidth * realheight bytes - indexes into colormap
-void RawExtract_Type2(char *basefilename, char *outfile, FILE *f, qboolean nopalette, qboolean noswap)
+void RawExtract_Type2(char *basefilename, char *outfile, FILE *f, rawinfo_t *rawinfo)
 {
 	unsigned int numobjects;
 	unsigned char sbytes[2];
@@ -392,12 +447,13 @@ void RawExtract_Type2(char *basefilename, char *outfile, FILE *f, qboolean nopal
 	fread(in, 4, 1, f);
 	Verbose("mystic: %3i %3i %3i %3i\n", in[0], in[1], in[2], in[3] );
 
-	// read colormapdata/head_info for number_of_objects + 1
+	// read colormapdata/head_info for number_of_objects
 	for (i = 0; i < (int)numobjects; i++)
 	{
+		// colomap
 		in = colormapdata + 768*i;
 		fread(in, 768, 1, f);
-
+		// head data
 		in = objectshead + 8*i;
 		fread(in, 8, 1, f);
 		Verbose("object %3i: %3i %3i %3i %3i %3i %3i %3i %3i\n", i + 1, in[0], in[1], in[2], in[3], in[4], in[5], in[6], in[7]);
@@ -410,33 +466,37 @@ void RawExtract_Type2(char *basefilename, char *outfile, FILE *f, qboolean nopal
 	// but one type has true width/height, other it's resulution doubled
 	// our task is to determine 'a bigger' file: we simulate pixel reading
 	// and if reached EOF - it is standart file, otherwise it is bigger file
-	fgetpos(f, &fpos);
-	for (i = 0; i < (int)numobjects; i++)
-		fseek(f, objectshead[8*i + 4]*objectshead[8*i + 5], SEEK_CUR);
-	resolutionmultiplier = 1;
-	Verbose("Check for double-res...\n");
-	for (i = 0; i < 32; i++)
+	if (rawinfo->doubleres == rauto)
 	{
-		fread(&width, 1, 1, f);
-		if (!feof(f)) // small file
+		fgetpos(f, &fpos);
+		for (i = 0; i < (int)numobjects; i++)
+			fseek(f, objectshead[8*i + 4]*objectshead[8*i + 5], SEEK_CUR);
+		resolutionmultiplier = 1;
+		// check it is a big file
+		for (i = 0; i < 32; i++)
 		{
-			Verbose("Double-res file!\n");
-			resolutionmultiplier = 2;
-			break;
+			fread(&width, 1, 1, f);
+			if (feof(f)) // small file
+				break;
 		}
+		if (!feof(f))
+			resolutionmultiplier =2;
+		fsetpos(f, &fpos);
 	}
-	fsetpos(f, &fpos);
+	else
+		resolutionmultiplier = (rawinfo->doubleres == rtrue) ? 2 : 1;
 
 	// write objects
 	for (i = 0; i < (int)numobjects; i++)
 	{	
 		width = objectshead[8*i + 4] * resolutionmultiplier;
 		height = objectshead[8*i + 5] * resolutionmultiplier;
+		
 		pixeldata = qmalloc(width*height);
 		fread(pixeldata, width*height, 1, f);
-		sprintf(name, "%s_%i.tga", basefilename, i);
 		in = colormapdata + 768*i;
-		RawTGA(name, width, height, in, width*height, pixeldata, 8, noswap);
+		sprintf(name, "%s_%i.tga", basefilename, i);
+		RawTGA(name, width, height, in, width*height, pixeldata, 8, rawinfo);
 		qfree(pixeldata);
 	}
 
@@ -451,22 +511,51 @@ void RawExtract_Type2(char *basefilename, char *outfile, FILE *f, qboolean nopal
 
 ==========================================================================================
 */
+
+void RawExtract(char *filename, char *outfile, rawinfo_t *rawinfo)
+{
+	char basefilename[MAX_BLOODPATH];
+	FILE *f;
+
+	StripFileExtension(outfile, basefilename);
+
+	// open and convert
+	f = SafeOpen(filename, "rb");
+	switch(rawinfo->type)
+	{
+		case RAW_TYPE_UNKNOWN:
+			Error("Cannot convert UNKNOWN raw type");
+			break;
+		case RAW_TYPE_0:
+			RawExtract_Type0(basefilename, outfile, f, rawinfo);
+			break;
+		case RAW_TYPE_1:
+			RawExtract_Type1(basefilename, outfile, f, rawinfo);
+			break;
+		case RAW_TYPE_2:
+			RawExtract_Type2(basefilename, outfile, f, rawinfo);
+			break;
+		default:
+			Error("type %i not supported\n", rawinfo->type);
+			break;
+	}
+	fclose(f);
+}
 	
 int Raw_Main(int argc, char **argv)
 {
-	char filename[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], ext[5], outfile[MAX_BLOODPATH], *c;
-	int i = 1, type, forcewidth, forceheight, offset, bytes;
-	qboolean nopalette, noswap;
-	FILE *f;
+	char filename[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], outfile[MAX_BLOODPATH], *c;
+	rawinfo_t rawinfo;
+	int i;
 
-
+	FlushRawinfo(&rawinfo);
+	i = 1;
 	Verbose("=== TimRaw ===\n");
 	Verbose("%s\n", argv[i]);
 
 	// get inner file
 	strcpy(filename, argv[i]);
 	StripFileExtension(filename, basefilename);
-	ExtractFileExtension(filename, ext);
 	i++;
 
 	// get out file
@@ -479,12 +568,6 @@ int Raw_Main(int argc, char **argv)
 	}
 
 	// parse cmdline
-	nopalette = false;
-	noswap = false;
-	bytes = 1;
-	forcewidth = -1;
-	forceheight = -1;	
-	offset = 0;
 	for (i = i; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-width"))
@@ -492,8 +575,8 @@ int Raw_Main(int argc, char **argv)
 			i++;
 			if (i < argc)
 			{
-				forcewidth = atoi(argv[i]);
-				Verbose("force width = %i\n", forcewidth);
+				rawinfo.width = atoi(argv[i]);
+				Verbose("Width: %i\n", rawinfo.width);
 			}
 		}
 		else if(!strcmp(argv[i], "-height"))
@@ -501,60 +584,56 @@ int Raw_Main(int argc, char **argv)
 			i++;
 			if (i < argc)
 			{
-				forceheight = atoi(argv[i]);
-				Verbose("force height = %i\n", forceheight);
+				rawinfo.height = atoi(argv[i]);
+				Verbose("Height: %i\n", rawinfo.height);
 			}
 		}
 		else if(!strcmp(argv[i], "-type"))
 		{
 			i++;
 			if (i < argc)
-				type = atoi(argv[i]);
+			{
+				rawinfo.type = ParseRawType(argv[i]);
+				Verbose("Raw type: %s\n", UnparseRawType(rawinfo.type));
+			}
+		}
+		else if(!strcmp(argv[i], "-doubleres"))
+		{
+			i++;
+			if (i < argc)
+			{
+				rawinfo.doubleres = ParseRawSwitch(argv[i]);
+				Verbose("Doubleres: %s\n", UnparseRawSwitch(rawinfo.doubleres));
+			}
 		}
 		else if(!strcmp(argv[i], "-offset"))
 		{
 			i++;
 			if (i < argc)
-				offset = atoi(argv[i]);
-		}
-		else if(!strcmp(argv[i], "-noswap"))
-		{
-			noswap = true;
-			Verbose("BGR->RGB swapping disabled\n");
+			{
+				rawinfo.offset = atoi(argv[i]);
+				Verbose("Offset: %i bytes\n", rawinfo.offset);
+			}
 		}
 		else if(!strcmp(argv[i], "-bytes"))
 		{
 			i++;
 			if (i < argc)
-				bytes = atoi(argv[i]);
-			Verbose("bytes set to %i\n", bytes);
+				rawinfo.bytes = atoi(argv[i]);
+			Verbose("Color bytes: %i\n", rawinfo.bytes);
+		}
+		else if(!strcmp(argv[i], "-noswap"))
+		{
+			rawinfo.dontSwapBgr = true;
+			Verbose("BGR->RGB swap: disabled\n");
 		}
 		else if(!strcmp(argv[i], "-noclut"))
 		{
-			nopalette = true;
-			Verbose("CLUT disabled\n");
+			rawinfo.disableCLUT = true;
+			Verbose("CLUT: disabled\n");
 		}
 	}
-
-	// open and convert
-	f = SafeOpen(filename, "rb");
-	switch(type)
-	{
-		case 0:
-			RawExtract_Type0(basefilename, outfile, f, forcewidth, forceheight, offset, bytes, noswap);
-			break;
-		case 1:
-			RawExtract_Type1(basefilename, outfile, f, forcewidth, forceheight, nopalette, noswap);
-			break;
-		case 2:
-			RawExtract_Type2(basefilename, outfile, f, nopalette, noswap);
-			break;
-		default:
-			Error("Type %i not supported\n", type);
-			break;
-	}
-	fclose(f);
-
+	RawExtract(filename, outfile, &rawinfo);
 	Print("done.\n");
 	return 0;
 }

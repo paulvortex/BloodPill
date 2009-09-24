@@ -24,6 +24,7 @@
 
 #include "bloodpill.h"
 #include "bigfile.h"
+#include "rawfile.h"
 #include "soxsupp.h"
 #include "cmdlib.h"
 #include "mem.h"

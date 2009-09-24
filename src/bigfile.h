@@ -20,7 +20,7 @@ static char *bigentryext[BIGFILE_NUM_FILETYPES] =
 	"dat", 
 	"tim",
 	"vag", 
-	"wav"
+	"wav",
 };
 
 // bigfile entry
