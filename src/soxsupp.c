@@ -185,7 +185,7 @@ int VagConvert_Main(int argc, char **argv)
 	double vorbisquality;
 	qboolean wavpcm;
 
-	printf("=== VagConvert ==\n");
+	Print("=== VagConvert ==\n");
 	if (i < 1)
 		Error("not enough parms");
 
@@ -214,7 +214,7 @@ int VagConvert_Main(int argc, char **argv)
 		if (!strcmp(argv[i], "-pcm"))
 		{
 			wavpcm = true;
-			printf("Target format changed to 16-bit PCM RIFF WAVE\n");
+			Print("Option: export 16-bit PCM RIFF WAVE\n");
 			sprintf(outputcmd, "-t wav -e signed-integer");
 		}
 		else if (!strcmp(argv[i], "-oggvorbis"))
@@ -227,7 +227,7 @@ int VagConvert_Main(int argc, char **argv)
 				vorbisquality = 10.0f;
 			if (vorbisquality < 0.0f)
 				vorbisquality = 0.0f;
-			printf("Target format changed to Ogg Vorbis (quality %f)\n", vorbisquality);
+			Print("Option: export Ogg Vorbis (quality %f)\n", vorbisquality);
 			sprintf(outputcmd, "-t ogg -C %f", vorbisquality);
 		}
 		else if (!strcmp(argv[i], "-custom"))
@@ -235,14 +235,14 @@ int VagConvert_Main(int argc, char **argv)
 			i++;
 			if (i < argc)
 				sprintf(outputcmd, "%s", argv[i]);
-			printf("Target format changed to Custom (%s)\n", outputcmd);
+			Print("Option: custom SoX commandline (%s)\n", outputcmd);
 		}
 		else if (!strcmp(argv[i], "-rate"))
 		{
 			i++;
 			if (i < argc)
 				rate = atoi(argv[i]);
-			printf("VAG rate set to %i\n", rate);
+			Print("Option: rate %ihz\n", rate);
 		}
 	}
 
@@ -251,14 +251,14 @@ int VagConvert_Main(int argc, char **argv)
 		sprintf(inputcmd, "-t ima -r %i -c 1", rate);
 	else
 	{
-		printf("file %s is not a VAG file, detecting type automatically\n", outputcmd);
+		Warning("file %s is not a VAG file, detecting type automatically\n", outputcmd);
 		sprintf(inputcmd, "");
 	}
 
 	// run SOX
-	printf("conversion in progress...\n");
+	Print("conversion in progress...\n");
 	if (!SoX(filename, "", inputcmd, outputcmd, outfile))
 		Error("SoX Error: #%i", GetLastError());
-	printf("done.\n");
+	Print("done.\n");
 	return 0;
 }

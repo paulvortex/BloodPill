@@ -72,6 +72,10 @@ SOURCE=.\mem.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\rawfile.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\soxsupp.c
 # End Source File
 # Begin Source File
@@ -97,6 +101,10 @@ SOURCE=.\cmdlib.h
 # Begin Source File
 
 SOURCE=.\mem.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\rawfile.h
 # End Source File
 # Begin Source File
 

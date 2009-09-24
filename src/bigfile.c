@@ -127,7 +127,7 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 		if (line[0] == '[')
 		{
 			if (sscanf(line, "[%X]", &hash) < 1)
-				Error("bad entry definition on line %i: %s\n", linenum, line);
+				Error("bad entry definition on line %i: %s", linenum, line);
 
 			entry = &klist->entries[klist->numentries];
 			entry->hash = hash;
@@ -138,7 +138,7 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 			// warn for double defienition
 			for (i = 0; i < klist->numentries; i++)
 				if (klist->entries[i].hash == hash)
-					printf("warning: redefenition of hash %.8X on line %i\n", hash, linenum);
+					Warning("redefenition of hash %.8X on line %i", hash, linenum);
 
 			klist->numentries++;
 			continue;
@@ -172,7 +172,7 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 			// warn for double path defienition
 			for (i = 0; i < (klist->numentries - 1); i++)
 				if (!strcmp(klist->entries[i].path, entry->path))
-					printf("warning: path redefenition on entry #%.8X on line %i (previously defined for entry #%.8X\n", entry->hash, linenum, klist->entries[i].hash);
+					Warning("path redefenition on entry #%.8X on line %i (previously defined for entry #%.8X\n", entry->hash, linenum, klist->entries[i].hash);
 			continue;
 		}
 
@@ -188,10 +188,10 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 			continue;
 		if (line[0] == '#')
 			continue;
-		printf("warning: bad line %i: %s", linenum, line);
+		Warning("bad line %i: %s", linenum, line);
 	}
 
-	printf("%s: %i entries\n", filename, klist->numentries);
+	Verbose("%s: %i entries\n", filename, klist->numentries);
 
 	return klist;
 }
@@ -320,7 +320,6 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 	{
 		StripFileExtension(entry->name, basename);
 
-		//printf("#%.8X\n", entry->hash);
 		// read entry
 		entry->data = qmalloc(entry->size);
 		BigfileSeekContents(bigf, entry->data, entry);
@@ -338,7 +337,7 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 			sprintf(entry->name, (vagogg) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.tx
 		else
 		{
-			printf("warning: unable to convert %s, SoX Error #%i, unpacking original\n", entry->name, GetLastError());
+			Warning("unable to convert %s, SoX Error #%i, unpacking original", entry->name, GetLastError());
 			sprintf(savefile, "%s/%s", dstdir, entry->name);
 			BigFileUnpackFile(bigf, entry, savefile);
 		}
@@ -408,7 +407,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 		Error("BigfileHeader: wrong of broken file\n");
 	if (!data->numentries)
 		Error("BigfileHeader: funny entries count, perhaps file is broken\n");
-	printf("%s: %i entries\n", filename, data->numentries);
+	Verbose("%s: %i entries", filename, data->numentries);
 
 	// read entries
 	data->entries = qmalloc(data->numentries * sizeof(bigfileentry_t));
@@ -417,8 +416,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 		entry = &data->entries[i];
 		BigfileEmptyEntry(entry);
 
-		printf("\rreading entry %i of %i...\r", i + 1, data->numentries);
-		fflush(stdout);
+		Pacifier("reading entry %i of %i...", i + 1, data->numentries);
 
 		if (fread(&read, 12, 1, f) < 1)
 			Error("BigfileHeader: error on entry %i (%s)\n", i, strerror(errno));
@@ -430,7 +428,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 		if (!entry->hash || !entry->offset)
 			Error("BigfileHeader: entry %i is broken\n", i);
 	}
-	printf("\n");
+	PacifierEnd();
 
 	// load contents
 	if (loadfilecontents)
@@ -441,13 +439,12 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 			if (entry->size <= 0)
 				continue;
 
-			printf("\rloading entry %i of %i...\r", i + 1, data->numentries);
-			fflush(stdout);
+			Pacifier("loading entry %i of %i...", i + 1, data->numentries);
 
 			entry->data = qmalloc(entry->size);
 			BigfileSeekContents(f, entry->data, entry);
 		}
-		printf("\n");
+		PacifierEnd();
 	}
 
 	return data;
@@ -566,15 +563,15 @@ void BigfileEmitStats(bigfileheader_t *data)
 	}
 
 	// print
-	printf(" %6i 4-bit TIM\n", timstats[0]);
-	printf(" %6i 8-bit TIM\n", timstats[1]);
-	printf(" %6i 16-bit TIM\n", timstats[2]);
-	printf(" %6i 24-bit TIM\n", timstats[3]);
-	printf(" %6i TIM total\n", stats[BIGENTRY_TIM]);
-	printf(" %6i RAW ADPCM (VAG)\n", stats[BIGENTRY_RAW_ADPCM]);
-	printf(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
-	printf(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
-	printf(" %6i TOTAL\n", data->numentries);
+	Print(" %6i 4-bit TIM\n", timstats[0]);
+	Print(" %6i 8-bit TIM\n", timstats[1]);
+	Print(" %6i 16-bit TIM\n", timstats[2]);
+	Print(" %6i 24-bit TIM\n", timstats[3]);
+	Print(" %6i TIM total\n", stats[BIGENTRY_TIM]);
+	Print(" %6i RAW ADPCM\n", stats[BIGENTRY_RAW_ADPCM]);
+	Print(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
+	Print(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
+	Verbose(" %6i TOTAL\n", data->numentries);
 }
 
 // read bigfile header from listfile
@@ -596,7 +593,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
 	data = qmalloc(sizeof(bigfileheader_t));
 	if (fscanf(f, "numentries=%i\n", &numentries) != 1)
 		Error("broken numentries record");
-	printf("%s: %i entries\n", filename, numentries);
+	Verbose("%s: %i entries\n", filename, numentries);
 
 	// read all entries
 	linenum = 1;
@@ -630,8 +627,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
 			entry->hash = (unsigned int)val;
 			data->numentries++;
 			
-			printf("\rreading entry %i of %i...\r", data->numentries, numentries);
-			fflush(stdout);
+			Pacifier("reading entry %i of %i...", data->numentries, numentries);
 			continue;
 		}
 
@@ -661,7 +657,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
 		else if (sscanf(line, "adpcm.rate=%i", &val))
 			entry->adpcmrate = val;
 	}
-	printf("\n");
+	PacifierEnd();
 
 	// check last entry
 	if (entry != NULL)
@@ -787,8 +783,7 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 		if (!entry->size)
 			continue;
 
-		printf("\rscanning type for entry %i of %i...\r", i + 1, data->numentries);
-		fflush(stdout);
+		Pacifier("scanning type for entry %i of %i...", i + 1, data->numentries);
 		
 		// detect filetype automatically
 		autotype = BigfileDetectFiletype(f, entry);
@@ -813,7 +808,7 @@ void BigfileScanFiletypes(FILE *f,bigfileheader_t *data)
 		}
 	}
 	fsetpos(f, &fpos);
-	printf("\n");
+	PacifierEnd();
 
 
 	// emit some stats
@@ -872,8 +867,7 @@ int BigFile_Analyse(int argc, char **argv, char *outfile)
 		entry = &data->entries[i];
 		if (entry->type != BIGENTRY_UNKNOWN)
 			continue;
-		printf("\ranalysing entry %i of %i...\r", i + 1, data->numentries);
-		fflush(stdout);
+		Pacifier("analysing entry %i of %i...", i + 1, data->numentries);
 
 		// chunk4 stats
 		BigfileSeekFile(f, entry);
@@ -895,18 +889,17 @@ int BigFile_Analyse(int argc, char **argv, char *outfile)
 			}
 		}
 	}
-	printf("\n");
+	PacifierEnd("\n");
 
 	// print stats
-	printf("=== Chunk (unsigned int) ===\n");
-	printf("  occurence threshold = 4\n");
+	Print("=== Chunk (unsigned int) ===\n");
+	Print("  occurence threshold = 4\n");
 	for (i = 0; i < chunkstats->numchunks4; i++)
 		if (chunkstats->chunks4[i].occurrences > 4)
-			printf("  %.8X = %i occurences\n", chunkstats->chunks4[i].data, chunkstats->chunks4[i].occurrences);
+			Print("  %.8X = %i occurences\n", chunkstats->chunks4[i].data, chunkstats->chunks4[i].occurrences);
 
 	fclose(f);
 	qfree(chunkstats);
-
 	return 0;
 
 }
@@ -936,13 +929,11 @@ int BigFile_List(int argc, char **argv, char *listfile)
 	{
 		f2 = SafeOpen(listfile, "w");
 		BigfileWriteListfile(f2, data);
-		printf("wrote %s\n", listfile);
+		Print("wrote %s\n", listfile);
 		fclose(f2);
 	}
-	printf("done.\n");
-
+	Print("done.\n");
 	fclose (f);
-
 	return 0;
 }
 
@@ -959,41 +950,40 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 	BigfileScanFiletypes(f, data);
 
 	// make directory
-	printf("%s folder created\n", dstdir);
 	Q_mkdir(dstdir);
-
+	Verbose("%s folder created\n", dstdir);
+	
 	// show options
 	if (tim2tga)
-		printf("TIM->TGA conversion enabled\n");
+		Print("Option: TIM->TGA conversion\n");
 	if (bpp16to24)
-		printf("Targa compatibility mode enabled (converting 16-bit to 24-bit)\n");
+		Print("Option:  Targa compatibility mode (converting 16-bit to 24-bit)\n");
 	if (nopaths)
-		printf("Disallow klist-set subpaths\n");
+		Print("Option: Disallow klist-set subpaths\n");
 	if (vagconvert)
 	{
 		if (vagogg)
-			printf("VAG->OGG Vorbis Quality 5 conversion enabled\n");
+			Print("Option: VAG->OGG Vorbis Quality 5 conversion\n");
 		else if (vagpcm)
-			printf("VAG->WAV PCM conversion enabled\n");
+			Print("Option: VAG->WAV PCM conversion\n");
 		else
-			printf("VAG->WAV ADPCM conversion enabled\n");
+			Print("Option: VAG->WAV ADPCM conversion\n");
 	}
 
 	// export all files
 	for (i = 0; i < (int)data->numentries; i++)
 	{
-		printf("\runpacking entry %i of %i...\r", i + 1, data->numentries);
-		fflush(stdout);
+		Pacifier("unpacking entry %i of %i...", i + 1, data->numentries);
 		BigFileUnpackEntry(f, &data->entries[i], dstdir, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg);
 	}
-	printf("\n");
+	PacifierEnd();
 
 	// write listfile
 	sprintf(savefile, "%s/listfile.txt", dstdir);
 	f2 = SafeOpen(savefile, "w");
 	BigfileWriteListfile(f2, data);
 	fclose(f2);
-	printf("wrote %s\ndone.\n", savefile);
+	Print("wrote %s\ndone.\n", savefile);
 
 	fclose (f);
 	return 0;
@@ -1015,7 +1005,7 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 	f = fopen(bigfile, "rb");
 	if (f)
 	{
-		printf("%s already exists, overwriting\n", bigfile);
+		Verbose("%s already exists, overwriting\n", bigfile);
 		fclose(f);
 	}
 	f = SafeOpen(bigfile, "wb");
@@ -1026,26 +1016,24 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 	{
 		entry = &data->entries[i];
 
-		printf("\rwriting header %i of %i...\r", i + 1, data->numentries);
-		fflush(stdout);
+		Pacifier("writing header %i of %i...", i + 1, data->numentries);
 	
 		SafeWrite(f, &entry->hash, 4);
 		SafeWrite(f, &entry->size, 4);
 		SafeWrite(f, &entry->offset, 4);
 	}
-	printf("\n");
+	PacifierEnd();
 
 	// show options
 	if (lowmem)
-		printf("enabling low memory usage\n");
+		Print("enabling low memory usage\n");
 
 	// write files
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
 
-		printf("\rwriting entry %i of %i...\r", i + 1, data->numentries);
-		fflush(stdout);
+		Pacifier("writing entry %i of %i...\r", i + 1, data->numentries);
 
 		// if file is already loaded
 		if (entry->data != NULL)
@@ -1115,11 +1103,10 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 			qfree(contents);
 		}
 	}
-	printf("\n");
+	PacifierEnd();
 
 	fclose (f);
-	printf("done.\n");
-
+	Print("done.\n");
 	return 0;
 }
 
@@ -1137,7 +1124,7 @@ int BigFile_Main(int argc, char **argv)
 	char *tofile, *srcdir, *dstdir, *knownfiles, *c;
 	qboolean tim2tga, bpp16to24, lowmem, nopaths, vagconvert, vagpcm, vagogg;
 
-	printf("=== BigFile ===\n");
+	Verbose("=== BigFile ===\n");
 	if (i < 1)
 		Error("not enough parms");
 
@@ -1229,7 +1216,7 @@ int BigFile_Main(int argc, char **argv)
 	else if (!strcmp(argv[i], "-pack"))
 		returncode = BigFile_Pack(argc-i, argv+i, srcdir, lowmem);
 	else
-		printf("unknown option %s", argv[i]);
+		Warning("unknown option %s", argv[i]);
 
 	return returncode;
 }

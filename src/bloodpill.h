@@ -7,7 +7,13 @@
 // global switches
 qboolean waitforkey;
 qboolean memstats;
+qboolean verbose;
 
 extern char progname[128];
 
-
+// printing
+void Print (char *str, ...);
+void Verbose (char *str, ...);
+void Warning (char *str, ...);
+void Pacifier(char *str, ...);
+void PacifierEnd();

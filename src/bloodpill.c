@@ -31,24 +31,80 @@ char progname[128];
 int BigFile_Main(int argc, char **argv);
 
 // timfile.c
-int RawTim_Main(int argc, char **argv);
 int Targa2Tim_Main(int argc, char **argv);
 int Tim2Targa_Main(int argc, char **argv);
+
+// rawfile.c
+int Raw_Main(int argc, char **argv);
 
 // soxsupp.c
 int VagConvert_Main(int argc, char **argv);
 
-//
-// Help section
-//
+void Print(char *str, ...)
+{
+	va_list argptr;
+
+	va_start(argptr, str);
+	vprintf(str, argptr);
+	va_end(argptr);
+}
+
+void Verbose(char *str, ...)
+{
+	va_list argptr;
+
+	if (!verbose)
+		return;
+	va_start(argptr, str);
+	vprintf(str, argptr);
+	va_end(argptr);
+}
+
+// flush out after that string 
+void Pacifier(char *str, ...)
+{
+	va_list argptr;
+
+	va_start(argptr, str);
+	printf("\r");
+	vprintf(str, argptr);
+	printf("\r");
+	va_end(argptr);
+	fflush(stdout);
+}
+
+void PacifierEnd() 
+{
+	printf("\n");
+}
+
+void Warning(char *str, ...)
+{
+	va_list argptr;
+
+	va_start(argptr, str);
+	printf("Warning: ");
+	vprintf(str, argptr);
+	va_end(argptr);
+	printf("\n");
+}
+
+/*
+==========================================================================================
+
+  Help section
+
+==========================================================================================
+*/
 
 int Help_Main()
 {
-	printf(
+	Print(
 	"usage: bpill [-w] [-mem] [-nc] action\n"
 	" -w : wait for a key press before exit\n"
 	" -mem : print a memory usage stats\n"
 	" -nc : disable printing of caption\n"
+	" -c : compact mode, no verbose messages\n"
 	"\n"
 	"=== ACTIONS ===\n"
 	"-bigfile [bigfilename] -list [-to filename] [-klist filename]\n"
@@ -97,9 +153,13 @@ int Help_Main()
 	return 0;
 }
 
-//
-// Program main()
-//
+/*
+==========================================================================================
+
+  Program main
+
+==========================================================================================
+*/
 
 int main(int argc, char **argv)
 {
@@ -113,6 +173,7 @@ int main(int argc, char **argv)
 
 	// check command line flags
 	sprintf(customsoxpath, "sox.exe");
+	verbose = true;
 	printcap = true;
 	waitforkey = false;
 	memstats = false;
@@ -133,6 +194,11 @@ int main(int argc, char **argv)
 			waitforkey = true;
 			continue;
 		}
+		if (!strcmp(argv[i], "-c"))
+		{
+			verbose = false;
+			continue;
+		}
 		if (!strcmp(argv[i], "-soxpath"))
 		{
 			i++;
@@ -149,16 +215,16 @@ int main(int argc, char **argv)
 	// print caption
 	if (printcap)
 	{
-		printf(BLOODPILL_WELCOME, BLOODPILL_VERSION);
+		Print(BLOODPILL_WELCOME, BLOODPILL_VERSION);
 		if (memstats)
-			printf("memstats = true\n");
+			Print("memstats = true\n");
 		if (waitforkey)
-			printf("waitforkey = true\n");
+			Print("waitforkey = true\n");
 		if (soxfound)
-			printf("SoX found\n");
+			Print("SoX found\n");
 		else
-			printf("SoX not found\n");
-		printf( "\n" );
+			Print("SoX not found\n");
+		Print( "\n" );
 	}
 
 	// no args check
@@ -180,7 +246,7 @@ int main(int argc, char **argv)
 	else if (!strcmp(argv[i], "-tga2tim"))
 		returncode = Targa2Tim_Main(argc-i, argv+i);
 	else if (!strcmp(argv[i], "-raw"))
-		returncode = RawTim_Main(argc-i, argv+i);
+		returncode = Raw_Main(argc-i, argv+i);
 	else if (!strcmp(argv[i], "-vagconvert"))
 		returncode = VagConvert_Main(argc-i, argv+i);
 	else if (!strcmp (argv[i], "-help"))
@@ -188,20 +254,20 @@ int main(int argc, char **argv)
 	else
 		Error("unknown action %s, try %s -help", argv[i], progname);
 
-	printf("\n");
+	Print("\n");
 
 	// print memory stats
 	if (memstats)
 	{
-		printf("=== MemStats ===\n");
+		Print("=== MemStats ===\n");
 		Q_PrintMem();
-		printf("\n");
+		Print("\n");
 	}
 
 #if _MSC_VER
 	if (waitforkey)
 	{
-		printf("press any key\n");
+		Print("press any key\n");
 		getchar();
 	}
 #endif
