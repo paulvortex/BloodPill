@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////
 //
-// Blood Omen RAW files loader/writer
+// Blood Omen RAW files loader
 // coded by Pavel [VorteX] Timofeyev and placed to public domain
 //
 //
@@ -412,96 +412,110 @@ void RawExtract_Type1(char *basefilename, char *outfile, FILE *f, rawinfo_t *raw
 // 4 bytes - ???
 // object headers:
 //   768 bytes - colormap
-//   8 bytes - ? ? ? width height ? ? ?
+//   8 bytes - ? ? ? ? width height ? ?
 // object pixels:
 //   realwidth = width * 2
 //   realheight = height * 2
 //   realwidth * realheight bytes - indexes into colormap
-void RawExtract_Type2(char *basefilename, char *outfile, FILE *f, rawinfo_t *rawinfo)
+// function returns objects exported (or texted), -1, -2 etc. - error codes
+int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose)
 {
-	unsigned int numobjects;
-	unsigned char sbytes[2];
-	unsigned char *colormapdata;
-	unsigned char *objectshead;
-	unsigned char *pixeldata;
-	unsigned char *in;
 	char name[MAX_BLOODPATH];
-	int i, width, height, resolutionmultiplier;
-	fpos_t fpos;
+	unsigned int numobjects;
+	unsigned char *chunk, *chunk2;
+	int i, pos1, pos2, pos, resmult;
 
 	// number of objects
-	fread(&sbytes, 4, 1, f);
-	numobjects = sbytes[1] * 256 + sbytes[0];
-	Verbose("tag: %i\n", numobjects);
-	if (numobjects > 200 || numobjects <= 0)
-		Error("bad file\n");
-	if (numobjects > 50)
-		numobjects = 2;
+	numobjects = buffer[1] * 256 + buffer[0];
+	if (verbose == true)
+		Print("tag: %i\n", numobjects);
 
-	colormapdata = qmalloc(768 * numobjects);
-	objectshead = qmalloc(8 * numobjects);
+	// verify header
+	if (buffer[2] != 0 || buffer[3] != 0)
+		return -1;
+	if (numobjects <= 0 || numobjects > 200)
+		return -2;
 
-	// unknown info
-	fseek(f, 768, SEEK_CUR);
-	in = objectshead + 0;
-	fread(in, 4, 1, f);
-	Verbose("mystic: %3i %3i %3i %3i\n", in[0], in[1], in[2], in[3] );
+	// unknown info (768 bytes of colormap and 4 mystic bytes)
+	if (filelen < 776)
+		return -4; // file is smaller than required
+	if (verbose == true)
+		Print("mystic: %3i %3i %3i %3i\n", buffer[772], buffer[773], buffer[774], buffer[775]);
 
-	// read colormapdata/head_info for number_of_objects
+	// print objects
 	for (i = 0; i < (int)numobjects; i++)
 	{
-		// colomap
-		in = colormapdata + 768*i;
-		fread(in, 768, 1, f);
-		// head data
-		in = objectshead + 8*i;
-		fread(in, 8, 1, f);
-		Verbose("object %3i: %3i %3i %3i %3i %3i %3i %3i %3i\n", i + 1, in[0], in[1], in[2], in[3], in[4], in[5], in[6], in[7]);
+		pos = 776 + (768 + 8)*i + 768;
+		if (filelen < (pos + 8))
+			return -4; // file is smaller than required
+		chunk = buffer + pos;
+		if (verbose == true)
+			Print("object %3i: %3i %3i %3i %3i %3i %3i %3i %3i\n", i + 1, chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5], chunk[6], chunk[7]);
 	}
 
-	printfpos(f);
+	// test structure positions (for next code block)
+	// get pixeldata start block
+	pos2 = pos1 = 776 + (768 + 8)*numobjects;
+	for (i = 0; i < (int)numobjects; i++)
+	{
+		chunk = buffer + 776 + (768 + 8)*i + 768;
+		pos1 += chunk[4]*chunk[5];
+		pos2 += chunk[4]*chunk[5]*4;
+	}
 
 	// hacks land
 	// it seems BO has 2 types of such files with exactly same info, 
 	// but one type has true width/height, other it's resulution doubled
 	// our task is to determine 'a bigger' file: we simulate pixel reading
 	// and if reached EOF - it is standart file, otherwise it is bigger file
+	// also here we will protect against bad files which is bigger (and hence it
 	if (rawinfo->doubleres == rauto)
 	{
-		fgetpos(f, &fpos);
-		for (i = 0; i < (int)numobjects; i++)
-			fseek(f, objectshead[8*i + 4]*objectshead[8*i + 5], SEEK_CUR);
-		resolutionmultiplier = 1;
-		// check it is a big file
-		for (i = 0; i < 32; i++)
+		if ((filelen - pos1) < 32)
 		{
-			fread(&width, 1, 1, f);
-			if (feof(f)) // small file
-				break;
+			resmult = 1;
+			pos = pos1;
 		}
-		if (!feof(f))
-			resolutionmultiplier =2;
-		fsetpos(f, &fpos);
+		else if ((filelen - pos2) < 32)
+		{
+			resmult = 2;
+			pos = pos2;
+		}
+		else
+			return -3; // file is bigger than required
+	}	
+	else if (rawinfo->doubleres == rtrue)
+	{
+		resmult = 2;
+		pos = pos2;
 	}
-	else
-		resolutionmultiplier = (rawinfo->doubleres == rtrue) ? 2 : 1;
+	else 
+	{
+		resmult = 1;
+		pos = pos1;
+	}
+
+	// check if file is smaller than required
+	if (filelen < pos)
+		return -4; 
+
+	// if we only testing
+	if (testonly == true)
+		return i;
 
 	// write objects
+	pos = 776 + (768 + 8)*numobjects;
 	for (i = 0; i < (int)numobjects; i++)
-	{	
-		width = objectshead[8*i + 4] * resolutionmultiplier;
-		height = objectshead[8*i + 5] * resolutionmultiplier;
-		
-		pixeldata = qmalloc(width*height);
-		fread(pixeldata, width*height, 1, f);
-		in = colormapdata + 768*i;
-		sprintf(name, "%s_%i.tga", basefilename, i);
-		RawTGA(name, width, height, in, width*height, pixeldata, 8, rawinfo);
-		qfree(pixeldata);
+	{		
+		chunk = buffer + 776 + (768 + 8)*i; // colormap
+		chunk2 = buffer + pos;
+		// write
+		sprintf(name, "%s_%03i.tga", basefilename, i);
+		RawTGA(name, chunk[772]*resmult, chunk[773]*resmult, chunk, chunk[772]*resmult*chunk[773]*resmult, chunk2, 8, rawinfo);
+		// advance
+		pos = pos + chunk[772]*resmult*chunk[773]*resmult;
 	}
-
-	qfree(colormapdata);
-	qfree(objectshead);
+	return i;
 }
 
 /*
@@ -515,9 +529,23 @@ void RawExtract_Type2(char *basefilename, char *outfile, FILE *f, rawinfo_t *raw
 void RawExtract(char *filename, char *outfile, rawinfo_t *rawinfo)
 {
 	char basefilename[MAX_BLOODPATH];
+	unsigned char *filedata;
+	int filelen;
 	FILE *f;
 
 	StripFileExtension(outfile, basefilename);
+
+	// extended loader
+	filelen = LoadFile(filename, &filedata);
+	switch(rawinfo->type)
+	{
+		case RAW_TYPE_2:
+			RawExtract_Type2(basefilename, filedata, filelen, rawinfo, false, true);
+			return;
+			break;
+		default:
+			break;
+	}
 
 	// open and convert
 	f = SafeOpen(filename, "rb");
@@ -531,9 +559,6 @@ void RawExtract(char *filename, char *outfile, rawinfo_t *rawinfo)
 			break;
 		case RAW_TYPE_1:
 			RawExtract_Type1(basefilename, outfile, f, rawinfo);
-			break;
-		case RAW_TYPE_2:
-			RawExtract_Type2(basefilename, outfile, f, rawinfo);
 			break;
 		default:
 			Error("type %i not supported\n", rawinfo->type);

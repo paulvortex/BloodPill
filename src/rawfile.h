@@ -4,9 +4,9 @@
 typedef enum
 {
 	RAW_TYPE_UNKNOWN,
-	RAW_TYPE_0,	
-	RAW_TYPE_1,
-	RAW_TYPE_2,
+	RAW_TYPE_0,		// raw
+	RAW_TYPE_1,		// multiobject alternated TIM
+	RAW_TYPE_2,		// multiobject tile
 	_
 }rawtype_t;
 

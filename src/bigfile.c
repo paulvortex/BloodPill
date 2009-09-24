@@ -24,7 +24,6 @@
 
 #include "bloodpill.h"
 #include "bigfile.h"
-#include "rawfile.h"
 #include "soxsupp.h"
 #include "cmdlib.h"
 #include "mem.h"
@@ -39,9 +38,11 @@ char bigfile[MAX_BLOODPATH];
 typedef struct
 {
 	unsigned int hash;
-	int adpcmrate;
-	char path[MAX_BLOODPATH];
-	bigentrytype_t type;
+
+	int adpcmrate; // adpcm rate
+	char path[MAX_BLOODPATH]; // a path to extract
+	bigentrytype_t type; // a type of entry
+	rawinfo_t rawinfo; // raw format info (for
 }
 bigkentry_t;
 
@@ -220,6 +221,7 @@ void BigfileEmptyEntry(bigfileentry_t *entry)
 {
 	entry->data = NULL;
 	entry->adpcmrate = 11025;
+	entry->rawinfo = NULL;
 }
 
 void BigfileSeekFile(FILE *f, bigfileentry_t *entry)
@@ -571,6 +573,7 @@ void BigfileEmitStats(bigfileheader_t *data)
 	Print(" %6i TIM total\n", stats[BIGENTRY_TIM]);
 	Print(" %6i RAW ADPCM\n", stats[BIGENTRY_RAW_ADPCM]);
 	Print(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
+	Print(" %6i RAW IMAGE\n", stats[BIGENTRY_RAW_IMAGE]);
 	Print(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
 	Verbose(" %6i TOTAL\n", data->numentries);
 }
