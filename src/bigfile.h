@@ -21,7 +21,7 @@ static char *bigentryext[BIGFILE_NUM_FILETYPES] =
 { 
 	"dat", 
 	"tim",
-	"vag", 
+	"adpcm", 
 	"wav",
 	"raw"
 };

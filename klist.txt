@@ -5,12 +5,12 @@
 #
 
 [2D00066D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/unknown
 
 [5B647409]
-type=vag
+type=adpcm
 rate=11025
 path=sound/unknown
 
@@ -19,91 +19,91 @@ path=sound/unknown
 #
 
 [4A533B0B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/fx
 
 [4A533B0E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/fx
 
 [4A533B08]
-type=vag
+type=adpcm
 rate=11025
 path=sound/fx
 
 [4A533B09]
-type=vag
+type=adpcm
 rate=11025
 path=sound/fx
 
 # фонтаны
 
 [5B6A730B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/bloodfnt
 
 [5B6B730B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/bloodfnt
 
 [5B6C730B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/bloodfnt
 
 [5B6D730B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/bloodfnt
 
 [5B6E730B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/bloodfnt
 
 [5B6F730B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/bloodfnt
 
 [5B64730B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/bloodfnt
 
 [5B65700B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/bloodfnt
 
 [5B65730B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/bloodfnt
 
 [5B68730B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/bloodfnt
 
 [5B69730B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/bloodfnt
 
 # кузня духов
 
 [5B6A7109]
-type=vag
+type=adpcm
 rate=11025
 path=sound/spiritfg
 
 [5B697109]
-type=vag
+type=adpcm
 rate=11025
 path=sound/spiritfg
 
@@ -112,167 +112,167 @@ path=sound/spiritfg
 #
 
 [5B6A700B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6A720B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6A790A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6B700B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6B720B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6B780A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6B7409]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6C720B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6C790A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6C7609]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6D700B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6D720B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6D780A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6D790A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6D7109]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6E790A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6E7109]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6F700B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6F780A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6F790A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B6F7109]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B64700B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B64780A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B65780A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B65790A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B68700B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B68720B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B68790A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B69700B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B69720B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B69780A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B647709]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
 [5B687109]
-type=vag
+type=adpcm
 rate=11025
 path=sound/boss
 
@@ -281,17 +281,17 @@ path=sound/boss
 #
 
 [5B6B7109]
-type=vag
+type=adpcm
 rate=11025
 path=sound/ottmar
 
 [5B647109]
-type=vag
+type=adpcm
 rate=11025
 path=sound/ottmar
 
 [5B657109]
-type=vag
+type=adpcm
 rate=11025
 path=sound/ottmar
 
@@ -300,502 +300,502 @@ path=sound/ottmar
 #
 
 [5B6A780A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6A7108]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6A7008]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6A7009]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6A7209]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6A7309]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6A7509]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6A7609]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6A7809]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6A7909]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6B790A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6B7009]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6B7008]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6B7209]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6B7309]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6B7609]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6B7509]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6B7709]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6B7909]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6C780A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6C7008]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6C7009]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6C7108]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6C7209]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6C7309]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6C7409]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6C7509]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6C7709]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6D7209]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6D7309]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6D7409]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6D7509]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6D7609]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6D7709]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6D7809]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6D7909]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E700B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E720B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E760B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E7009]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E7209]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E7309]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E7409]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E7509]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E7609]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E7708]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E7709]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6E7809]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6F7009]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6F7209]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6F7309]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6F7409]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6F7509]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6F7609]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6F7708]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6F7709]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6F7809]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B6F7909]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B64790A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B68740B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B68750A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B68750B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B68750F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B68760A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B68780A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B647009]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B647108]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B647209]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B647309]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B647509]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B647609]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B647809]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B647909]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B657009]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B657108]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B657209]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B657309]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B657609]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B657709]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B657809]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B657909]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B687009]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B687108]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B687309]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B687509]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B687609]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B687709]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B687809]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B687909]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B697008]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B697009]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B697209]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B697309]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B697509]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B697609]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B697709]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B697508]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B697809]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [5B697909]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
 [39741C68]
-type=vag
+type=adpcm
 rate=11025
 path=sound/people
 
@@ -804,57 +804,57 @@ path=sound/people
 #
 
 [5B6C7109]
-type=vag
+type=adpcm
 rate=11025
 path=sound/misctalk
 
 [5B6E780A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/misctalk
 
 [5B6F710A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/misctalk
 
 [5B6A7409]
-type=vag
+type=adpcm
 rate=11025
 path=sound/misctalk
 
 [5B6B7809]
-type=vag
+type=adpcm
 rate=11025
 path=sound/misctalk
 
 [5B65710B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/misctalk
 
 [5B69790A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/misctalk
 
 [5B657409]
-type=vag
+type=adpcm
 rate=11025
 path=sound/misctalk
 
 [5B687209]
-type=vag
+type=adpcm
 rate=11025
 path=sound/misctalk
 
 [5B687409]
-type=vag
+type=adpcm
 rate=11025
 path=sound/misctalk
 
 [5B697409]
-type=vag
+type=adpcm
 rate=11025
 path=sound/misctalk
 
@@ -863,7 +863,7 @@ path=sound/misctalk
 #
 
 [5B6A7709]
-type=vag
+type=adpcm
 rate=11025
 path=sound/vorador
 
@@ -872,966 +872,966 @@ path=sound/vorador
 #
 
 [5B697108]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B68710A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B68740A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B657509]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5026730C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5026740E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A700A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A710A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A720A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A730A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A740A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A740B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A750A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A750B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A760A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A760B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A770A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A770B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A780B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A790B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A7208]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A7308]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A7408]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6A7508]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B700A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B720A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B710A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B730A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B740A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B740B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B750A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B750B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B760A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B760B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B770A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B770B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B780B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B790B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B7108]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B7208]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B7308]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B7408]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6B7508]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C700A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C720A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C730A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C740A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C740B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C750A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C750B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C760A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C760B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C770A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C770B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C780B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C790B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C7608]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C7208]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C7308]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C7408]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C7508]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C7708]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C7809]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6C7909]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D700A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D710A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D730A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D720A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D740A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D740B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D750A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D750B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D760A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D760B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D770A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D770B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D780B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D790B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D7008]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D7009]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D7108]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D7208]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D7308]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D7408]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D7508]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6D7708]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E700A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E710A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E720A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E730A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E740A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E740B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E750A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E750B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E760A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E770A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E770B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E780B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E790B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E7008]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E7208]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E7308]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E7408]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E7508]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6E7909]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F720A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F730A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F760A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F750B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F750A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F740B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F740A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F760B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F770A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F770B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F780B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F790B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F7008]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F7208]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64710A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64700A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F7508]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F7408]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B6F7308]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64720A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64720B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64730A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64740A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64740B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64750B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64750A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64760A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64760B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64770A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64770B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64780B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B64790B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65700A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65710A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65720A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65720B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65730A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65740A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65740B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65750A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65750B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65760A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65760B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65770B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65770A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65780B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B65790B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B68700A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B68720A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B68730A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B68760B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B68770A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B68770B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B68780B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B68790B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69700A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69710A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69720A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69730A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69740A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69740B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69750A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69750B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69760A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69760B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69770A]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69770B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69780B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B69790B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B647008]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B647208]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B647308]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B647408]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B657408]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B657308]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B657208]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B657008]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B647508]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B657508]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B687008]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B687208]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B687308]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B687408]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B687508]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B697208]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B697308]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
 [5B697408]
-type=vag
+type=adpcm
 rate=11025
 path=sound/kain
 
@@ -1840,457 +1840,457 @@ path=sound/kain
 #
 
 [452D7A0C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7A0D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7A0E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7A0F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7A08]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7B0C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7B0D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7B0E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7E0C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7B0F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7B08]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7C0C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7C0D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7C0E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7C0F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7C08]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7D0C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7D0D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7D0E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7D0F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7E0D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7E0E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7E0F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7E08]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7F0C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7F0E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7F0F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7F08]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D760C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D760D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D760E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D760F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D770C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D770D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D770E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D770F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D780C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D780D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D780E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D780F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D790C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D790D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D790E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D790F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7808]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [452D7908]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267A0C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267A0D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267A0E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267A0F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267B0C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267B0D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267B0E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267B0F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026700C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026700D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026700E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026700F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026710C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026710D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026710E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026710F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026720C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026720D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026720E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026720F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026730D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026730E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026730F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026740C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026740D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026740F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026750C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026750D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026750E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026750F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026760C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026760D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026760E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026760F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026770C]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026770D]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026770E]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [5026770F]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267108]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267208]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267308]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267408]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267508]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267608]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
 [50267708]
-type=vag
+type=adpcm
 rate=11025
 path=sound/inventory
 
@@ -2299,42 +2299,42 @@ path=sound/inventory
 #
 
 [5B6A710B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/ariel
 
 [5B6B710B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/ariel
 
 [5B6C700B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/ariel
 
 [5B6D710B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/ariel
 
 [5B6E710B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/ariel
 
 [5B6F710B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/ariel
 
 [5B64710B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/ariel
 
 [5B69710B]
-type=vag
+type=adpcm
 rate=11025
 path=sound/ariel
 
@@ -2343,61 +2343,75 @@ path=sound/ariel
 #
 
 [050A1F07]
-type=vag
+type=adpcm
 rate=11025
-path=sound/audiotest.vag
+path=sound/audiotest.adpcm
 
 [257C636C] 
-type=vag
+type=adpcm
 rate=22050
-path=cdtracks/track01.vag
+path=cdtracks/track01.adpcm
 
 [257D636C]
-type=vag
+type=adpcm
 rate=22050
-path=cdtracks/track02.vag
+path=cdtracks/track02.adpcm
 
 [2570636C]
-type=vag
+type=adpcm
 rate=22050
-path=cdtracks/track03.vag
+path=cdtracks/track03.adpcm
 
 [2571636C]
-type=vag
+type=adpcm
 rate=22050
-path=cdtracks/track04.vag
+path=cdtracks/track04.adpcm
 
 [2572636C]
-type=vag
+type=adpcm
 rate=22050
-path=cdtracks/track05.vag
+path=cdtracks/track05.adpcm
 
 [2573636C]
-type=vag
+type=adpcm
 rate=22050
-path=cdtracks/track06.vag
+path=cdtracks/track06.adpcm
 
 [2574636C]
-type=vag
+type=adpcm
 rate=22050
-path=cdtracks/track07.vag
+path=cdtracks/track07.adpcm
 
 [2575626C]
-type=vag
+type=adpcm
 rate=22050
-path=cdtracks/track08.vag
+path=cdtracks/track08.adpcm
 
 [2575636C]
-type=vag
+type=adpcm
 rate=22050
-path=cdtracks/track09.vag
+path=cdtracks/track09.adpcm
 
 [2576636C]
-type=vag
+type=adpcm
 rate=22050
-path=cdtracks/track10.vag
+path=cdtracks/track10.adpcm
 
 [2577636C]
-type=vag
+type=adpcm
 rate=22050
-path=cdtracks/track11.vag
+path=cdtracks/track11.adpcm
+
+#
+# картинки
+#
+
+[061E7029]
+type=raw
+raw.doubleres=true
+
+[1E177028]
+type=raw
+raw.doubleres=false
+
+

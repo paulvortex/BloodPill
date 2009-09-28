@@ -41,7 +41,7 @@ int getfpos(FILE *f)
 	return (int)fpos;
 }
 
-void FlushRawinfo(rawinfo_t *rawinfo)
+void FlushRawInfo(rawinfo_t *rawinfo)
 {
 	rawinfo->type = RAW_TYPE_UNKNOWN;
 	rawinfo->width = -1;
@@ -51,6 +51,64 @@ void FlushRawinfo(rawinfo_t *rawinfo)
 	rawinfo->doubleres = rauto;
 	rawinfo->disableCLUT = false;
 	rawinfo->dontSwapBgr = false;
+}
+
+rawinfo_t *NewRawInfo()
+{
+	rawinfo_t *rawinfo;
+
+	rawinfo = qmalloc(sizeof(rawinfo_t));
+	FlushRawInfo(rawinfo);
+
+	return rawinfo;
+}
+
+qboolean ReadRawInfo(char *line, rawinfo_t *rawinfo)
+{
+	char temp[256];
+	int num;
+
+	if (rawinfo == NULL)
+		return false;
+
+	if (sscanf(line, "raw.type=%s", &temp))
+		rawinfo->type = ParseRawType(temp);
+	else if (sscanf(line, "raw.width=%i", &num))
+		rawinfo->width = num;
+	else if (sscanf(line, "raw.height=%i", &num))
+		rawinfo->height = num;
+	else if (sscanf(line, "raw.offset=%i", &num))
+		rawinfo->offset = num;
+	else if (sscanf(line, "raw.bytes=%i", &num))
+		rawinfo->bytes = num;
+	else if (sscanf(line, "raw.doubleres=%s", &temp))
+		rawinfo->doubleres = ParseRawSwitch(temp);
+	else if (!strcmp(line, "raw.disableCLUT"))
+		rawinfo->disableCLUT = true;
+	else if (!strcmp(line, "raw.dontSwapBgr"))
+		rawinfo->dontSwapBgr = true;
+	else
+		return false;
+	return true;
+}
+
+void WriteRawInfo(FILE *f, rawinfo_t *rawinfo)
+{
+	fprintf(f, "raw.type=%s\n", UnparseRawType(rawinfo->type));
+	if (rawinfo->width >= 0)
+		fprintf(f, "raw.width=%i\n", rawinfo->width);
+	if (rawinfo->height >= 0)
+		fprintf(f, "raw.height=%i\n", rawinfo->height);
+	if (rawinfo->offset > 0)
+		fprintf(f, "raw.offset=%i\n", rawinfo->offset);
+	if (rawinfo->bytes > 1)
+		fprintf(f, "raw.bytes=%i\n", rawinfo->bytes);
+	if (rawinfo->doubleres > 0)
+		fprintf(f, "raw.doubleres=%i\n", UnparseRawSwitch(rawinfo->doubleres));
+	if (rawinfo->disableCLUT == true)
+		fprintf(f, "raw.disableCLUT\n");
+	if (rawinfo->dontSwapBgr == true)
+		fprintf(f, "raw.dontSwapBgr\n");
 }
 
 rawswitch_t ParseRawSwitch(char *str)
@@ -77,9 +135,11 @@ rawtype_t ParseRawType(char *str)
 	Q_strlower(str);
 	if (!strcmp(str, "0") || !strcmp(str, "raw"))
 		return RAW_TYPE_0;
-	if (!strcmp(str, "1") || !strcmp(str, "tile1"))
+	if (!strcmp(str, "1A"))
+		return RAW_TYPE_1A;
+	if (!strcmp(str, "1"))
 		return RAW_TYPE_1;
-	if (!strcmp(str, "2") || !strcmp(str, "tile2"))
+	if (!strcmp(str, "2"))
 		return RAW_TYPE_2;
 	return RAW_TYPE_UNKNOWN;
 }
@@ -88,10 +148,12 @@ char *UnparseRawType(rawtype_t rawtype)
 {
 	if (rawtype == RAW_TYPE_0)
 		return "raw";
+	if (rawtype == RAW_TYPE_1A)
+		return "1A";
 	if (rawtype == RAW_TYPE_1)
-		return "tile1";
+		return "1";
 	if (rawtype == RAW_TYPE_2)
-		return "tile2";
+		return "2";
 	return "unknown";
 }
 
@@ -114,7 +176,6 @@ void RawTGA(char *outfile, int width, int height, const char *colormapdata, int 
 	if (bpp != 8 && bpp != 16 && bpp != 24)
 		Error("RawTGA: bad bpp (only 8, 16 and 24 are supported)!\n");
 
-	Print("writing %s\n", outfile);
 	// create targa header
 	buffer = qmalloc(pixelbytes*(int)(bpp / 8) + ((bpp == 8) ? 768 : 0) + 18);
 	memset(buffer, 0, 18);
@@ -271,11 +332,22 @@ void RawExtract_Type0(char *basefilename, char *outfile, FILE *f, rawinfo_t *raw
 
 	// write file
 	sprintf(name, "%s.tga", outfile);
+	Print("writing %s\n", name);
 	RawTGA(name, rawinfo->width, rawinfo->height, NULL, rawinfo->width*rawinfo->height, data, (int)8*rawinfo->bytes, rawinfo);
 	qfree(data);
 }
 
-// multiobject RAW tim
+/*
+==========================================================================================
+
+  RAW FILE TYPE 1A
+
+  multiobject shared-pelette file
+  user for a very few animated tiles
+
+==========================================================================================
+*/
+
 // 4 bytes - number of objects
 // 4 bytes - filesize
 // 768 bytes - colormap data (24-bit RGB)
@@ -292,7 +364,7 @@ void RawExtract_Type0(char *basefilename, char *outfile, FILE *f, rawinfo_t *raw
 //   objects:
 //     variable sized unknown data
 //     object pixels
-void RawExtract_Type1(char *basefilename, char *outfile, FILE *f, rawinfo_t *rawinfo)
+void RawExtract_Type1A(char *basefilename, char *outfile, FILE *f, rawinfo_t *rawinfo)
 {
 	unsigned char *data, *pixeldata, *colormapdata;
 	char objectname[MAX_BLOODPATH];
@@ -352,6 +424,7 @@ void RawExtract_Type1(char *basefilename, char *outfile, FILE *f, rawinfo_t *raw
 
 			// save TGA
 			sprintf(objectname, "%s.tga", outfile);
+			Print("writing %s\n", objectname);
 			RawTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, pixeldata, 8, rawinfo);
 			qfree(pixeldata);
 		}
@@ -406,7 +479,45 @@ void RawExtract_Type1(char *basefilename, char *outfile, FILE *f, rawinfo_t *raw
 	qfree(colormapdata);
 }	
 
-// multiobject paletted tiles
+/*
+==========================================================================================
+
+  RAW FILE TYPE 1
+  item card, single-object file
+
+==========================================================================================
+*/
+
+// 4 bytes - number of objects
+// 4 bytes - filesize
+// 768 bytes - colormap data (24-bit RGB)
+// 8 unknown bytes
+// if number_of_objects == 1:
+//   object1 width - 1 byte
+//   object1 height - 1 byte
+//   object1 pos.x - 1 byte
+//   object1 pos.y - 1 byte
+//   object1 pixels
+// if number_of_objects > 1:
+//   object headers:
+//     8 bytes per each object
+//   objects:
+//     variable sized unknown data
+//     object pixels
+int RawExtract_Type1(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+{
+	return -999;
+}
+
+/*
+==========================================================================================
+
+  RAW FILE TYPE 2
+  multiobject file with per-object palette
+
+==========================================================================================
+*/
+
 // 4 bytes - number of objects
 // 768 bytes - ??? (colormap data)
 // 4 bytes - ???
@@ -418,7 +529,7 @@ void RawExtract_Type1(char *basefilename, char *outfile, FILE *f, rawinfo_t *raw
 //   realheight = height * 2
 //   realwidth * realheight bytes - indexes into colormap
 // function returns objects exported (or texted), -1, -2 etc. - error codes
-int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose)
+int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	char name[MAX_BLOODPATH];
 	unsigned int numobjects;
@@ -481,8 +592,16 @@ int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, raw
 			resmult = 2;
 			pos = pos2;
 		}
-		else
-			return -3; // file is bigger than required
+		else 
+		{	
+			if (forced == false)
+				return -3; // file is bigger than required
+			else // multiobject?
+			{
+				resmult = 2;
+				pos = pos2;
+			}
+		}
 	}	
 	else if (rawinfo->doubleres == rtrue)
 	{
@@ -501,7 +620,11 @@ int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, raw
 
 	// if we only testing
 	if (testonly == true)
+	{
+		rawinfo->type = RAW_TYPE_2;
+		rawinfo->doubleres = (resmult == 2) ? rtrue : rfalse;
 		return i;
+	}
 
 	// write objects
 	pos = 776 + (768 + 8)*numobjects;
@@ -511,6 +634,8 @@ int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, raw
 		chunk2 = buffer + pos;
 		// write
 		sprintf(name, "%s_%03i.tga", basefilename, i);
+		if (verbose == true)
+			Print("writing %s\n", name);
 		RawTGA(name, chunk[772]*resmult, chunk[773]*resmult, chunk, chunk[772]*resmult*chunk[773]*resmult, chunk2, 8, rawinfo);
 		// advance
 		pos = pos + chunk[772]*resmult*chunk[773]*resmult;
@@ -526,54 +651,43 @@ int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, raw
 ==========================================================================================
 */
 
-void RawExtract(char *filename, char *outfile, rawinfo_t *rawinfo)
+int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype)
 {
-	char basefilename[MAX_BLOODPATH];
-	unsigned char *filedata;
-	int filelen;
-	FILE *f;
+	rawtype_t rawtype;
+	int code;
 
-	StripFileExtension(outfile, basefilename);
+	rawtype = (forcetype == RAW_TYPE_UNKNOWN) ? rawinfo->type : forcetype;
 
-	// extended loader
-	filelen = LoadFile(filename, &filedata);
-	switch(rawinfo->type)
+	// try all
+	if (rawtype == RAW_TYPE_UNKNOWN)
 	{
-		case RAW_TYPE_2:
-			RawExtract_Type2(basefilename, filedata, filelen, rawinfo, false, true);
-			return;
-			break;
-		default:
-			break;
+		// type 1
+		if ((code = RawExtract_Type1(basefilename, filedata, filelen, rawinfo, testonly, verbose, false)) >= 0)
+			return code;
+		// type 2
+		if ((code = RawExtract_Type2(basefilename, filedata, filelen, rawinfo, testonly, verbose, false)) >= 0)
+			return code;
+		return -999;
 	}
 
-	// open and convert
-	f = SafeOpen(filename, "rb");
-	switch(rawinfo->type)
-	{
-		case RAW_TYPE_UNKNOWN:
-			Error("Cannot convert UNKNOWN raw type");
-			break;
-		case RAW_TYPE_0:
-			RawExtract_Type0(basefilename, outfile, f, rawinfo);
-			break;
-		case RAW_TYPE_1:
-			RawExtract_Type1(basefilename, outfile, f, rawinfo);
-			break;
-		default:
-			Error("type %i not supported\n", rawinfo->type);
-			break;
-	}
-	fclose(f);
+	// try certain
+	if (rawtype == RAW_TYPE_1)
+		return RawExtract_Type1(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
+	if (rawtype == RAW_TYPE_2)
+		return RawExtract_Type2(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
+	return -999;
 }
 	
 int Raw_Main(int argc, char **argv)
 {
 	char filename[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], outfile[MAX_BLOODPATH], *c;
+	unsigned char *filedata;
+	int filelen;
 	rawinfo_t rawinfo;
+	FILE *f;
 	int i;
 
-	FlushRawinfo(&rawinfo);
+	FlushRawInfo(&rawinfo);
 	i = 1;
 	Verbose("=== TimRaw ===\n");
 	Verbose("%s\n", argv[i]);
@@ -658,7 +772,35 @@ int Raw_Main(int argc, char **argv)
 			Verbose("CLUT: disabled\n");
 		}
 	}
-	RawExtract(filename, outfile, &rawinfo);
+
+	// open and extract file
+	StripFileExtension(outfile, basefilename);
+	filelen = LoadFile(filename, &filedata);
+	RawExtract(basefilename, filedata, filelen, &rawinfo, false, true, true);
+	free(filedata);
+
+	// legacy extract
+	if (rawinfo.type != RAW_TYPE_2)
+	{
+		f = SafeOpen(filename, "rb");
+		switch(rawinfo.type)
+		{
+			case RAW_TYPE_UNKNOWN:
+				Error("Cannot convert UNKNOWN raw type");
+				break;
+			case RAW_TYPE_0:
+				RawExtract_Type0(basefilename, outfile, f, &rawinfo);
+				break;
+			case RAW_TYPE_1A:
+				RawExtract_Type1A(basefilename, outfile, f, &rawinfo);
+				break;
+			default:
+				Error("type %i not supported\n", rawinfo.type);
+				break;
+		}
+		fclose(f);
+	}
+
 	Print("done.\n");
 	return 0;
 }
