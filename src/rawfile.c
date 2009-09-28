@@ -312,35 +312,38 @@ void RawTGA(char *outfile, int width, int height, const char *colormapdata, int 
 ==========================================================================================
 */
 
-void RawExtract_Type0(char *basefilename, char *outfile, FILE *f, rawinfo_t *rawinfo)
+int RawExtract_Type0(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
-	unsigned char *data;
 	char name[MAX_BLOODPATH];
-
-	Verbose("== raw object ==\n");
+	char *data;
 
 	if (rawinfo->bytes != 1 && rawinfo->bytes != 2 && rawinfo->bytes != 3)
-		Error("Bad bytes %i!\n", rawinfo->bytes); 
-
+		return -1; // bad bytes
 	if (rawinfo->width*rawinfo->height < 0)
-		Error("Bad width/height\n"); 
+		return -2; // bad width/height
 
-	// load file contents
-	fseek(f, rawinfo->offset, SEEK_SET);
+	// testing only?
+	if (testonly == true)
+	{
+		rawinfo->type = RAW_TYPE_0;
+		return 1;
+	}
+
+	// write
 	data = qmalloc(rawinfo->width*rawinfo->height*rawinfo->bytes);
-	fread(data, rawinfo->width*rawinfo->height*rawinfo->bytes, 1, f);
-
-	// write file
-	sprintf(name, "%s.tga", outfile);
-	Print("writing %s\n", name);
+	memcpy(buffer, data, filelen);
+	sprintf(name, "%s.tga", basefilename);
+	if (verbose == true)
+		Print("writing %s\n", name);
 	RawTGA(name, rawinfo->width, rawinfo->height, NULL, rawinfo->width*rawinfo->height, data, (int)8*rawinfo->bytes, rawinfo);
 	qfree(data);
+	return 1;
 }
 
 /*
 ==========================================================================================
 
-  RAW FILE TYPE 1A
+  LEGACY RAW FILE TYPE 1A
 
   multiobject shared-pelette file
   user for a very few animated tiles
@@ -487,66 +490,7 @@ void RawExtract_Type1A(char *basefilename, char *outfile, FILE *f, rawinfo_t *ra
 
 ==========================================================================================
 */
-/*
-	// number of objects
-	fread(&objtag, 4, 1, f);
-	Verbose("tag: 0x%.8X\n", objtag);
-	if (objtag > 32)
-		objtag = 1;
 
-	// size
-	fread(&objsize, 4, 1, f);
-	Verbose("size = %i\n", objsize);
-
-	// colormap data
-	colormapdata = qmalloc(768);
-	fread(colormapdata, 768, 1, f);
-
-	// 8 unknown bytes
-	fread(&num1, 4, 1, f);
-	Verbose(" num1 = %i\n", num1);
-	fread(&num2, 2, 1, f);
-	Verbose(" num2 = %i\n", num2);
-	fread(&num3, 1, 1, f);
-	Verbose(" num3 = %i\n", num3);
-	fread(&num4, 1, 1, f);
-	Verbose(" num4 = %i\n", num4);
-
-	// only one image, it seems items only have such
-	if (objtag == 1)
-	{
-		Verbose("== single object ==\n");
-
-		// width and height - 2 bytes
-		fread(&temp, 1, 1, f);
-		objwidth = (rawinfo->width > 0) ? rawinfo->width : (int)temp;
-		fread(&temp, 1, 1, f);
-		objheight = (rawinfo->height > 0) ? rawinfo->height : (int)temp;
-		Verbose(" size = %ix%i\n", objwidth, objheight);
-
-		// x and y - 2 bytes
-		fread(&objx, 1, 1, f);
-		Verbose(" x = %i\n", objx);
-		fread(&objy, 1, 1, f);
-		Verbose(" y = %i\n", objy);
-
-		// read pixels
-		printfpos(f);
-		if (objwidth*objheight > 0)
-		{
-			pixeldata = qmalloc(objwidth*objheight);
-			fread(pixeldata, objwidth*objheight, 1, f);
-
-			// save TGA
-			sprintf(objectname, "%s.tga", outfile);
-			Print("writing %s\n", objectname);
-			RawTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, pixeldata, 8, rawinfo);
-			qfree(pixeldata);
-		}
-		qfree(colormapdata);
-		return;
-	}
-*/
 // 000: 4 bytes - number of objects
 // 004: 4 bytes - filesize
 // 008: 768 bytes - colormap data (24-bit RGB)
@@ -569,6 +513,9 @@ int RawExtract_Type1(char *basefilename, unsigned char *buffer, int filelen, raw
 		return -3; // file is bigger than required
 	if (filelen < (781 + buffer[784]*buffer[785]))
 		return -4; // file is smaller than required
+
+	if (verbose == true)
+		Print("size: %ix%i\n", buffer[784], buffer[785]);
 
 	// if we only testing
 	if (testonly == true)
@@ -749,11 +696,18 @@ int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawin
 	}
 
 	// try certain
-	if (rawtype == RAW_TYPE_1)
-		return RawExtract_Type1(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
-	if (rawtype == RAW_TYPE_2)
-		return RawExtract_Type2(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
-	return -999;
+	code = -999;
+	if (rawtype == RAW_TYPE_0)
+		code = RawExtract_Type0(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
+	else if (rawtype == RAW_TYPE_1)
+		code = RawExtract_Type1(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
+	else if (rawtype == RAW_TYPE_2)
+		code = RawExtract_Type2(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
+	
+	if (code < 0 && verbose == true)
+		Print("Raw error: code %i\n", code);
+
+	return code;
 }
 	
 int Raw_Main(int argc, char **argv)
@@ -767,7 +721,7 @@ int Raw_Main(int argc, char **argv)
 
 	FlushRawInfo(&rawinfo);
 	i = 1;
-	Verbose("=== TimRaw ===\n");
+	Verbose("=== Raw Image ===\n");
 	Verbose("%s\n", argv[i]);
 
 	// get inner file
@@ -854,28 +808,14 @@ int Raw_Main(int argc, char **argv)
 	// open and extract file
 	StripFileExtension(outfile, basefilename);
 	filelen = LoadFile(filename, &filedata);
-	RawExtract(basefilename, filedata, filelen, &rawinfo, false, true, true);
+	RawExtract(basefilename, filedata, filelen, &rawinfo, false, true, false);
 	qfree(filedata);
 
 	// legacy extract
-	if (rawinfo.type != RAW_TYPE_2)
+	if (rawinfo.type == RAW_TYPE_1A)
 	{
 		f = SafeOpen(filename, "rb");
-		switch(rawinfo.type)
-		{
-			case RAW_TYPE_UNKNOWN:
-				Error("Cannot convert UNKNOWN raw type");
-				break;
-			case RAW_TYPE_0:
-				RawExtract_Type0(basefilename, outfile, f, &rawinfo);
-				break;
-			case RAW_TYPE_1A:
-				RawExtract_Type1A(basefilename, outfile, f, &rawinfo);
-				break;
-			default:
-				Error("type %i not supported\n", rawinfo.type);
-				break;
-		}
+		RawExtract_Type1A(basefilename, outfile, f, &rawinfo);
 		fclose(f);
 	}
 
