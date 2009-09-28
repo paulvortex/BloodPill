@@ -21,6 +21,7 @@ copy bigfile_unpack_tim2tga_vag2ogg.bat release\samples\unpack_tim2tga_vag2ogg.b
 copy tga2tim(test.tga).bat release\samples\tga2tim(test.tga).bat
 copy tim2tga(test.tim).bat release\samples\tim2tga(test.tim).bat
 copy tim2tga(test.tim)_16to24.bat release\samples\tim2tga(test.tim)_16to24.bat
+copy bigfile_unpack_tim2tga_vag2wav_rawconvert.bat release\samples\bigfile_unpack_tim2tga_vag2wav_rawconvert.bat
 
 
 

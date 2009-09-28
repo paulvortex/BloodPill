@@ -592,12 +592,13 @@ void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry, qboolean lowme
 void BigfileEmitStats(bigfileheader_t *data)
 {
 	bigfileentry_t *entry;
-	int stats[BIGFILE_NUM_FILETYPES], timstats[4];
+	int stats[BIGFILE_NUM_FILETYPES], timstats[4], rawstats[NUM_RAW_TYPES];
 	int i;
 
 	// calc stats
 	memset(stats, 0, sizeof(stats));
 	memset(timstats, 0, sizeof(timstats));
+	memset(rawstats, 0, sizeof(rawstats));
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
@@ -612,19 +613,41 @@ void BigfileEmitStats(bigfileheader_t *data)
 			else if (entry->timtype[0] == TIM_24Bit)
 				timstats[3]++;
 		}
+		else if (entry->type == BIGENTRY_RAW_IMAGE)
+			rawstats[entry->rawinfo->type]++;
 		stats[entry->type]++;
 	}
 
-	// print
-	Print(" %6i 4-bit TIM\n", timstats[0]);
-	Print(" %6i 8-bit TIM\n", timstats[1]);
-	Print(" %6i 16-bit TIM\n", timstats[2]);
-	Print(" %6i 24-bit TIM\n", timstats[3]);
-	Print(" %6i TIM total\n", stats[BIGENTRY_TIM]);
-	Print(" %6i RAW ADPCM\n", stats[BIGENTRY_RAW_ADPCM]);
-	Print(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
-	Print(" %6i RAW IMAGE\n", stats[BIGENTRY_RAW_IMAGE]);
-	Print(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
+	// emit stats
+	if (stats[BIGENTRY_RAW_ADPCM])
+		Print(" %6i raw ADPCM\n", stats[BIGENTRY_RAW_ADPCM]);
+	if (stats[BIGENTRY_RIFF_WAVE])
+		Print(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
+	// TIM
+	if (timstats[0])
+		Print(" %6i 4-bit TIM\n", timstats[0]);
+	if (timstats[1])
+		Print(" %6i 8-bit TIM\n", timstats[1]);
+	if (timstats[2])
+		Print(" %6i 16-bit TIM\n", timstats[2]);
+	if (timstats[3])
+		Print(" %6i 24-bit TIM\n", timstats[3]);
+	if (stats[BIGENTRY_TIM])
+		Print(" %6i TIM total\n", stats[BIGENTRY_TIM]);
+	// RAW
+	if (rawstats[RAW_TYPE_0])
+		Print(" %6i raw type 0\n", rawstats[RAW_TYPE_0]);
+	if (rawstats[RAW_TYPE_1A])
+		Print(" %6i raw type 1A\n", rawstats[RAW_TYPE_1A]);
+	if (rawstats[RAW_TYPE_1])
+		Print(" %6i raw type 1\n", rawstats[RAW_TYPE_1]);
+	if (rawstats[RAW_TYPE_2])
+		Print(" %6i raw type 2\n", rawstats[RAW_TYPE_2]);
+	if (stats[BIGENTRY_RAW_IMAGE])
+		Print(" %6i raw image total\n", stats[BIGENTRY_RAW_IMAGE]);
+	// total
+	if (stats[BIGENTRY_UNKNOWN])
+		Print(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
 	Verbose(" %6i TOTAL\n", data->numentries);
 }
 

@@ -8,7 +8,7 @@ typedef enum
 	RAW_TYPE_1A,	// multiobject TIM with shared-palette 
 	RAW_TYPE_1,		// item card
 	RAW_TYPE_2,		// multiobject tile
-	_
+	NUM_RAW_TYPES
 }rawtype_t;
 
 // raw boolean type

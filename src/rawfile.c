@@ -487,26 +487,104 @@ void RawExtract_Type1A(char *basefilename, char *outfile, FILE *f, rawinfo_t *ra
 
 ==========================================================================================
 */
+/*
+	// number of objects
+	fread(&objtag, 4, 1, f);
+	Verbose("tag: 0x%.8X\n", objtag);
+	if (objtag > 32)
+		objtag = 1;
 
-// 4 bytes - number of objects
-// 4 bytes - filesize
-// 768 bytes - colormap data (24-bit RGB)
-// 8 unknown bytes
-// if number_of_objects == 1:
-//   object1 width - 1 byte
-//   object1 height - 1 byte
-//   object1 pos.x - 1 byte
-//   object1 pos.y - 1 byte
-//   object1 pixels
-// if number_of_objects > 1:
-//   object headers:
-//     8 bytes per each object
-//   objects:
-//     variable sized unknown data
-//     object pixels
+	// size
+	fread(&objsize, 4, 1, f);
+	Verbose("size = %i\n", objsize);
+
+	// colormap data
+	colormapdata = qmalloc(768);
+	fread(colormapdata, 768, 1, f);
+
+	// 8 unknown bytes
+	fread(&num1, 4, 1, f);
+	Verbose(" num1 = %i\n", num1);
+	fread(&num2, 2, 1, f);
+	Verbose(" num2 = %i\n", num2);
+	fread(&num3, 1, 1, f);
+	Verbose(" num3 = %i\n", num3);
+	fread(&num4, 1, 1, f);
+	Verbose(" num4 = %i\n", num4);
+
+	// only one image, it seems items only have such
+	if (objtag == 1)
+	{
+		Verbose("== single object ==\n");
+
+		// width and height - 2 bytes
+		fread(&temp, 1, 1, f);
+		objwidth = (rawinfo->width > 0) ? rawinfo->width : (int)temp;
+		fread(&temp, 1, 1, f);
+		objheight = (rawinfo->height > 0) ? rawinfo->height : (int)temp;
+		Verbose(" size = %ix%i\n", objwidth, objheight);
+
+		// x and y - 2 bytes
+		fread(&objx, 1, 1, f);
+		Verbose(" x = %i\n", objx);
+		fread(&objy, 1, 1, f);
+		Verbose(" y = %i\n", objy);
+
+		// read pixels
+		printfpos(f);
+		if (objwidth*objheight > 0)
+		{
+			pixeldata = qmalloc(objwidth*objheight);
+			fread(pixeldata, objwidth*objheight, 1, f);
+
+			// save TGA
+			sprintf(objectname, "%s.tga", outfile);
+			Print("writing %s\n", objectname);
+			RawTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, pixeldata, 8, rawinfo);
+			qfree(pixeldata);
+		}
+		qfree(colormapdata);
+		return;
+	}
+*/
+// 000: 4 bytes - number of objects
+// 004: 4 bytes - filesize
+// 008: 768 bytes - colormap data (24-bit RGB)
+// 776: 8 unknown bytes
+// 784: 1 byte width
+// 785: 1 byte height
+// 786: 1 byte x
+// 787: 1 byte y
+// 788: pixels width*height
 int RawExtract_Type1(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
-	return -999;
+	char name[MAX_BLOODPATH];
+	unsigned char *chunk, *chunk2;
+
+	if (buffer[0] != 1)
+		return -1; // header not valid
+	if (buffer[784] > 120 || buffer[785] > 120 || buffer[784]*buffer[785] < 0)
+		return -2; // invalid width/height
+	if (forced == false && (filelen - (788 + buffer[784]*buffer[785]) > 32))
+		return -3; // file is bigger than required
+	if (filelen < (781 + buffer[784]*buffer[785]))
+		return -4; // file is smaller than required
+
+	// if we only testing
+	if (testonly == true)
+	{
+		rawinfo->type = RAW_TYPE_1;
+		return 1;
+	}
+
+	// write
+	chunk = buffer + 8; // colormap
+	chunk2 = buffer + 788; // pixels
+	sprintf(name, "%s.tga", basefilename);
+	if (verbose == true)
+		Print("writing %s\n", name);
+	RawTGA(name, buffer[784], buffer[785], chunk, buffer[784]*buffer[785], chunk2, 8, rawinfo);
+	return 1;
 }
 
 /*

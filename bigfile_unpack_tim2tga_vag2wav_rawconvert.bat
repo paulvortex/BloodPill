@@ -1,0 +1,1 @@
+bpill -w -bigfile pill.big -unpack -tim2tga -vagconvert -scanraw -rawconvert
