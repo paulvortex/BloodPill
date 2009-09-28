@@ -1,5 +1,7 @@
 // cmdlib.h
 
+#define _CRT_SECURE_NO_DEPRECATE
+
 #ifndef __CMDLIB__
 #define __CMDLIB__
 
