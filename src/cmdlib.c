@@ -1,8 +1,6 @@
 // Useful Functions Library
 // coded by  Forest [LordHavoc] Hale
 
-#define _CRT_SECURE_NO_DEPRECATE
-
 #ifndef WIN32
 #define USEGETTIMEOFDAY 1
 #endif

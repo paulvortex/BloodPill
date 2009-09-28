@@ -169,6 +169,7 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 				entry->hash = hash;
 				entry->adpcmrate = 11025; // default ADPCM sampling rate
 				entry->type = BIGENTRY_UNKNOWN;
+				entry->rawinfo = NULL;
 				strcpy(entry->path, "");
 				
 				// warn for double defienition
@@ -595,7 +596,7 @@ void BigfileEmitStats(bigfileheader_t *data)
 	int stats[BIGFILE_NUM_FILETYPES], timstats[4], rawstats[NUM_RAW_TYPES];
 	int i;
 
-	// calc stats
+	// collect stats
 	memset(stats, 0, sizeof(stats));
 	memset(timstats, 0, sizeof(timstats));
 	memset(rawstats, 0, sizeof(rawstats));
@@ -618,7 +619,7 @@ void BigfileEmitStats(bigfileheader_t *data)
 		stats[entry->type]++;
 	}
 
-	// emit stats
+	// print stats
 	if (stats[BIGENTRY_RAW_ADPCM])
 		Print(" %6i raw ADPCM\n", stats[BIGENTRY_RAW_ADPCM]);
 	if (stats[BIGENTRY_RIFF_WAVE])
@@ -850,7 +851,7 @@ qboolean BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
 	filedata = qmalloc(entry->size);
 	if (fread(filedata, entry->size, 1, f) < 1)
 	{
-		free(filedata);
+		qfree(filedata);
 		return false;
 	}
 
@@ -859,13 +860,13 @@ qboolean BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
 	if (RawExtract("", filedata, entry->size, rawinfo, true, false, forcerawtype) >= 0)
 	{
 		entry->rawinfo = rawinfo;
-		free(filedata);
+		qfree(filedata);
 		return true;
 	}
 
 	// not found
-	free(filedata);
-	free(rawinfo);
+	qfree(filedata);
+	qfree(rawinfo);
 	return false;
 }
 
@@ -914,20 +915,21 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, rawt
 			kentry = BigfileSearchKList(entry->hash);
 			if (kentry != NULL)
 			{
-				if (kentry->path[0])
-					sprintf(entry->name, "%s", kentry->path);
-				else
-					sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
 				entry->type = (bigentrytype_t)kentry->type;
 				entry->adpcmrate = (int)kentry->adpcmrate;
 				if (entry->type == BIGENTRY_RAW_IMAGE)
 					entry->rawinfo = kentry->rawinfo;
+				// fix name
+				if (kentry->path[0])
+					sprintf(entry->name, "%s", kentry->path);
+				else
+					sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
+				
 			}
 		}
 	}
 	fsetpos(f, &fpos);
 	PacifierEnd();
-
 
 	// emit some stats
 	BigfileEmitStats(data);

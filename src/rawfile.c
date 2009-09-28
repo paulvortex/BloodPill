@@ -855,7 +855,7 @@ int Raw_Main(int argc, char **argv)
 	StripFileExtension(outfile, basefilename);
 	filelen = LoadFile(filename, &filedata);
 	RawExtract(basefilename, filedata, filelen, &rawinfo, false, true, true);
-	free(filedata);
+	qfree(filedata);
 
 	// legacy extract
 	if (rawinfo.type != RAW_TYPE_2)
