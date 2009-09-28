@@ -315,12 +315,29 @@ void RawTGA(char *outfile, int width, int height, const char *colormapdata, int 
 int RawExtract_Type0(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	char name[MAX_BLOODPATH];
+	int outputsize, i;
 	char *data;
 
 	if (rawinfo->bytes != 1 && rawinfo->bytes != 2 && rawinfo->bytes != 3)
 		return -1; // bad bytes
 	if (rawinfo->width*rawinfo->height < 0)
 		return -2; // bad width/height
+	if (rawinfo->offset < 0)
+		return -3; // bad offset
+
+	// apply offset
+	buffer += rawinfo->offset;
+	filelen = filelen - rawinfo->offset;
+	if (filelen < 0)
+		filelen = 0;
+
+	// calc output size
+	outputsize = rawinfo->width*rawinfo->height*rawinfo->bytes;
+	if (verbose == true)
+	{
+		Print("%8i bytes given\n", filelen);
+		Print("%8i bytes required\n", outputsize);
+	}
 
 	// testing only?
 	if (testonly == true)
@@ -329,9 +346,15 @@ int RawExtract_Type0(char *basefilename, unsigned char *buffer, int filelen, raw
 		return 1;
 	}
 
-	// write
-	data = qmalloc(rawinfo->width*rawinfo->height*rawinfo->bytes);
-	memcpy(buffer, data, filelen);
+	// make pixel bytes
+	if (filelen > outputsize)
+		filelen = outputsize;
+	data = qmalloc(outputsize);
+	memset(data, 0, outputsize);
+	for (i = 0; i < filelen; i++)
+		data[i] = buffer[i];
+
+	// write file
 	sprintf(name, "%s.tga", basefilename);
 	if (verbose == true)
 		Print("writing %s\n", name);
