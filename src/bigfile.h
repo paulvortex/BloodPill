@@ -26,6 +26,16 @@ static char *bigentryext[BIGFILE_NUM_FILETYPES] =
 	"raw"
 };
 
+// filetype autopaths
+static char *bigentryautopaths[BIGFILE_NUM_FILETYPES] = 
+{ 
+	"unknown/", 
+	"tims/",
+	"adpcm/", 
+	"wave/",
+	"raw/"
+};
+
 // bigfile entry
 typedef struct
 {

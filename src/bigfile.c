@@ -391,7 +391,7 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 	// convert raw file
 	if (rawconvert && entry->type == BIGENTRY_RAW_IMAGE)
 	{
-		ExtractFileBase(entry->name, basename);
+		StripFileExtension(entry->name, basename);
 		sprintf(savefile, "%s/%s", dstdir, basename);
 		RawExtract(savefile, entry->data, entry->size, entry->rawinfo, false, false, forcerawtype);
 	}
@@ -478,7 +478,8 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 		entry->size = read[1];
 		entry->offset = read[2];
 		entry->type = BIGENTRY_UNKNOWN;
-		sprintf(entry->name, "%.8X.%s", read[0], bigentryext[BIGENTRY_UNKNOWN]);
+		// assign default name
+		sprintf(entry->name, "%s%.8X.%s", bigentryautopaths[BIGENTRY_UNKNOWN], read[0], bigentryext[BIGENTRY_UNKNOWN]);
 		if (!entry->hash || !entry->offset)
 			Error("BigfileHeader: entry %i is broken\n", i);
 	}
@@ -520,7 +521,7 @@ void BigfileHeaderRecalcOffsets(bigfileheader_t *data)
 }
 
 // check & fix entry that was loaded from listfile
-// this functino laso does autoconvert job
+// this function also does autoconvert job
 void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry, qboolean lowmem)
 {
 	char ext[16], filename[MAX_BLOODPATH], basename[MAX_BLOODPATH];
@@ -907,7 +908,7 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, rawt
 		if (autotype != BIGENTRY_UNKNOWN) 
 		{
 			entry->type = autotype;
-			sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
+			sprintf(entry->name, "%s%.8X.%s", bigentryautopaths[autotype], entry->hash, bigentryext[entry->type]);
 		}
 		// check listfile
 		else
@@ -919,12 +920,11 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, rawt
 				entry->adpcmrate = (int)kentry->adpcmrate;
 				if (entry->type == BIGENTRY_RAW_IMAGE)
 					entry->rawinfo = kentry->rawinfo;
-				// fix name
+				// check custom path
 				if (kentry->path[0])
 					sprintf(entry->name, "%s", kentry->path);
 				else
-					sprintf(entry->name, "%.8X.%s", entry->hash, bigentryext[entry->type]);
-				
+					sprintf(entry->name, "%s%.8X.%s", bigentryautopaths[entry->type], entry->hash, bigentryext[entry->type]);
 			}
 		}
 	}
