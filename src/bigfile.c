@@ -639,14 +639,14 @@ void BigfileEmitStats(bigfileheader_t *data)
 	// RAW
 	if (rawstats[RAW_TYPE_0])
 		Print(" %6i raw type 0\n", rawstats[RAW_TYPE_0]);
-	if (rawstats[RAW_TYPE_1A])
-		Print(" %6i raw type 1A\n", rawstats[RAW_TYPE_1A]);
 	if (rawstats[RAW_TYPE_1])
 		Print(" %6i raw type 1\n", rawstats[RAW_TYPE_1]);
 	if (rawstats[RAW_TYPE_2])
 		Print(" %6i raw type 2\n", rawstats[RAW_TYPE_2]);
+	if (rawstats[RAW_TYPE_3])
+		Print(" %6i raw type 3\n", rawstats[RAW_TYPE_3]);
 	if (stats[BIGENTRY_RAW_IMAGE])
-		Print(" %6i raw image total\n", stats[BIGENTRY_RAW_IMAGE]);
+		Print(" %6i raw total\n", stats[BIGENTRY_RAW_IMAGE]);
 	// total
 	if (stats[BIGENTRY_UNKNOWN])
 		Print(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
@@ -864,7 +864,6 @@ qboolean BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
 		qfree(filedata);
 		return true;
 	}
-
 	// not found
 	qfree(filedata);
 	qfree(rawinfo);
@@ -929,6 +928,7 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, rawt
 		}
 	}
 	fsetpos(f, &fpos);
+	
 	PacifierEnd();
 
 	// emit some stats
@@ -1039,7 +1039,7 @@ int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw)
 
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
-	data = ReadBigfileHeader(f, bigfile, scanraw);
+	data = ReadBigfileHeader(f, bigfile, false);
 	BigfileScanFiletypes(f, data, true, RAW_TYPE_UNKNOWN);
 
 	// print or...

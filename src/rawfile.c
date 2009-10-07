@@ -51,6 +51,8 @@ void FlushRawInfo(rawinfo_t *rawinfo)
 	rawinfo->doubleres = rauto;
 	rawinfo->disableCLUT = false;
 	rawinfo->dontSwapBgr = false;
+	rawinfo->colormapoffset = 0;
+	rawinfo->colormapbytes = 0;
 }
 
 rawinfo_t *NewRawInfo()
@@ -83,9 +85,13 @@ qboolean ReadRawInfo(char *line, rawinfo_t *rawinfo)
 		rawinfo->bytes = num;
 	else if (sscanf(line, "raw.doubleres=%s", &temp))
 		rawinfo->doubleres = ParseRawSwitch(temp);
-	else if (!strcmp(line, "raw.disableCLUT"))
+	else if (sscanf(line, "raw.colormapoffset=%i", &num))
+		rawinfo->colormapoffset = num;
+	else if (sscanf(line, "raw.colormapbytes=%i", &num))
+		rawinfo->colormapbytes = num;
+	else if (sscanf(line, "raw.disableCLUT"))
 		rawinfo->disableCLUT = true;
-	else if (!strcmp(line, "raw.dontSwapBgr"))
+	else if (sscanf(line, "raw.dontSwapBgr"))
 		rawinfo->dontSwapBgr = true;
 	else
 		return false;
@@ -105,6 +111,10 @@ void WriteRawInfo(FILE *f, rawinfo_t *rawinfo)
 		fprintf(f, "raw.bytes=%i\n", rawinfo->bytes);
 	if (rawinfo->doubleres > 0)
 		fprintf(f, "raw.doubleres=%i\n", UnparseRawSwitch(rawinfo->doubleres));
+	if (rawinfo->colormapoffset > 0)
+		fprintf(f, "raw.colormapoffset=%i\n", rawinfo->colormapoffset);
+	if (rawinfo->colormapbytes > 0)
+		fprintf(f, "raw.colormapbytes=%i\n", rawinfo->colormapbytes);
 	if (rawinfo->disableCLUT == true)
 		fprintf(f, "raw.disableCLUT\n");
 	if (rawinfo->dontSwapBgr == true)
@@ -135,12 +145,12 @@ rawtype_t ParseRawType(char *str)
 	Q_strlower(str);
 	if (!strcmp(str, "0") || !strcmp(str, "raw"))
 		return RAW_TYPE_0;
-	if (!strcmp(str, "1A"))
-		return RAW_TYPE_1A;
 	if (!strcmp(str, "1"))
 		return RAW_TYPE_1;
 	if (!strcmp(str, "2"))
 		return RAW_TYPE_2;
+	if (!strcmp(str, "3"))
+		return RAW_TYPE_3;
 	return RAW_TYPE_UNKNOWN;
 }
 
@@ -148,12 +158,12 @@ char *UnparseRawType(rawtype_t rawtype)
 {
 	if (rawtype == RAW_TYPE_0)
 		return "raw";
-	if (rawtype == RAW_TYPE_1A)
-		return "1A";
 	if (rawtype == RAW_TYPE_1)
 		return "1";
 	if (rawtype == RAW_TYPE_2)
 		return "2";
+	if (rawtype == RAW_TYPE_3)
+		return "3";
 	return "unknown";
 }
 
@@ -302,6 +312,14 @@ void RawTGA(char *outfile, int width, int height, const char *colormapdata, int 
 	qfree(buffer);
 }
 
+void RawTGAPalette(char *outfile, const byte *colormapdata)
+{
+	rawinfo_t rawinfo;
+	
+	FlushRawInfo(&rawinfo);
+	RawTGA(outfile, 16, 16, NULL, 256, colormapdata, 24, &rawinfo);
+}
+
 /*
 ==========================================================================================
 
@@ -312,11 +330,49 @@ void RawTGA(char *outfile, int width, int height, const char *colormapdata, int 
 ==========================================================================================
 */
 
+static byte *RawReadColormap(unsigned char *buffer, int filelen, int offset, int palbytes)
+{
+	byte *colormap;
+	int i;
+
+	// apply offset
+	filelen = filelen - offset;
+	if (filelen < 0)
+		filelen = 0;
+
+	palbytes = (palbytes == 3) ? 768 : 512;
+	if (filelen < (palbytes + offset))
+		return NULL;
+
+	// read colormapdata
+	colormap = qmalloc(palbytes);
+	memset(colormap, 0, palbytes);
+	if (palbytes == 768)
+	{
+		for (i = 0;i < 256;i++)
+		{
+			colormap[i*3] = buffer[offset + i*3];
+			colormap[i*3 + 1] = buffer[offset + i*3 + 1];
+			colormap[i*3 + 2] = buffer[offset + i*3 + 2];
+		}
+	}
+	else
+	{
+		for (i = 0;i < 256;i++)
+		{
+			colormap[i*3] = (buffer[offset + i*2] & 0x1F) * 8; 
+			colormap[i*3 + 1] = (((buffer[offset + i*2] & 0xE0) >> 5) + ((buffer[offset + i*2 + 1] & 0x3) << 3)) * 8;
+			colormap[i*3 + 2] = ((buffer[offset + i*2 + 1] & 0x7C) >> 2) * 8;
+		}
+	}
+	return colormap;
+}
+
 int RawExtract_Type0(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	char name[MAX_BLOODPATH];
 	int outputsize, i;
-	char *data;
+	byte *data, *colormapdata;
 
 	if (rawinfo->bytes != 1 && rawinfo->bytes != 2 && rawinfo->bytes != 3)
 		return -1; // bad bytes
@@ -324,6 +380,11 @@ int RawExtract_Type0(char *basefilename, unsigned char *buffer, int filelen, raw
 		return -2; // bad width/height
 	if (rawinfo->offset < 0)
 		return -3; // bad offset
+
+	// get colormap data
+	colormapdata = NULL;
+	if (rawinfo->colormapbytes)
+		colormapdata = RawReadColormap(buffer, filelen, rawinfo->colormapoffset, rawinfo->colormapbytes);
 
 	// apply offset
 	buffer += rawinfo->offset;
@@ -358,152 +419,12 @@ int RawExtract_Type0(char *basefilename, unsigned char *buffer, int filelen, raw
 	sprintf(name, "%s.tga", basefilename);
 	if (verbose == true)
 		Print("writing %s\n", name);
-	RawTGA(name, rawinfo->width, rawinfo->height, NULL, rawinfo->width*rawinfo->height, data, (int)8*rawinfo->bytes, rawinfo);
+	RawTGA(name, rawinfo->width, rawinfo->height, colormapdata, rawinfo->width*rawinfo->height, data, (int)8*rawinfo->bytes, rawinfo);
+	if (colormapdata != NULL)
+		qfree(colormapdata);
 	qfree(data);
 	return 1;
 }
-
-/*
-==========================================================================================
-
-  LEGACY RAW FILE TYPE 1A
-
-  multiobject shared-pelette file
-  user for a very few animated tiles
-
-==========================================================================================
-*/
-
-// 4 bytes - number of objects
-// 4 bytes - filesize
-// 768 bytes - colormap data (24-bit RGB)
-// 8 unknown bytes
-// if number_of_objects == 1:
-//   object1 width - 1 byte
-//   object1 height - 1 byte
-//   object1 pos.x - 1 byte
-//   object1 pos.y - 1 byte
-//   object1 pixels
-// if number_of_objects > 1:
-//   object headers:
-//     8 bytes per each object
-//   objects:
-//     variable sized unknown data
-//     object pixels
-void RawExtract_Type1A(char *basefilename, char *outfile, FILE *f, rawinfo_t *rawinfo)
-{
-	unsigned char *data, *pixeldata, *colormapdata;
-	char objectname[MAX_BLOODPATH];
-	unsigned int objtag;
-	short num1, num2, num3, num4;
-	int obj, objsize, objwidth, objheight;
-	unsigned char objx, objy, temp, *multiobjects, *out;
-
-	// number of objects
-	fread(&objtag, 4, 1, f);
-	Verbose("tag: 0x%.8X\n", objtag);
-	if (objtag > 32)
-		objtag = 1;
-
-	// size
-	fread(&objsize, 4, 1, f);
-	Verbose("size = %i\n", objsize);
-
-	// colormap data
-	colormapdata = qmalloc(768);
-	fread(colormapdata, 768, 1, f);
-
-	// 8 unknown bytes
-	fread(&num1, 4, 1, f);
-	Verbose(" num1 = %i\n", num1);
-	fread(&num2, 2, 1, f);
-	Verbose(" num2 = %i\n", num2);
-	fread(&num3, 1, 1, f);
-	Verbose(" num3 = %i\n", num3);
-	fread(&num4, 1, 1, f);
-	Verbose(" num4 = %i\n", num4);
-
-	// only one image, it seems items only have such
-	if (objtag == 1)
-	{
-		Verbose("== single object ==\n");
-
-		// width and height - 2 bytes
-		fread(&temp, 1, 1, f);
-		objwidth = (rawinfo->width > 0) ? rawinfo->width : (int)temp;
-		fread(&temp, 1, 1, f);
-		objheight = (rawinfo->height > 0) ? rawinfo->height : (int)temp;
-		Verbose(" size = %ix%i\n", objwidth, objheight);
-
-		// x and y - 2 bytes
-		fread(&objx, 1, 1, f);
-		Verbose(" x = %i\n", objx);
-		fread(&objy, 1, 1, f);
-		Verbose(" y = %i\n", objy);
-
-		// read pixels
-		printfpos(f);
-		if (objwidth*objheight > 0)
-		{
-			pixeldata = qmalloc(objwidth*objheight);
-			fread(pixeldata, objwidth*objheight, 1, f);
-
-			// save TGA
-			sprintf(objectname, "%s.tga", outfile);
-			Print("writing %s\n", objectname);
-			RawTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, pixeldata, 8, rawinfo);
-			qfree(pixeldata);
-		}
-		qfree(colormapdata);
-		return;
-	}
-
-	// read multiple objects data, each consists of 8 bytes
-	multiobjects = qmalloc(objtag * 8);
-	out = multiobjects;
-	Verbose("== objects (%i) ==\n", getfpos(f));
-	for (obj = 0; obj < (int)objtag; obj++)
-	{
-		fread(out, 8, 1, f);
-		Verbose(" #%2i: %3i %3i + 13 %3i %3i %6i %3i %3i offset %i\n", obj, out[0], out[1] - 13, out[2], out[3], out[4] + out[5]*256, out[6], out[7], getfpos(f));
-		out += 8;
-	}
-
-	// write objects
-	for (objsize = 0, obj = 0; obj < (int)objtag; obj++)
-	{
-		Verbose("== multiobject #%i (%i) ==\n", obj, getfpos(f) );
-
-		// get width and height
-		objwidth = multiobjects[obj*8 + 0];
-		objheight = multiobjects[obj*8 + 1] - 13;
-		objsize = multiobjects[obj*8 + 4] + multiobjects[obj*8 + 5]*256 - objsize; // object length in bytes
-		Verbose(" width = %i\n", objwidth);
-		Verbose(" height = %i\n", objheight);
-		Verbose(" pixels = %i\n", objwidth*objheight);
-		Verbose(" size = %i\n", objsize);
-
-		// skip unknown data
-		printfpos(f);	
-		Verbose("seek: %i\n", objsize - objwidth*objheight);
-		fseek(f, objsize - objwidth*objheight, SEEK_CUR); 
-		fseek(f, 2, SEEK_CUR); 
-	
-		// read pixels
-		if (objwidth*objheight > 0)
-		{
-			data = qmalloc(objwidth*objheight);
-			memset(data, 0, objwidth*objheight);
-			fread(data, objwidth*objheight, 1, f); 
-
-			// save TGA
-			sprintf(objectname, "%s_object%03i.tga", outfile, obj);
-			RawTGA(objectname, (int)objwidth, (int)objheight, colormapdata, objwidth*objheight, data, 8, rawinfo);
-			qfree(data);
-		}
-	}
-	qfree(colormapdata);
-}	
 
 /*
 ==========================================================================================
@@ -694,6 +615,155 @@ int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, raw
 /*
 ==========================================================================================
 
+  RAW FILE TYPE 3
+
+==========================================================================================
+*/
+
+
+// 4 bytes - number of objects
+// 4 bytes - filesize
+// 768 bytes - colormap data (24-bit RGB)
+// 8 unknown bytes
+// object headers:
+//  4 bytes - offset after headers
+//  1 byte - width
+//  1 byte - height
+//  1 byte - x
+//  1 byte - y
+// For each object:
+//  x bytes - black-length compressed pixels:
+//   read pixel, if it's 0 - read next pixel and make this number of black pixels, otherwise write as normal pixel
+int RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+{
+	int numobjects, filesize;
+	int	i, objwidth, objheight, objsize, objoffset, pixelpos, chunkpos, lastoffset;
+	unsigned char *chunk;
+	const byte *colormapdata;
+	byte *objects;
+	byte *pixels;
+	byte mystic[4];
+	byte pixel, p;
+	char name[MAX_BLOODPATH];
+
+	if (filelen < 780)
+		return -1; // file is smaller than required
+
+	// number of objects
+	numobjects = buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
+	if (numobjects <= 0 || numobjects > 400)
+		return -2;
+	if (verbose == true)
+		Print("objects: %i\n", numobjects);
+
+	// check if there is enough place for headers
+	if (filelen < (780 + 8*numobjects))
+		return -1; // file is smaller than required
+
+	// file size
+	filesize = buffer[7]*16777216 + buffer[6]*65536 + buffer[5]*256 + buffer[4];
+	if (verbose == true)
+	{
+		Print("filesize: %i\n", filesize);
+		Print("realfilesize: %i\n", filelen);
+	}
+
+	// colormap
+	colormapdata = RawReadColormap(buffer, filelen, 8, 3);
+	if (colormapdata == NULL)
+		return -3;
+
+	// mystic bytes
+	mystic[0] = buffer[776];
+	mystic[1] = buffer[777];
+	mystic[2] = buffer[778];
+	mystic[3] = buffer[779];
+	if (verbose == true)
+		Print("mystic bytes: %i %i %i %i\n", mystic[0], mystic[1], mystic[2], mystic[3]);
+
+	if (filelen < (780 + 8*numobjects + 2))
+		return -1; // file is smaller than required
+
+	// read object headers
+	objects = qmalloc(8*numobjects);
+	for (i = 0; i < 8*numobjects; i++)
+		objects[i] = buffer[780 + i];
+
+	// test objects, check width and height, offset
+	lastoffset = -1;
+	for (i = 0; i < numobjects; i++)
+	{
+		chunk = objects + i*8;
+
+		objwidth = objects[i*8 + 4];
+		objheight = objects[i*8 + 5];
+		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
+		if (objwidth*objheight <= 0)
+			return -4; // bad objects header
+		if (objoffset <= lastoffset)
+			return -5; // bad offsets
+		lastoffset = objoffset;
+	}
+
+	// print object headers
+	if (verbose == true)
+	{
+		for (i = 0; i < numobjects; i++)
+		{
+			chunk = objects + i*8;
+			objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
+			Print("%3i: %8i %3i %3i %3i\n", i, objoffset, chunk[4], chunk[5], chunk[6], chunk[7]);    
+		}
+	}
+
+	// read pixels
+	#define writepixel(f) if (pixelpos >= objsize) { if (!forced) return -6; } else { pixels[pixelpos]=f;pixelpos++; }
+	#define readpixel() if (chunkpos >= filelen) { return -7; } else { pixel=buffer[chunkpos];chunkpos++; }
+	for (i = 0; i < numobjects; i++)
+	{
+		chunk = objects + i*8;
+		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
+		objwidth = objects[i*8 + 4];
+		objheight = objects[i*8 + 5];
+		objsize = objwidth*objheight;
+		pixels = qmalloc(objsize);
+		// begin frame
+		chunkpos = 780 + numobjects*8 + objoffset;
+		for(pixelpos = 0; pixelpos < objsize; )
+		{
+			readpixel();
+			if (pixel)
+				{ writepixel(pixel); }
+			else 
+			{
+				// offset, and fill with nulls
+				readpixel();
+				for (p = 0; p < pixel; p++)
+				{ 
+					writepixel(0); 
+				}
+			}
+		}
+		// write image file
+		if (testonly == true)
+			rawinfo->type = RAW_TYPE_3;
+		else
+		{
+			sprintf(name, "%s_%03i.tga", basefilename, i);
+			RawTGA(name, objwidth, objheight, colormapdata, objsize, pixels, 8, rawinfo);
+		}
+		qfree(pixels);
+	}
+	#undef writepixel
+	#undef readpixel
+
+	qfree(objects);
+	return numobjects;
+}
+
+/*
+==========================================================================================
+
   MAIN
 
 ==========================================================================================
@@ -715,6 +785,9 @@ int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawin
 		// type 2
 		if ((code = RawExtract_Type2(basefilename, filedata, filelen, rawinfo, testonly, verbose, false)) >= 0)
 			return code;
+		// type 3
+		if ((code = RawExtract_Type3(basefilename, filedata, filelen, rawinfo, testonly, verbose, false)) >= 0)
+			return code;
 		return -999;
 	}
 
@@ -726,7 +799,8 @@ int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawin
 		code = RawExtract_Type1(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
 	else if (rawtype == RAW_TYPE_2)
 		code = RawExtract_Type2(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
-	
+	else if (rawtype == RAW_TYPE_3)
+		code = RawExtract_Type3(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
 	if (code < 0 && verbose == true)
 		Print("Raw error: code %i\n", code);
 
@@ -739,7 +813,6 @@ int Raw_Main(int argc, char **argv)
 	unsigned char *filedata;
 	int filelen;
 	rawinfo_t rawinfo;
-	FILE *f;
 	int i;
 
 	FlushRawInfo(&rawinfo);
@@ -816,6 +889,20 @@ int Raw_Main(int argc, char **argv)
 				rawinfo.bytes = atoi(argv[i]);
 			Verbose("Color bytes: %i\n", rawinfo.bytes);
 		}
+		else if(!strcmp(argv[i], "-colormapoffset"))
+		{
+			i++;
+			if (i < argc)
+				rawinfo.colormapoffset = atoi(argv[i]);
+			Verbose("Colormap offset: %i\n", rawinfo.colormapoffset);
+		}
+		else if(!strcmp(argv[i], "-colormapbytes"))
+		{
+			i++;
+			if (i < argc)
+				rawinfo.colormapbytes = atoi(argv[i]);
+			Verbose("Colormap bytes: %i\n", rawinfo.colormapbytes);
+		}
 		else if(!strcmp(argv[i], "-noswap"))
 		{
 			rawinfo.dontSwapBgr = true;
@@ -833,15 +920,6 @@ int Raw_Main(int argc, char **argv)
 	filelen = LoadFile(filename, &filedata);
 	RawExtract(basefilename, filedata, filelen, &rawinfo, false, true, false);
 	qfree(filedata);
-
-	// legacy extract
-	if (rawinfo.type == RAW_TYPE_1A)
-	{
-		f = SafeOpen(filename, "rb");
-		RawExtract_Type1A(basefilename, outfile, f, &rawinfo);
-		fclose(f);
-	}
-
 	Print("done.\n");
 	return 0;
 }

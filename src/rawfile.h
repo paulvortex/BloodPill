@@ -5,9 +5,9 @@ typedef enum
 {
 	RAW_TYPE_UNKNOWN,
 	RAW_TYPE_0,		// raw
-	RAW_TYPE_1A,	// multiobject TIM with shared-palette 
 	RAW_TYPE_1,		// item card
 	RAW_TYPE_2,		// multiobject tile
+	RAW_TYPE_3,		// multiobject strangely compressed
 	NUM_RAW_TYPES
 }rawtype_t;
 
@@ -29,6 +29,8 @@ typedef struct rawinfo_s
 	int height;
 	int offset; // offset into file when actual data starts
 	int bytes;	// how many bytes per color (1, 2 or 3)
+	int colormapoffset; // - 1 - no colormal
+	int colormapbytes; // 2 or 3
 
 	// common
 	rawswitch_t	doubleres;	// double the width & height
