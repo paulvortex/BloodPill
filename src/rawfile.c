@@ -438,7 +438,7 @@ int RawExtract_Type0(char *basefilename, unsigned char *buffer, int filelen, raw
 // 000: 4 bytes - number of objects
 // 004: 4 bytes - filesize
 // 008: 768 bytes - colormap data (24-bit RGB)
-// 776: 8 unknown bytes
+// 776: 4 mystic bytes
 // 784: 1 byte width
 // 785: 1 byte height
 // 786: 1 byte x
@@ -624,7 +624,7 @@ int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, raw
 // 4 bytes - number of objects
 // 4 bytes - filesize
 // 768 bytes - colormap data (24-bit RGB)
-// 8 unknown bytes
+// 4 unknown bytes
 // object headers:
 //  4 bytes - offset after headers
 //  1 byte - width
@@ -637,13 +637,13 @@ int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, raw
 int RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	int numobjects, filesize;
-	int	i, objwidth, objheight, objsize, objoffset, pixelpos, chunkpos, lastoffset;
+	int	i, objwidth, objheight, objsize, objoffset, pixelpos, chunkpos, lastoffset, nullpixels;
 	unsigned char *chunk;
 	const byte *colormapdata;
 	byte *objects;
 	byte *pixels;
 	byte mystic[4];
-	byte pixel, p;
+	byte pixel, p, rp;
 	char name[MAX_BLOODPATH];
 
 	if (filelen < 780)
@@ -717,32 +717,54 @@ int RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawinfo_t *r
 	}
 
 	// read pixels
+	nullpixels = 0;
+	p = 0;
+	rp = 0;
 	#define writepixel(f) if (pixelpos >= objsize) { if (!forced) return -6; } else { pixels[pixelpos]=f;pixelpos++; }
 	#define readpixel() if (chunkpos >= filelen) { return -7; } else { pixel=buffer[chunkpos];chunkpos++; }
 	for (i = 0; i < numobjects; i++)
 	{
+		if (i > 3)
+			continue;
 		chunk = objects + i*8;
 		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
 		objwidth = objects[i*8 + 4];
 		objheight = objects[i*8 + 5];
 		objsize = objwidth*objheight;
 		pixels = qmalloc(objsize);
+		memset(pixels, 255, objsize);
+		chunkpos = 780 + numobjects*8 + objoffset; 
+
 		// begin frame
-		chunkpos = 780 + numobjects*8 + objoffset;
 		for(pixelpos = 0; pixelpos < objsize; )
 		{
-			readpixel();
-			if (pixel)
-				{ writepixel(pixel); }
-			else 
+			// fill with nulls
+			while(nullpixels > 0)
 			{
-				// offset, and fill with nulls
-				readpixel();
-				for (p = 0; p < pixel; p++)
-				{ 
-					writepixel(0); 
-				}
+				if (pixelpos >= objsize)
+					break;
+				writepixel(rp); 
+				nullpixels--;
 			}
+			if (pixelpos >= objsize)
+				break;
+			// read pixel
+			readpixel();
+			if (!pixel)
+			{	
+				readpixel();
+				Print("Null %i\n", pixel);
+				if (!rp)
+					rp = 255;
+				else if (rp == 255)
+					rp = 240;
+				else if (rp == 240)
+					rp = 255;
+				p++;
+				nullpixels = pixel;
+				continue;
+			}
+			writepixel(pixel);
 		}
 		// write image file
 		if (testonly == true)
@@ -752,6 +774,7 @@ int RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawinfo_t *r
 			sprintf(name, "%s_%03i.tga", basefilename, i);
 			RawTGA(name, objwidth, objheight, colormapdata, objsize, pixels, 8, rawinfo);
 		}
+		Print("endpos: %i\n", chunkpos - (780 + numobjects*8));
 		qfree(pixels);
 	}
 	#undef writepixel
