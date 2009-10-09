@@ -53,6 +53,7 @@ void FlushRawInfo(rawinfo_t *rawinfo)
 	rawinfo->dontSwapBgr = false;
 	rawinfo->colormapoffset = 0;
 	rawinfo->colormapbytes = 0;
+	rawinfo->chunknum = -1;
 }
 
 rawinfo_t *NewRawInfo()
@@ -85,6 +86,8 @@ qboolean ReadRawInfo(char *line, rawinfo_t *rawinfo)
 		rawinfo->bytes = num;
 	else if (sscanf(line, "raw.doubleres=%s", &temp))
 		rawinfo->doubleres = ParseRawSwitch(temp);
+	else if (sscanf(line, "raw.chunknum=%s", &num))
+		rawinfo->chunknum = num;
 	else if (sscanf(line, "raw.colormapoffset=%i", &num))
 		rawinfo->colormapoffset = num;
 	else if (sscanf(line, "raw.colormapbytes=%i", &num))
@@ -111,6 +114,8 @@ void WriteRawInfo(FILE *f, rawinfo_t *rawinfo)
 		fprintf(f, "raw.bytes=%i\n", rawinfo->bytes);
 	if (rawinfo->doubleres > 0)
 		fprintf(f, "raw.doubleres=%i\n", UnparseRawSwitch(rawinfo->doubleres));
+	if (rawinfo->chunknum >= 0)
+		fprintf(f, "raw.chunknum=%i\n", rawinfo->chunknum);
 	if (rawinfo->colormapoffset > 0)
 		fprintf(f, "raw.colormapoffset=%i\n", rawinfo->colormapoffset);
 	if (rawinfo->colormapbytes > 0)
@@ -151,6 +156,8 @@ rawtype_t ParseRawType(char *str)
 		return RAW_TYPE_2;
 	if (!strcmp(str, "3"))
 		return RAW_TYPE_3;
+	if (!strcmp(str, "4"))
+		return RAW_TYPE_4;
 	return RAW_TYPE_UNKNOWN;
 }
 
@@ -164,6 +171,8 @@ char *UnparseRawType(rawtype_t rawtype)
 		return "2";
 	if (rawtype == RAW_TYPE_3)
 		return "3";
+	if (rawtype == RAW_TYPE_4)
+		return "4";
 	return "unknown";
 }
 
@@ -601,11 +610,14 @@ int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, raw
 	{		
 		chunk = buffer + 776 + (768 + 8)*i; // colormap
 		chunk2 = buffer + pos;
-		// write
-		sprintf(name, "%s_%03i.tga", basefilename, i);
-		if (verbose == true)
-			Print("writing %s\n", name);
-		RawTGA(name, chunk[772]*resmult, chunk[773]*resmult, chunk, chunk[772]*resmult*chunk[773]*resmult, chunk2, 8, rawinfo);
+		// write, reject chunk if chunknum is set
+		if (rawinfo->chunknum < 0 || i == rawinfo->chunknum)
+		{
+			sprintf(name, "%s_%03i.tga", basefilename, i);
+			if (verbose == true)
+				Print("writing %s\n", name);
+			RawTGA(name, chunk[772]*resmult, chunk[773]*resmult, chunk, chunk[772]*resmult*chunk[773]*resmult, chunk2, 8, rawinfo);
+		}
 		// advance
 		pos = pos + chunk[772]*resmult*chunk[773]*resmult;
 	}
@@ -619,7 +631,6 @@ int RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, raw
 
 ==========================================================================================
 */
-
 
 // 4 bytes - number of objects
 // 4 bytes - filesize
@@ -639,7 +650,7 @@ int RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawinfo_t *r
 	int numobjects, filesize;
 	int	i, objwidth, objheight, objsize, objoffset, pixelpos, chunkpos, lastoffset, nullpixels;
 	unsigned char *chunk;
-	const byte *colormapdata;
+	byte *colormapdata;
 	byte *objects;
 	byte *pixels;
 	byte mystic[4];
@@ -689,22 +700,6 @@ int RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawinfo_t *r
 	for (i = 0; i < 8*numobjects; i++)
 		objects[i] = buffer[780 + i];
 
-	// test objects, check width and height, offset
-	lastoffset = -1;
-	for (i = 0; i < numobjects; i++)
-	{
-		chunk = objects + i*8;
-
-		objwidth = objects[i*8 + 4];
-		objheight = objects[i*8 + 5];
-		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-		if (objwidth*objheight <= 0)
-			return -4; // bad objects header
-		if (objoffset <= lastoffset)
-			return -5; // bad offsets
-		lastoffset = objoffset;
-	}
-
 	// print object headers
 	if (verbose == true)
 	{
@@ -716,16 +711,39 @@ int RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawinfo_t *r
 		}
 	}
 
+	// test objects, check width and height, offset
+	lastoffset = -1;
+	for (i = 0; i < numobjects; i++)
+	{
+		chunk = objects + i*8;
+
+		objwidth = objects[i*8 + 4];
+		objheight = objects[i*8 + 5];
+		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
+		if (objwidth*objheight <= 0)
+			return -4; // bad objects header
+		if (objoffset <= lastoffset && !forced)
+			return -5; // bad offsets
+		lastoffset = objoffset;
+	}
+
 	// read pixels
 	nullpixels = 0;
 	p = 0;
 	rp = 0;
+	colormapdata[3] = 0;
+	colormapdata[3+1] = 254;
+	colormapdata[3+2] = 254;
+	colormapdata[6] = 254;
+	colormapdata[6+1] = 0;
+	colormapdata[6+2] = 254;
 	#define writepixel(f) if (pixelpos >= objsize) { if (!forced) return -6; } else { pixels[pixelpos]=f;pixelpos++; }
 	#define readpixel() if (chunkpos >= filelen) { return -7; } else { pixel=buffer[chunkpos];chunkpos++; }
 	for (i = 0; i < numobjects; i++)
 	{
-		if (i > 3)
-			continue;
+		if (rawinfo->chunknum >= 0 && i != rawinfo->chunknum)
+			continue; // skip this chunk
+
 		chunk = objects + i*8;
 		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
 		objwidth = objects[i*8 + 4];
@@ -755,21 +773,24 @@ int RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawinfo_t *r
 				readpixel();
 				Print("Null %i\n", pixel);
 				if (!rp)
-					rp = 255;
-				else if (rp == 255)
-					rp = 240;
-				else if (rp == 240)
-					rp = 255;
+					rp = 2;
+				else if (rp == 2)
+					rp = 1;
+				else if (rp == 1)
+					rp = 2;
 				p++;
+				if (p == 12)
+					pixel = 0;
+				if (p == 14)
+					break;
 				nullpixels = pixel;
 				continue;
 			}
 			writepixel(pixel);
+			Print("Write %i\n", pixel);
 		}
 		// write image file
-		if (testonly == true)
-			rawinfo->type = RAW_TYPE_3;
-		else
+		if (testonly == false)
 		{
 			sprintf(name, "%s_%03i.tga", basefilename, i);
 			RawTGA(name, objwidth, objheight, colormapdata, objsize, pixels, 8, rawinfo);
@@ -780,8 +801,28 @@ int RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawinfo_t *r
 	#undef writepixel
 	#undef readpixel
 
+	if (testonly == true)
+		rawinfo->type = RAW_TYPE_3;
+	else if (chunkpos != filelen && verbose) // warn if multiobject file
+		Print("Warning! REading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
+
 	qfree(objects);
 	return numobjects;
+}
+
+/*
+==========================================================================================
+
+  RAW FILE TYPE 4
+
+  Derivative work from Type3
+
+==========================================================================================
+*/
+
+int RawExtract_Type4(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+{
+	return -1;
 }
 
 /*
@@ -811,6 +852,9 @@ int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawin
 		// type 3
 		if ((code = RawExtract_Type3(basefilename, filedata, filelen, rawinfo, testonly, verbose, false)) >= 0)
 			return code;
+		// type 4
+		if ((code = RawExtract_Type4(basefilename, filedata, filelen, rawinfo, testonly, verbose, false)) >= 0)
+			return code;
 		return -999;
 	}
 
@@ -824,6 +868,8 @@ int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawin
 		code = RawExtract_Type2(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
 	else if (rawtype == RAW_TYPE_3)
 		code = RawExtract_Type3(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
+	else if (rawtype == RAW_TYPE_4)
+		code = RawExtract_Type4(basefilename, filedata, filelen, rawinfo, testonly, verbose, (forcetype == RAW_TYPE_UNKNOWN) ? false : true);
 	if (code < 0 && verbose == true)
 		Print("Raw error: code %i\n", code);
 
@@ -835,6 +881,7 @@ int Raw_Main(int argc, char **argv)
 	char filename[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], outfile[MAX_BLOODPATH], *c;
 	unsigned char *filedata;
 	int filelen;
+	qboolean forced;
 	rawinfo_t rawinfo;
 	int i;
 
@@ -858,6 +905,7 @@ int Raw_Main(int argc, char **argv)
 	}
 
 	// parse cmdline
+	forced = false;
 	for (i = i; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-width"))
@@ -885,6 +933,25 @@ int Raw_Main(int argc, char **argv)
 			{
 				rawinfo.type = ParseRawType(argv[i]);
 				Verbose("Raw type: %s\n", UnparseRawType(rawinfo.type));
+			}
+		}
+		else if(!strcmp(argv[i], "-forcetype"))
+		{
+			i++;
+			if (i < argc)
+			{
+				forced = true;
+				rawinfo.type = ParseRawType(argv[i]);
+				Verbose("Forcing raw type: %s\n", UnparseRawType(rawinfo.type));
+			}
+		}
+		else if(!strcmp(argv[i], "-chunk"))
+		{
+			i++;
+			if (i < argc)
+			{
+				rawinfo.chunknum = atoi(argv[i]);
+				Verbose("Only read chunk #: %i\n", rawinfo.chunknum);
 			}
 		}
 		else if(!strcmp(argv[i], "-doubleres"))
@@ -941,7 +1008,7 @@ int Raw_Main(int argc, char **argv)
 	// open and extract file
 	StripFileExtension(outfile, basefilename);
 	filelen = LoadFile(filename, &filedata);
-	RawExtract(basefilename, filedata, filelen, &rawinfo, false, true, false);
+	RawExtract(basefilename, filedata, filelen, &rawinfo, false, true, (forced == true) ? rawinfo.type : RAW_TYPE_UNKNOWN);
 	qfree(filedata);
 	Print("done.\n");
 	return 0;

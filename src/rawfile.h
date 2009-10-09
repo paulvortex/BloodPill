@@ -8,6 +8,7 @@ typedef enum
 	RAW_TYPE_1,		// item card
 	RAW_TYPE_2,		// multiobject tile
 	RAW_TYPE_3,		// multiobject strangely compressed
+	RAW_TYPE_4,
 	NUM_RAW_TYPES
 }rawtype_t;
 
@@ -33,6 +34,7 @@ typedef struct rawinfo_s
 	int colormapbytes; // 2 or 3
 
 	// common
+	int chunknum; // if set, only extract this chunk number
 	rawswitch_t	doubleres;	// double the width & height
 	qboolean	disableCLUT; // disable writing of clut, write indexes as grayscale instead
 	qboolean	dontSwapBgr; // disable swapping of BGR->RGB, for images that are initially BGR	
