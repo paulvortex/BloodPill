@@ -9,6 +9,7 @@ typedef enum
 	RAW_TYPE_2,		// multiobject tile
 	RAW_TYPE_3,		// multiobject strangely compressed
 	RAW_TYPE_4,
+	RAW_TYPE_5,
 	NUM_RAW_TYPES
 }rawtype_t;
 

@@ -645,6 +645,10 @@ void BigfileEmitStats(bigfileheader_t *data)
 		Print(" %6i raw type 2\n", rawstats[RAW_TYPE_2]);
 	if (rawstats[RAW_TYPE_3])
 		Print(" %6i raw type 3\n", rawstats[RAW_TYPE_3]);
+	if (rawstats[RAW_TYPE_4])
+		Print(" %6i raw type 4\n", rawstats[RAW_TYPE_4]);
+	if (rawstats[RAW_TYPE_5])
+		Print(" %6i raw type 5\n", rawstats[RAW_TYPE_5]);
 	if (stats[BIGENTRY_RAW_IMAGE])
 		Print(" %6i raw total\n", stats[BIGENTRY_RAW_IMAGE]);
 	// total
