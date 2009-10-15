@@ -2408,10 +2408,12 @@ path=cdtracks/track11.adpcm
 
 [061E7029]
 type=raw
+raw.type=2
 raw.doubleres=true
 
 [1E177028]
 type=raw
+raw.type=2
 raw.doubleres=false
 
 

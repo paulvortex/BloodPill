@@ -10,8 +10,28 @@ typedef enum
 	RAW_TYPE_3,		// multiobject strangely compressed
 	RAW_TYPE_4,
 	RAW_TYPE_5,
+	RAW_TYPE_6,
+	RAW_TYPE_7,
+	RAW_TYPE_8,
 	NUM_RAW_TYPES
 }rawtype_t;
+
+// raw read return codes
+typedef enum
+{
+	// > 0 = file end pos
+	RAWX_ERROR_HEADER_NOT_VALID = -1,
+	RAWX_ERROR_IMPLICIT_OBJECTS_COUNT = -2,
+	RAWX_ERROR_BAD_COLORMAP = -3,
+	RAWX_ERROR_WIDTH_OR_HEIGHT_NOT_VALID = -4,
+	RAWX_ERROR_FILE_BIGGER_THAN_REQUIRED = -5,
+	RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED = -6,
+	RAWX_ERROR_BAD_OBJECT_HEADER = -7,
+	RAWX_ERROR_BAD_OBJECT_OFFSET = -8,
+	RAWX_ERROR_COMPRESSED_UNPACK_OVERFLOW = -9,
+	RAWX_ERROR_COMPRESSED_READ_OVERFLOW = -10,
+	RAWX_ERROR_BAD_OPTIONS = -11
+}rawextractresult_t;
 
 // raw boolean type
 typedef enum 
@@ -25,6 +45,10 @@ typedef enum
 typedef struct rawinfo_s
 {
 	rawtype_t type;		// type of RAW file
+
+	// dynamic only
+	qboolean usecompression;
+	byte compressionpixels[4];
 
 	// type 0
 	int width;
@@ -50,5 +74,7 @@ rawswitch_t ParseRawSwitch(char *str);
 char *UnparseRawSwitch(rawswitch_t rawswitch);
 rawtype_t ParseRawType(char *str);
 char *UnparseRawType(rawtype_t rawtype);
+char *RawStringForResult(int rescode);
+char *PathForRawType(rawtype_t rawtype);
 
 int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype);

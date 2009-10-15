@@ -627,30 +627,38 @@ void BigfileEmitStats(bigfileheader_t *data)
 		Print(" %6i RIFF WAVE\n", stats[BIGENTRY_RIFF_WAVE]);
 	// TIM
 	if (timstats[0])
-		Print(" %6i 4-bit TIM\n", timstats[0]);
+		Print(" %6i  4-bit TIM\n", timstats[0]);
 	if (timstats[1])
-		Print(" %6i 8-bit TIM\n", timstats[1]);
+		Print(" %6i  8-bit TIM\n", timstats[1]);
 	if (timstats[2])
-		Print(" %6i 16-bit TIM\n", timstats[2]);
+		Print(" %6i  16-bit TIM\n", timstats[2]);
 	if (timstats[3])
-		Print(" %6i 24-bit TIM\n", timstats[3]);
+		Print(" %6i  24-bit TIM\n", timstats[3]);
 	if (stats[BIGENTRY_TIM])
 		Print(" %6i TIM total\n", stats[BIGENTRY_TIM]);
 	// RAW
 	if (rawstats[RAW_TYPE_0])
-		Print(" %6i raw type 0\n", rawstats[RAW_TYPE_0]);
+		Print(" %6i  raw type 0\n", rawstats[RAW_TYPE_0]);
 	if (rawstats[RAW_TYPE_1])
-		Print(" %6i raw type 1\n", rawstats[RAW_TYPE_1]);
+		Print(" %6i  raw type 1\n", rawstats[RAW_TYPE_1]);
 	if (rawstats[RAW_TYPE_2])
-		Print(" %6i raw type 2\n", rawstats[RAW_TYPE_2]);
+		Print(" %6i  raw type 2\n", rawstats[RAW_TYPE_2]);
 	if (rawstats[RAW_TYPE_3])
-		Print(" %6i raw type 3\n", rawstats[RAW_TYPE_3]);
+		Print(" %6i  raw type 3\n", rawstats[RAW_TYPE_3]);
 	if (rawstats[RAW_TYPE_4])
-		Print(" %6i raw type 4\n", rawstats[RAW_TYPE_4]);
+		Print(" %6i  raw type 4\n", rawstats[RAW_TYPE_4]);
 	if (rawstats[RAW_TYPE_5])
-		Print(" %6i raw type 5\n", rawstats[RAW_TYPE_5]);
+		Print(" %6i  raw type 5\n", rawstats[RAW_TYPE_5]);
+	if (rawstats[RAW_TYPE_6])
+		Print(" %6i  raw type 6\n", rawstats[RAW_TYPE_6]);
+	if (rawstats[RAW_TYPE_7])
+		Print(" %6i  raw type 7\n", rawstats[RAW_TYPE_7]);
+	if (rawstats[RAW_TYPE_8])
+		Print(" %6i  raw type 8\n", rawstats[RAW_TYPE_8]);
 	if (stats[BIGENTRY_RAW_IMAGE])
 		Print(" %6i raw total\n", stats[BIGENTRY_RAW_IMAGE]);
+	if (stats[BIGENTRY_VAG])
+		Print(" %6i VAG\n", stats[BIGENTRY_VAG]);
 	// total
 	if (stats[BIGENTRY_UNKNOWN])
 		Print(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
@@ -846,6 +854,22 @@ qboolean BigFileScanRiffWave(FILE *f, bigfileentry_t *entry)
 	return true;
 }
 
+qboolean BigFileScanVAG(FILE *f, bigfileentry_t *entry)
+{
+	byte tag[4];
+
+	BigfileSeekFile(f, entry);
+
+	// first unsigned int - tag
+	if (fread(&tag, sizeof(char), 4, f) < 1)
+		return false;
+	if (tag[0] != 'V' || tag[1] != 'A' || tag[2] != 'G' || tag[3] != 'p')
+		return false;
+
+	// it's a VAG
+	return true;
+}
+
 qboolean BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
 {
 	unsigned char *filedata;
@@ -880,6 +904,8 @@ bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry, qboolean sc
 		return BIGENTRY_TIM;
 	if (BigFileScanRiffWave(f, entry))
 		return BIGENTRY_RIFF_WAVE;
+	if (BigFileScanVAG(f, entry))
+		return BIGENTRY_VAG;
 	if (scanraw)
 		if (BigFileScanRaw(f, entry, forcerawtype))
 			return BIGENTRY_RAW_IMAGE;
@@ -892,6 +918,7 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, rawt
 	bigentrytype_t autotype;
 	bigfileentry_t *entry;
 	bigkentry_t *kentry;
+	char *autopath;
 	int i;
 
 	fgetpos(f, &fpos);
@@ -911,7 +938,13 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, rawt
 		if (autotype != BIGENTRY_UNKNOWN) 
 		{
 			entry->type = autotype;
-			sprintf(entry->name, "%s%.8X.%s", bigentryautopaths[autotype], entry->hash, bigentryext[entry->type]);
+			// automatic path
+			autopath = NULL;
+			if (autotype == BIGENTRY_RAW_IMAGE)
+				autopath = PathForRawType(entry->rawinfo->type);
+			if (autopath == NULL)
+				autopath = bigentryautopaths[autotype];
+			sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
 		}
 		// check listfile
 		else
@@ -927,7 +960,15 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, rawt
 				if (kentry->path[0])
 					sprintf(entry->name, "%s", kentry->path);
 				else
-					sprintf(entry->name, "%s%.8X.%s", bigentryautopaths[entry->type], entry->hash, bigentryext[entry->type]);
+				{
+					// automatic path
+					autopath = NULL;
+					if (autotype == BIGENTRY_RAW_IMAGE)
+						autopath = PathForRawType(entry->rawinfo->type);
+					if (autopath == NULL)
+						autopath = bigentryautopaths[autotype];
+					sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
+				}
 			}
 		}
 	}

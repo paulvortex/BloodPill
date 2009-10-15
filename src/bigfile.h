@@ -6,7 +6,7 @@
 #define MAX_TIM_LAYERS
 
 // filetypes
-#define BIGFILE_NUM_FILETYPES 5
+#define BIGFILE_NUM_FILETYPES 6
 typedef enum
 {
 	BIGENTRY_UNKNOWN,		// unknown data
@@ -14,16 +14,18 @@ typedef enum
 	BIGENTRY_RAW_ADPCM,		// RAW 4 bit ADPCM
 	BIGENTRY_RIFF_WAVE,		// RIFF wave file
 	BIGENTRY_RAW_IMAGE,		// a RAW image file
+	BIGENTRY_VAG,			// PSX VAG
 }bigentrytype_t;
 
 // filetype extensions
 static char *bigentryext[BIGFILE_NUM_FILETYPES] = 
 { 
-	"dat", 
+	"dat",
 	"tim",
-	"adpcm", 
+	"adpcm",
 	"wav",
-	"raw"
+	"raw",
+	"vag"
 };
 
 // filetype autopaths
@@ -33,7 +35,8 @@ static char *bigentryautopaths[BIGFILE_NUM_FILETYPES] =
 	"tims/",
 	"adpcm/", 
 	"wave/",
-	"raw/"
+	"raw/",
+	"vag/"
 };
 
 // bigfile entry
