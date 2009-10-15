@@ -963,7 +963,7 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, rawt
 				{
 					// automatic path
 					autopath = NULL;
-					if (autotype == BIGENTRY_RAW_IMAGE)
+					if (entry->type == BIGENTRY_RAW_IMAGE)
 						autopath = PathForRawType(entry->rawinfo->type);
 					if (autopath == NULL)
 						autopath = bigentryautopaths[autotype];
