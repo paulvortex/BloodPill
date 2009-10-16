@@ -373,6 +373,26 @@ char *Q_strlower (char *start)
   return start;
 }
 
+// convert to stupid Windows slashes
+byte unixtowin(byte c)
+{
+	if (c == '/')
+		return '\\';
+	return c;
+
+}
+char *ConvSlash (char *start)
+{
+  char	*in;
+  in = start;
+  while (*in)
+    {
+      *in = unixtowin(*in);
+      in++;
+    }
+  return start;
+}
+
 
 /*
 =============================================================================

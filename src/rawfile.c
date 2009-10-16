@@ -182,23 +182,23 @@ char *UnparseRawSwitch(rawswitch_t rawswitch)
 rawtype_t ParseRawType(char *str)
 {
 	Q_strlower(str);
-	if (!strcmp(str, "0") || !strcmp(str, "raw"))
+	if (!strcmp(str, "type0") || !strcmp(str, "0") || !strcmp(str, "raw"))
 		return RAW_TYPE_0;
-	if (!strcmp(str, "1"))
+	if (!strcmp(str, "type1") || !strcmp(str, "1"))
 		return RAW_TYPE_1;
-	if (!strcmp(str, "2"))
+	if (!strcmp(str, "type2") || !strcmp(str, "2"))
 		return RAW_TYPE_2;
-	if (!strcmp(str, "3"))
+	if (!strcmp(str, "type3") || !strcmp(str, "3"))
 		return RAW_TYPE_3;
-	if (!strcmp(str, "4"))
+	if (!strcmp(str, "type4") || !strcmp(str, "4"))
 		return RAW_TYPE_4;
-	if (!strcmp(str, "5"))
+	if (!strcmp(str, "type5") || !strcmp(str, "5"))
 		return RAW_TYPE_5;
-	if (!strcmp(str, "6"))
+	if (!strcmp(str, "type6") || !strcmp(str, "6"))
 		return RAW_TYPE_6;
-	if (!strcmp(str, "7"))
+	if (!strcmp(str, "type7") || !strcmp(str, "7"))
 		return RAW_TYPE_7;
-	if (!strcmp(str, "8"))
+	if (!strcmp(str, "type8") || !strcmp(str, "8"))
 		return RAW_TYPE_8;
 	return RAW_TYPE_UNKNOWN;
 }
@@ -206,59 +206,41 @@ rawtype_t ParseRawType(char *str)
 char *UnparseRawType(rawtype_t rawtype)
 {
 	if (rawtype == RAW_TYPE_0)
-		return "raw";
+		return "type0";
 	if (rawtype == RAW_TYPE_1)
-		return "1";
+		return "type1";
 	if (rawtype == RAW_TYPE_2)
-		return "2";
+		return "type2";
 	if (rawtype == RAW_TYPE_3)
-		return "3";
+		return "type3";
 	if (rawtype == RAW_TYPE_4)
-		return "4";
+		return "type4";
 	if (rawtype == RAW_TYPE_5)
-		return "5";
+		return "type5";
 	if (rawtype == RAW_TYPE_6)
-		return "6";
+		return "type6";
 	if (rawtype == RAW_TYPE_7)
-		return "7";
+		return "type7";
 	if (rawtype == RAW_TYPE_8)
-		return "8";
+		return "type8";
 	return "unknown";
 }
 
 char *PathForRawType(rawtype_t rawtype)
 {
 	if (rawtype == RAW_TYPE_1)
-		return "type1/";
-	if (rawtype == RAW_TYPE_2)
-		return "type2/";
-	if (rawtype == RAW_TYPE_3)
-		return "type3/";
-	if (rawtype == RAW_TYPE_4)
-		return "type4/";
-	if (rawtype == RAW_TYPE_5)
-		return "type5/";
-	if (rawtype == RAW_TYPE_6)
-		return "type6/";
-	if (rawtype == RAW_TYPE_7)
-		return "type6/";
-	return NULL;
-
-	/*
-	if (rawtype == RAW_TYPE_1)
-		return "sprites/items/";
+		return "items/";
 	if (rawtype == RAW_TYPE_2)
 		return "gfx/";
 	if (rawtype == RAW_TYPE_3 || rawtype == RAW_TYPE_5)
-		return "sprites/misc/";
+		return "misc/";
 	if (rawtype == RAW_TYPE_4)
-		return "sprites/actors/";
+		return "actors/";
 	if (rawtype == RAW_TYPE_6)
-		return "sprites/actors/";
+		return "actors/";
 	if (rawtype == RAW_TYPE_7)
-		return "sprites/actors/";
+		return "tiles/";
 	return NULL;
-	*/
 }
 
 /*
@@ -480,6 +462,7 @@ int RawExtract_Type0(char *basefilename, unsigned char *buffer, int filelen, raw
 	int outputsize, i, chunkpos;
 	byte pixel, nullpixels, nullpixelsi;
 	byte *data, *colormapdata;
+	int prevvalue;
 
 	if (rawinfo->bytes != 1 && rawinfo->bytes != 2 && rawinfo->bytes != 3)
 		return RAWX_ERROR_BAD_OPTIONS;
@@ -551,8 +534,15 @@ int RawExtract_Type0(char *basefilename, unsigned char *buffer, int filelen, raw
 	}
 	else
 	{
+		prevvalue = 0;
 		for (i = 0; i < filelen; i++)
-			data[i] = buffer[i];
+		{
+		//	if (prevvalue == 255)
+		//		data[i] = buffer[i];
+		//	else
+				data[i] = (buffer[i] == 255) ? 255 : 0;
+			prevvalue = data[i];
+		}
 	}
 
 	// write file
@@ -1504,6 +1494,8 @@ int RawExtract_Type7(char *basefilename, byte *buffer, int filelen, rawinfo_t *r
 	byte *in, *out;
 	char name[MAX_BLOODPATH];
 
+	return -1;
+
 	if (filelen < (26 + 512 + 32))
 		return RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED;
 
@@ -1548,7 +1540,7 @@ int RawExtract_Type7(char *basefilename, byte *buffer, int filelen, rawinfo_t *r
 	sprintf(name, "%s.tga", basefilename);
 	RawTGA(name, 41, 140, colormapdata, 41*140, in, 8, rawinfo);
 
-	return 2;
+	return -1;
 }
 
 /*
@@ -1757,16 +1749,6 @@ int Raw_Main(int argc, char **argv)
 					rawinfo.compressionpixels[3] = atoi(argv[i]);
 			}
 			Verbose("RLE compression on index #%i\n", atoi(argv[i]));
-		}
-		else if(!strcmp(argv[i], "-cmpr1"))
-		{
-			i++;
-			if (i < argc)
-			{
-				rawinfo.usecompression = true;
-				rawinfo.compressionpixels[1] = atoi(argv[i]);
-			}
-			Verbose("RLE compression on index #%i\n", rawinfo.colormapbytes);
 		}
 	}
 

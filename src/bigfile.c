@@ -1077,10 +1077,13 @@ int BigFile_Analyse(int argc, char **argv, char *outfile)
 ==========================================================================================
 */
 
-int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw)
+int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw, char *csvfile)
 {
 	FILE *f, *f2;
 	bigfileheader_t *data;
+	bigfileentry_t *entry;
+	char name[MAX_BLOODPATH], typestr[128], extrainfo[128];
+	int i;
 
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
@@ -1097,6 +1100,56 @@ int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw)
 		Print("wrote %s\n", listfile);
 		fclose(f2);
 	}
+
+	// export CSV file
+	if (csvfile[0] != '-')
+	{
+		Print("Exporting %s...\n", csvfile);
+		f2 = SafeOpenWrite(csvfile);
+		for (i = 0; i < (int)data->numentries; i++)
+		{
+			entry = &data->entries[i];
+			// base info
+			if (entry->type == BIGENTRY_RAW_IMAGE)
+				sprintf(typestr, "%s.%s", bigentryext[entry->type], UnparseRawType(entry->rawinfo->type));
+			else
+				sprintf(typestr, "%s", bigentryext[entry->type]);
+			// extra info
+			if (entry->type == BIGENTRY_RAW_ADPCM)
+				sprintf(extrainfo, "%i", entry->adpcmrate);
+			else if (entry->type == BIGENTRY_RAW_IMAGE)
+			{
+				if (entry->rawinfo->type == RAW_TYPE_2 && entry->rawinfo->doubleres == true)
+					sprintf(extrainfo, "doubleres");
+				else
+					sprintf(extrainfo, "");
+			}	
+			else sprintf(extrainfo, "");
+			// print
+			strcpy(name, entry->name);
+			ConvSlash(name);
+			fprintf(f2, "%i;%s;%s;%s;\n", entry->hash, name, typestr, extrainfo);
+		}
+		fclose(f2);
+	}
+
+/*
+	f2 = SafeOpenWrite("list.log");
+	for (i = 0; i < (int)data->numentries; i++)
+	{
+		entry = &data->entries[i];
+		if (entry->type == BIGENTRY_RAW_IMAGE)
+		{
+			if (entry->rawinfo->type ==
+				sprintf(typestr, "%s.%s", bigentryext[entry->type], UnparseRawType(entry->rawinfo->type));
+
+		else if (entry->type == BIGENTRY_RAW_IMAGE)
+			sprintf(eypestr, "%s.%s", bigentryext[entry->type], UnparseRawType(entry->rawinfo->type));
+
+	}
+	fclose(f);
+*/
+
 	Print("done.\n");
 	fclose (f);
 	return 0;
@@ -1292,7 +1345,7 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 int BigFile_Main(int argc, char **argv)
 {
 	int i = 1, k, returncode = 0;
-	char *tofile, *srcdir, *dstdir, *knownfiles, *c;
+	char *tofile, *srcdir, *dstdir, *knownfiles, *c, *csvfile;
 	qboolean tim2tga, bpp16to24, lowmem, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert;
 	rawtype_t forcerawtype;
 
@@ -1318,10 +1371,12 @@ int BigFile_Main(int argc, char **argv)
 	tofile = qmalloc(MAX_BLOODPATH);
 	srcdir = qmalloc(MAX_BLOODPATH);
 	dstdir = qmalloc(MAX_BLOODPATH);
+	csvfile = qmalloc(MAX_BLOODPATH);
 	knownfiles = qmalloc(MAX_BLOODPATH);
 	strcpy(tofile, "-");
 	strcpy(dstdir, DEFAULT_PACKPATH);
 	strcpy(srcdir, DEFAULT_PACKPATH);
+	strcpy(csvfile, "-");
 	strcpy(knownfiles, "-");
 	tim2tga = false;
 	bpp16to24 = false;
@@ -1361,6 +1416,12 @@ int BigFile_Main(int argc, char **argv)
 		}
 		else if (!strcmp(argv[k],"-tim2tga"))
 			tim2tga = true;
+		else if (!strcmp(argv[k],"-csv"))
+		{
+			k++;
+			if (k < argc)
+				strcpy(csvfile, argv[k]);
+		}
 		else if (!strcmp(argv[k],"-16to24"))
 			bpp16to24 = true;
 		else if (!strcmp(argv[k],"-lowmem"))
@@ -1395,7 +1456,7 @@ int BigFile_Main(int argc, char **argv)
 
 	// action
 	if (!strcmp(argv[i], "-list"))
-		returncode = BigFile_List(argc-i, argv+i, tofile, scanraw);
+		returncode = BigFile_List(argc-i, argv+i, tofile, scanraw, csvfile);
 	else if (!strcmp(argv[i], "-analyse"))
 		returncode = BigFile_Analyse(argc-i, argv+i, tofile);
 	else if (!strcmp(argv[i], "-unpack"))
