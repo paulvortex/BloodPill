@@ -41,6 +41,33 @@ typedef enum
 	rfalse 
 } rawswitch_t;
 
+// raw chunk
+typedef struct rawchunk_s
+{
+	int width;
+	int height;
+	int x;
+	int y;
+	byte *colormap;
+	qboolean colormapExternal; // set externally, don't free
+	byte *pixels;
+	qboolean pixelsExternal; // set externally, don't free
+}rawchunk_t;
+
+#define MAX_RAW_CHUNKS	1024
+
+// returned extracted raw block
+typedef struct rawblock_s
+{
+	rawextractresult_t errorcode;
+	// shared colormap
+	byte *colormap;
+	qboolean colormapExternal; // set externally, don't free
+	// chunks data
+	int chunks;
+	rawchunk_t chunk[MAX_RAW_CHUNKS];
+}rawblock_t;
+
 // raw information
 typedef struct rawinfo_s
 {
@@ -77,4 +104,4 @@ char *UnparseRawType(rawtype_t rawtype);
 char *RawStringForResult(int rescode);
 char *PathForRawType(rawtype_t rawtype);
 
-int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype);
+int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype, qboolean rawnoalign);

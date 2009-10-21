@@ -286,7 +286,7 @@ void BigfileSeekContents(FILE *f, byte *contents, bigfileentry_t *entry)
 		Error( "error reading data on file %.8X (%s)", entry->hash, strerror(errno));
 }
 
-void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg, qboolean rawconvert, rawtype_t forcerawtype)
+void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign)
 {
 	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
 	char inputcmd[512], outputcmd[512];
@@ -393,7 +393,7 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 	{
 		StripFileExtension(entry->name, basename);
 		sprintf(savefile, "%s/%s", dstdir, basename);
-		RawExtract(savefile, entry->data, entry->size, entry->rawinfo, false, false, forcerawtype);
+		RawExtract(savefile, entry->data, entry->size, entry->rawinfo, false, false, forcerawtype, rawnoalign);
 	}
 
 	// unpack original
@@ -886,7 +886,7 @@ qboolean BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
 
 	// check all raw types
 	rawinfo = NewRawInfo();
-	if (RawExtract("", filedata, entry->size, rawinfo, true, false, forcerawtype) >= 0)
+	if (RawExtract("", filedata, entry->size, rawinfo, true, false, forcerawtype, false) >= 0)
 	{
 		entry->rawinfo = rawinfo;
 		qfree(filedata);
@@ -1155,7 +1155,7 @@ int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw, char *
 	return 0;
 }
 
-int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg, qboolean scanraw, qboolean rawconvert, rawtype_t forcerawtype)
+int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg, qboolean scanraw, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign)
 {
 	FILE *f, *f2;
 	char savefile[MAX_BLOODPATH];
@@ -1175,6 +1175,8 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 		Print("Option: Guessing all raw images is %s\n", UnparseRawType(forcerawtype));
 	if (rawconvert)
 		Print("Option: Converting raw images to TGA\n");
+	if (rawnoalign)
+		Print("Option: Diable RAW images aligning\n");
 	if (vagconvert)
 	{
 		if (vagogg)
@@ -1198,7 +1200,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		Pacifier("unpacking entry %i of %i...", i + 1, data->numentries);
-		BigFileUnpackEntry(f, &data->entries[i], dstdir, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, rawconvert, forcerawtype);
+		BigFileUnpackEntry(f, &data->entries[i], dstdir, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, rawconvert, forcerawtype, rawnoalign);
 	}
 	PacifierEnd();
 
@@ -1346,7 +1348,7 @@ int BigFile_Main(int argc, char **argv)
 {
 	int i = 1, k, returncode = 0;
 	char *tofile, *srcdir, *dstdir, *knownfiles, *c, *csvfile;
-	qboolean tim2tga, bpp16to24, lowmem, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert;
+	qboolean tim2tga, bpp16to24, lowmem, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, rawnoalign;
 	rawtype_t forcerawtype;
 
 	Verbose("=== BigFile ===\n");
@@ -1388,6 +1390,7 @@ int BigFile_Main(int argc, char **argv)
 	scanraw = false;
 	rawconvert = false;
 	forcerawtype = RAW_TYPE_UNKNOWN;
+	rawnoalign = false;
 	for (k = 2; k < argc; k++)
 	{
 		if (!strcmp(argv[k],"-to"))
@@ -1444,8 +1447,8 @@ int BigFile_Main(int argc, char **argv)
 		}
 		else if (!strcmp(argv[k],"-rawconvert"))
 			rawconvert = true;
-
-		
+		else if (!strcmp(argv[k],"-noalign"))
+			rawnoalign = true;
 	}
 	
 	// load up knowledge base
@@ -1460,7 +1463,7 @@ int BigFile_Main(int argc, char **argv)
 	else if (!strcmp(argv[i], "-analyse"))
 		returncode = BigFile_Analyse(argc-i, argv+i, tofile);
 	else if (!strcmp(argv[i], "-unpack"))
-		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, forcerawtype);
+		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, forcerawtype, rawnoalign);
 	else if (!strcmp(argv[i], "-pack"))
 		returncode = BigFile_Pack(argc-i, argv+i, srcdir, lowmem);
 	else
