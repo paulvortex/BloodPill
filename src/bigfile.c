@@ -1176,7 +1176,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 	if (rawconvert)
 		Print("Option: Converting raw images to TGA\n");
 	if (rawnoalign)
-		Print("Option: Diable RAW images aligning\n");
+		Print("Option: Disable RAW images aligning\n");
 	if (vagconvert)
 	{
 		if (vagogg)

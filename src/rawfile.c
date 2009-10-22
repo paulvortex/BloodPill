@@ -38,7 +38,7 @@ char *rawextractresultstrings[12] =
 	"file is bigger than required",
 	"EOF while reading data",
 	"bad object header",
-	"bas object offset",
+	"bad object offset",
 	"decompression stack overflow",
 	"decormression buffer jumped out of limits",
 	"wrong options given to extract"
@@ -235,35 +235,44 @@ char *PathForRawType(rawtype_t rawtype)
 	if (rawtype == RAW_TYPE_2)
 		return "gfx/";
 	if (rawtype == RAW_TYPE_3 || rawtype == RAW_TYPE_5)
-		return "misc/";
+		return "sprites/";
 	if (rawtype == RAW_TYPE_4)
-		return "actors/";
+		return "sprites/";
 	if (rawtype == RAW_TYPE_6)
-		return "actors/";
+		return "sprites/";
 	if (rawtype == RAW_TYPE_7)
 		return "tiles/";
 	return NULL;
 }
 
+/*
+==========================================================================================
+
+  RAW BLOCKS WORKER
+
+  raw block = a transport entity between scanner and exporter
+  i.e. we will read all raw images to common structure and ther pass it ti actual exporter
+
+==========================================================================================
+*/
+
 rawblock_t *EmptyRawBlock(int numchunks)
 {
 	rawblock_t *block;
-	rawchunk_t *chunk;
 	int i;
 
 	block = qmalloc(sizeof(rawblock_t));
 	memset(block, 0, sizeof(rawblock_t));
 	block->chunks = numchunks;
+	block->colormap = NULL;
+	block->colormapExternal = false;
 	if (numchunks > MAX_RAW_CHUNKS)
 		Error("MAX_RAW_CHUNKS exceeded\n");
 	if (numchunks > 0)
 	{
 		// nullify chunk data
 		for (i = 0; i < numchunks; i++)
-		{
-			chunk = &block->chunk[i];
-			memset(chunk, 0, sizeof(rawchunk_t));
-		}
+			memset(&block->chunk[i], 0, sizeof(rawchunk_t));
 	}
 	return block;
 }
@@ -276,44 +285,50 @@ rawblock_t *RawErrorBlock(rawblock_t *block, rawextractresult_t errorcode)
 	return block;
 }
 
-void RawBlockAllocateChunk(rawblock_t *block, int chunknum, int width, int height, int x, int y, qboolean externalPixels)
+void RawBlockAllocateChunkSimple(rawblock_t *block, int chunknum, qboolean pixelsExternal)
 {
 	if (chunknum < 0 || chunknum >= block->chunks)
 		Error("RawBlockAllocateChunk: bad chunk number %i", chunknum);
 	if (block->chunk[chunknum].pixels != NULL)
 		Error("RawBlockAllocateChunk: chunk %i already allocated", chunknum);
-	if (!externalPixels)
+
+	block->chunk[chunknum].pixels = NULL;
+	if (pixelsExternal == false)
 	{
-		block->chunk[chunknum].pixels = qmalloc(width*height);
-		memset(block->chunk[chunknum].pixels, 0, width*height);
+		block->chunk[chunknum].pixels = qmalloc(block->chunk[chunknum].width*block->chunk[chunknum].height);
+		memset(block->chunk[chunknum].pixels, 0, block->chunk[chunknum].width*block->chunk[chunknum].height);
 	}
-	block->chunk[chunknum].pixelsExternal = externalPixels;
+	block->chunk[chunknum].colormap = NULL;
+	block->chunk[chunknum].pixelsExternal = pixelsExternal;
+}
+
+void RawBlockAllocateChunk(rawblock_t *block, int chunknum, int width, int height, int x, int y, qboolean pixelsExternal)
+{
 	block->chunk[chunknum].width = width;
 	block->chunk[chunknum].height = height;
+	block->chunk[chunknum].size = width*height;
 	block->chunk[chunknum].x = x;
 	block->chunk[chunknum].y = y;
+	RawBlockAllocateChunkSimple(block, chunknum, pixelsExternal);
 }
 
 void RawBlockFreeChunk(rawblock_t *block, int chunknum)
 {
-	rawchunk_t *chunk;
-
-	chunk = &block->chunk[chunknum];
-	if (chunk->colormap && !chunk->colormapExternal)
-		qfree(chunk->colormap);
-	chunk->colormap = NULL;
-	chunk->colormapExternal = false;
-	if (chunk->pixels && !chunk->pixelsExternal)
-		qfree(chunk->pixels);	
-	chunk->pixels = NULL;
-	chunk->pixelsExternal = false;
+	if (block->chunk[chunknum].colormap != NULL && block->chunk[chunknum].colormapExternal == false)
+		qfree(block->chunk[chunknum].colormap);
+	block->chunk[chunknum].colormap = NULL;
+	block->chunk[chunknum].colormapExternal = false;
+	if (block->chunk[chunknum].pixelsExternal == false)
+		qfree(block->chunk[chunknum].pixels);
+	block->chunk[chunknum].pixels = NULL;
+	block->chunk[chunknum].pixelsExternal = false;
 }
 
 void FreeRawBlock(rawblock_t *block)
 {
 	int i;
 
-	if (block->colormap && !block->colormapExternal)
+	if (block->colormap != NULL && block->colormapExternal == false)
 		qfree(block->colormap);
 	for (i = 0; i < block->chunks; i++)
 		RawBlockFreeChunk(block, i);
@@ -332,26 +347,29 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 {
 	unsigned char *buffer, *out;
 	const unsigned char *in, *end;
-	int i, j;
+	int i, j, pixelbytes, realwidth, realheight;
 	FILE *f;
+
+	// get real width and height
+	realwidth = width + bx + ax;
+	realheight = height + by + ay;
+	pixelbytes = realwidth*realheight;
 
 	// check bpp
 	if (bpp != 8 && bpp != 16 && bpp != 24)
 		Error("RawTGA: bad bpp (only 8, 16 and 24 are supported)!\n");
 
-	#define skiplines1(cnt) for (i = 0; i < cnt; i++) for (j = 0; j < (width + bx + ax); j++) { *out++ = 0; }
-	#define skiplines2(cnt) for (i = 0; i < cnt; i++) for (j = 0; j < (width + bx + ax); j++) { *out++ = 0; } 
-	#define skiplines3(cnt) for (i = 0; i < cnt; i++) for (j = 0; j < (width + bx + ax); j++) { *out++ = 0; }
-	#define skiprows1(cnt) for (j = 0; j < cnt; j++) { *out++ = 0; }
-	#define skiprows2(cnt) for (j = 0; j < cnt; j++) { *out++ = 0; *out++ = 0; }
-	#define skiprows3(cnt) for (j = 0; j < cnt; j++) { *out++ = 0; *out++ = 0; *out++ = 0; }
+	// lineskippers
+	#define skiplines1(c) for (i = 0; i < c; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; }
+	#define skiplines2(c) for (i = 0; i < c; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; *out++ = 0; } 
+	#define skiplines3(c) for (i = 0; i < c; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; *out++ = 0; *out++ = 0; }
+	#define skiprows1(c) for (j = 0; j < c; j++) { *out++ = 0; }
+	#define skiprows2(c) for (j = 0; j < c; j++) { *out++ = 0; *out++ = 0; }
+	#define skiprows3(c) for (j = 0; j < c; j++) { *out++ = 0; *out++ = 0; *out++ = 0; }
 
 	// create targa header
-	buffer = qmalloc((width + bx + ax)*(height + by + ay)*(int)(bpp / 8) + ((bpp == 8) ? 768 : 0) + 18);
-	buffer[12] = ((width + bx + ax) >> 0) & 0xFF;
-	buffer[13] = ((width + bx + ax) >> 8) & 0xFF;
-	buffer[14] = ((height + by + ay) >> 0) & 0xFF;
-	buffer[15] = ((height + by + ay) >> 8) & 0xFF;
+	buffer = qmalloc(pixelbytes*(int)(bpp / 8) + ((bpp == 8) ? 768 : 0) + 18);
+	memset(buffer, 0, 18);
 	f = SafeOpen(outfile, "wb");
 	if (bpp == 8)
 	{
@@ -360,6 +378,10 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 		buffer[5] = (256 >> 0) & 0xFF;
 		buffer[6] = (256 >> 8) & 0xFF;
 		buffer[7] = 24; // colormap BPP
+		buffer[12] = (realwidth >> 0) & 0xFF;
+		buffer[13] = (realwidth >> 8) & 0xFF;
+		buffer[14] = (realheight >> 0) & 0xFF;
+		buffer[15] = (realheight >> 8) & 0xFF;
 		buffer[16] = 8;
 		// 24-bit colormap, swap bgr->rgb
 		if (rawinfo->disableCLUT == true || colormapdata == NULL)
@@ -392,31 +414,35 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 				}
 			}
 		}
-		// flip upside down, skip, write
+		// flip upside down, write
 		out = buffer + 768 + 18;
 		skiplines1(ay)
 		for (i = height - 1;i >= 0;i--)
 		{
-			skiprows1(bx)
+			skiprows1(by)
 			in = pixeldata + i * width;
 			end = in + width;
 			for (;in < end; in++)
 				*out++ = in[0];
-			skiprows1(ax)
+			skiprows1(ay)
 		}
 		skiplines1(by)
-		fwrite(buffer, (width + bx + ax)*(height + by + ay) + 768 + 18, 1, f);
+		fwrite(buffer, pixelbytes + 768 + 18, 1, f);
 	}
 	else if (bpp == 16)
 	{
 		buffer[2] = 2; // uncompressed
+		buffer[12] = (realwidth >> 0) & 0xFF;
+		buffer[13] = (realwidth >> 8) & 0xFF;
+		buffer[14] = (realheight >> 0) & 0xFF;
+		buffer[15] = (realheight >> 8) & 0xFF;
 		buffer[16] = 16;
-		// flip upside down, skip, write
+		// flip upside down, write
 		out = buffer + 18;
 		skiplines2(ay)
 		for (i = height - 1;i >= 0;i--)
 		{
-			skiprows2(bx)
+			skiprows2(by)
 			in = pixeldata + i * width * 2;
 			end = in + width * 2;
 			for (;in < end; in += 2)
@@ -433,21 +459,25 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 					*out++ = (in[1] & 0x03) + ((in[0] & 0x1F) << 2);
 				}
 			}
-			skiprows2(ax)
+			skiprows2(ay)
 		}
 		skiplines2(by)
-		fwrite(buffer, (width + bx + ax)*(height + by + ay)*2 + 18, 1, f);
+		fwrite(buffer, pixelbytes*2 + 18, 1, f);
 	}
 	else if (bpp == 24)
 	{
 		buffer[2] = 2; // uncompressed
+		buffer[12] = (realwidth >> 0) & 0xFF;
+		buffer[13] = (realwidth >> 8) & 0xFF;
+		buffer[14] = (realheight >> 0) & 0xFF;
+		buffer[15] = (realheight >> 8) & 0xFF;
 		buffer[16] = 24;
-		// flip upside down, skip, write
+		// flip upside down, write
 		out = buffer + 18;
 		skiplines3(ay)
 		for (i = height - 1;i >= 0;i--)
 		{
-			skiprows3(bx)
+			skiprows3(by)
 			in = pixeldata + i * width * 3;
 			end = in + width * 3;
 			for (;in < end; in += 3)
@@ -466,10 +496,10 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 					*out++ = in[0];
 				}
 			}
-			skiprows3(ax)
+			skiprows3(ay)
 		}
 		skiplines3(by)
-		fwrite(buffer, (width + bx + ax)*(height + by + ay)*3 + 18, 1, f);
+		fwrite(buffer, pixelbytes*3 + 18, 1, f);
 	}
 	fclose(f);
 	qfree(buffer);
@@ -490,6 +520,16 @@ void RawTGAPalette(char *outfile, const byte *colormapdata, byte bytes)
 	RawTGA(outfile, 16, 16, 0, 0, 0, 0, NULL, colormapdata, bytes, &rawinfo);
 }
 
+/*
+==========================================================================================
+
+  RAW UTIL FUNCTIONS
+
+  common formulas that are used on Blood Omen raw formats
+
+==========================================================================================
+*/
+
 // round to nearest structure size
 int RoundStruct(int size)
 {
@@ -502,17 +542,14 @@ int RoundStruct(int size)
 	return i;
 }
 
-/*
-==========================================================================================
+// read integer from buffer stream
+int ReadInt(byte *buffer)
+{
+	return buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
+}
 
-  RAW FILE TYPE 0
-  a file with offset, width/height and BPP set externally
-  thats just a useful way to "massage" files
-
-==========================================================================================
-*/
-
-static byte *RawReadColormap(unsigned char *buffer, int filelen, int offset, int palbytes)
+// read colormap out of stream
+byte *ReadColormap(unsigned char *buffer, int filelen, int offset, int palbytes)
 {
 	byte *colormap;
 	int i;
@@ -550,6 +587,123 @@ static byte *RawReadColormap(unsigned char *buffer, int filelen, int offset, int
 	return colormap;
 }
 
+// perturbate colormap for halfwidth compression used for type4 and type6
+void PerturbateColormapForHWCompression(byte *colormap)
+{
+	byte i, j;
+
+	for (i = 1; i < 16; i++)
+	for (j = 0; j < 16; j++)
+	{
+		/*
+		rawblock->colormap[i*16*3 + pixelpos*3] = (int)(rawblock->colormap[pixelpos*3]*0.2) + (int)(rawblock->colormap[i*3]*0.8);
+		rawblock->colormap[i*16*3 + pixelpos*3 + 1] = (int)(rawblock->colormap[pixelpos*3 + 1]*0.2) + (int)(rawblock->colormap[i*3 + 1]*0.8);
+		rawblock->colormap[i*16*3 + pixelpos*3 + 2] = (int)(rawblock->colormap[pixelpos*3 + 2]*0.2) + (int)(rawblock->colormap[i*3 + 2]*0.8);
+		*/
+		colormap[i*16*3 + j*3] = colormap[i*3];
+		colormap[i*16*3 + j*3 + 1] = colormap[i*3 + 1];
+		colormap[i*16*3 + j*3 + 2] = colormap[i*3 + 2];
+	}
+}
+
+// read run-lenght encoded stream, return startpos, error codes are < 0
+int ReadRLCompressedStream(byte *outbuf, byte *inbuf, int startpos, int buflen, int readpixels, qboolean decomress255, qboolean usehalfwidthcompression, qboolean forced)
+{
+	int pixelpos, nullpixels;
+	byte pixel, nullpixelsi;
+
+	#define readpixel() if (startpos >= buflen) { return RAWX_ERROR_COMPRESSED_READ_OVERFLOW; } else { pixel = inbuf[startpos]; startpos++; }
+	#define writepixel(f) if (pixelpos >= readpixels) {  if (!forced) return RAWX_ERROR_COMPRESSED_UNPACK_OVERFLOW; } else { if (usehalfwidthcompression) { outbuf[pixelpos] = f - (int)(f/16)*16; pixelpos++; } outbuf[pixelpos] = f; pixelpos++; }
+
+	if (readpixels == 0)
+	{
+		startpos++;
+		return startpos;
+	}
+	// read stream
+	nullpixels = 0;
+	for(pixelpos = 0; pixelpos < readpixels; )
+	{
+		// fill with nulls
+		while(nullpixels > 0)
+		{
+			if (pixelpos >= readpixels)
+				break;
+			writepixel(nullpixelsi); 
+			nullpixels--;
+		}
+		if (pixelpos >= readpixels)
+			break;
+		// read pixel
+		readpixel();
+		if (!pixel || (decomress255 && pixel == 255))
+		{	
+			nullpixelsi = pixel;
+			readpixel();
+			nullpixels = pixel;
+			continue;
+		}
+		writepixel(pixel);
+	}
+	return startpos;
+	#undef readpixel
+	#undef writepixel
+}
+
+// same as above, test-only, no writes
+int ReadRLCompressedStreamTest(byte *outbuf, byte *inbuf, int startpos, int buflen, int readpixels, qboolean decomress255, qboolean usehalfwidthcompression, qboolean forced)
+{
+	int pixelpos, nullpixels;
+	byte pixel, nullpixelsi;
+
+	#define readpixel() if (startpos >= buflen) { return RAWX_ERROR_COMPRESSED_READ_OVERFLOW; } else { pixel = inbuf[startpos]; startpos++; }
+	#define writepixel(f) if (pixelpos >= readpixels) {  if (!forced) return RAWX_ERROR_COMPRESSED_UNPACK_OVERFLOW; } else { if (usehalfwidthcompression) pixelpos += 2; else pixelpos++; }
+
+	if (readpixels == 0)
+	{
+		startpos++;
+		return startpos;
+	}
+	// read stream
+	nullpixels = 0;
+	for(pixelpos = 0; pixelpos < readpixels; )
+	{
+		// fill with nulls
+		while(nullpixels > 0)
+		{
+			if (pixelpos >= readpixels)
+				break;
+			writepixel(nullpixelsi); 
+			nullpixels--;
+		}
+		if (pixelpos >= readpixels)
+			break;
+		// read pixel
+		readpixel();
+		if (!pixel || (decomress255 && pixel == 255))
+		{	
+			nullpixelsi = pixel;
+			readpixel();
+			nullpixels = pixel;
+			continue;
+		}
+		writepixel(pixel);
+	}
+	return startpos;
+	#undef readpixel
+	#undef writepixel
+}
+
+/*
+==========================================================================================
+
+  RAW FILE TYPE 0
+  a file with offset, width/height and BPP set externally
+  thats just a useful way to "massage" files
+
+==========================================================================================
+*/
+
 rawblock_t *RawExtract_Type0(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	int outputsize, i, chunkpos;
@@ -567,7 +721,7 @@ rawblock_t *RawExtract_Type0(char *basefilename, unsigned char *buffer, int file
 
 	// get colormap data
 	if (rawinfo->colormapbytes)
-		rawblock->colormap = RawReadColormap(buffer, filelen, rawinfo->colormapoffset, rawinfo->colormapbytes);
+		rawblock->colormap = ReadColormap(buffer, filelen, rawinfo->colormapoffset, rawinfo->colormapbytes);
 
 	// apply offset
 	buffer += rawinfo->offset;
@@ -664,8 +818,8 @@ rawblock_t *RawExtract_Type1(char *basefilename, unsigned char *buffer, int file
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_BIGGER_THAN_REQUIRED); // file is bigger than required
 	if (filelen < (781 + buffer[784]*buffer[785]))
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED); // file is smaller than require
-	rawblock = EmptyRawBlock(1);
 
+	rawblock = EmptyRawBlock(1);
 	if (verbose == true)
 		Print("size: %ix%i\n", buffer[784], buffer[785]);
 	RawBlockAllocateChunk(rawblock, 0, rawinfo->width, rawinfo->height, 0, 0, true);
@@ -718,7 +872,7 @@ rawblock_t *RawExtract_Type2(char *basefilename, unsigned char *buffer, int file
 
 	// unknown info (mystic bytes and 768 bytes of colormap)
 	if (filelen < 776)
-		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
+		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 	if (verbose == true)
 		Print("mystic: %03i %03i %03i %03i\n", buffer[4], buffer[5], buffer[6], buffer[7]);
 
@@ -727,7 +881,7 @@ rawblock_t *RawExtract_Type2(char *basefilename, unsigned char *buffer, int file
 	{
 		pos = 776 + (768 + 8)*i + 768;
 		if (filelen < (pos + 8))
-			return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED); // file is smaller than required
+			return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED); // file is smaller than required
 		chunk = buffer + pos;
 		if (verbose == true)
 			Print("object %03i: %03i %03i %03i %3i %03i %03i %03i %03i\n", i + 1, chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5], chunk[6], chunk[7]);
@@ -764,7 +918,7 @@ rawblock_t *RawExtract_Type2(char *basefilename, unsigned char *buffer, int file
 		else 
 		{	
 			if (forced == false)
-				return RawErrorBlock(NULL, RAWX_ERROR_FILE_BIGGER_THAN_REQUIRED);
+				return RawErrorBlock(rawblock, RAWX_ERROR_FILE_BIGGER_THAN_REQUIRED);
 			else // multiobject?
 			{
 				resmult = 2;
@@ -785,7 +939,7 @@ rawblock_t *RawExtract_Type2(char *basefilename, unsigned char *buffer, int file
 
 	// check if file is smaller than required
 	if (filelen < pos)
-		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED); 
+		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED); 
 
 	// write objects
 	pos = 776 + (768 + 8)*numobjects;
@@ -828,19 +982,16 @@ rawblock_t *RawExtract_Type2(char *basefilename, unsigned char *buffer, int file
 //    read pixel, if it's 0 - read next pixel and make this number of black pixels, otherwise write as normal pixel
 rawblock_t *RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
-	int numobjects, filesize;
-	int	i, objwidth, objheight, objsize, objoffset, pixelpos, chunkpos, lastoffset, nullpixels, nullpixelsi;
+	int numobjects, filesize, i, chunkpos, last;
 	unsigned char *chunk;
 	qboolean detect255;
-	byte *objects;
-	byte mystic[4];
-	byte pixel;
+	rawchunk_t *rawchunk;
 	rawblock_t *rawblock;
 
 	// check headers
 	if (filelen < 780)
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
-	numobjects = buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
+	numobjects = ReadInt(buffer);
 	if (numobjects <= 0 || numobjects > 1000)
 		return RawErrorBlock(NULL, RAWX_ERROR_IMPLICIT_OBJECTS_COUNT);
 	if (verbose == true)
@@ -849,7 +1000,7 @@ rawblock_t *RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawi
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
 	// file size
-	filesize = buffer[7]*16777216 + buffer[6]*65536 + buffer[5]*256 + buffer[4];
+	filesize = ReadInt(buffer + 4);
 	if (verbose == true)
 	{
 		Print("filesize: %i\n", filesize);
@@ -858,106 +1009,59 @@ rawblock_t *RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawi
 	rawblock = EmptyRawBlock(numobjects);
 
 	// colormap
-	rawblock->colormap = RawReadColormap(buffer, filelen, 8, 3);
+	rawblock->colormap = ReadColormap(buffer, filelen, 8, 3);
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
 
 	// check last colormap pixel for blue to detect shadow pixel compression
 	if (rawblock->colormap[255*3] < rawblock->colormap[255*3 + 2] || 
-	   (rawblock->colormap[255*3] == 24) && (rawblock->colormap[255*3 + 1] == 8) && (rawblock->colormap[255*3 + 2] == 0))
+		max(max(rawblock->colormap[255*3], rawblock->colormap[255*3 + 1]), rawblock->colormap[255*3 + 2]) < 60)
 		detect255 = true;
 	else
 		detect255 = false;
 
 	// mystic bytes
-	mystic[0] = buffer[776];
-	mystic[1] = buffer[777];
-	mystic[2] = buffer[778];
-	mystic[3] = buffer[779];
 	if (verbose == true)
-		Print("mystic bytes: %03i %03i %03i %03i\n", mystic[0], mystic[1], mystic[2], mystic[3]);
+		Print("mystic bytes: %03i %03i %03i %03i\n", buffer[776],  buffer[777],  buffer[778],  buffer[779]);
 	if (filelen < (780 + 8*numobjects + 2))
 		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
-	// read object headers
-	objects = qmalloc(8*numobjects);
-	for (i = 0; i < 8*numobjects; i++)
-		objects[i] = buffer[780 + i];
-
-	// print object headers
-	if (verbose == true)
-	{
-		for (i = 0; i < numobjects; i++)
-		{
-			chunk = objects + i*8;
-			objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-			Print("%03i: %08i %03ix%03i %03i %03i\n", i, objoffset, chunk[4], chunk[5], chunk[6], chunk[7]);    
-		}
-	}
-
-	// test objects, check width and height, offset
-	lastoffset = -1;
+	// read object headers, test them
+	last = -1;
 	for (i = 0; i < numobjects; i++)
 	{
-		chunk = objects + i*8;
+		chunk = buffer + 780 + i*8;
 
-		objwidth = objects[i*8 + 4];
-		objheight = objects[i*8 + 5];
-		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-		if (objwidth*objheight <= 0)
-			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_HEADER); // bad objects header
-		if (objoffset <= lastoffset && !forced)
-			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_OFFSET); // bad offsets
-		lastoffset = objoffset;
+		rawchunk = &rawblock->chunk[i];
+		rawchunk->offset = 780 + numobjects*8 + ReadInt(chunk);
+		rawchunk->width = chunk[4];
+		rawchunk->height = chunk[5];
+		rawchunk->size = chunk[4]*chunk[5];
+		rawchunk->x = chunk[6];
+		rawchunk->y = chunk[7];
+		if (rawchunk->width < 0 || rawchunk->height < 0)
+			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_HEADER);
+		if (rawchunk->offset <= last && !forced)
+			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_OFFSET);
+		if (verbose == true)
+			Print("%03i: %8i %03ix%03i %03i %03i\n", i, rawblock->chunk[i].offset, rawblock->chunk[i].width, rawblock->chunk[i].height, rawblock->chunk[i].x, rawblock->chunk[i].y);    
+		last = rawchunk->offset;
 	}
 
 	// read pixels
-	nullpixels = 0;
-	#define writepixel(f) if (pixelpos >= objsize) {  if (!forced) return RawErrorBlock(rawblock, RAWX_ERROR_COMPRESSED_UNPACK_OVERFLOW); } else { rawblock->chunk[i].pixels[pixelpos]=f;pixelpos++; }
-	#define readpixel() if (chunkpos >= filelen) { return RawErrorBlock(rawblock, RAWX_ERROR_COMPRESSED_READ_OVERFLOW); } else { pixel=buffer[chunkpos];chunkpos++; }
 	for (i = 0; i < numobjects; i++)
 	{
-		chunk = objects + i*8;
-		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-		objwidth = objects[i*8 + 4];
-		objheight = objects[i*8 + 5];
-		objsize = objwidth*objheight;
-		chunkpos = 780 + numobjects*8 + objoffset; 
-		RawBlockAllocateChunk(rawblock, i, objwidth, objheight, objects[i*8 + 6], objects[i*8 + 7], false);
-
-		// begin frame
-		for(pixelpos = 0; pixelpos < objsize; )
-		{
-			// fill with nulls
-			while(nullpixels > 0)
-			{
-				if (pixelpos >= objsize)
-					break;
-				writepixel(nullpixelsi); 
-				nullpixels--;
-			}
-			if (pixelpos >= objsize)
-				break;
-			// read pixel
-			readpixel();
-			if (!pixel || (detect255 && pixel == 255))
-			{	
-				nullpixelsi = pixel;
-				readpixel();
-				nullpixels = pixel;
-				continue;
-			}
-			writepixel(pixel);
-		}
+		rawchunk = &rawblock->chunk[i];
+		RawBlockAllocateChunkSimple(rawblock, i, false);
+		chunkpos = ReadRLCompressedStream(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, detect255, false, forced);
+		if (chunkpos < 0)
+			return RawErrorBlock(rawblock, chunkpos);
 	}
-	#undef writepixel
-	#undef readpixel
 
 	// warn if multiobject file
 	if (!testonly && chunkpos != filelen && verbose)
 		Print("Warning! Reading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
 
-	qfree(objects);
 	return rawblock;
 }
 
@@ -968,15 +1072,12 @@ rawblock_t *RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawi
 
   DERIVATIVE FROM TYPE 3 WITH ADDITIONAL DATA
 
-  right after filesize there is "numobjects" object bits
-  there is 2 additional mystic bits right before pelette
-
 ==========================================================================================
 */
 
 // RAW FILE TYPE 4
 // Description: multiobject file with shared palette, with zero-length compression, with additional objects header
-// Notes: contains a lot of hacks (some objects are halfwidth, some has colormap-repeated)
+// Notes: contains a special colormap-pixels compression (some objects are halfwidth, therefore 1 byte codes 2 pixels)
 // there may be chunks with width or height = 0
 //   4 bytes - number of objects
 //   4 bytes - filesize
@@ -993,19 +1094,16 @@ rawblock_t *RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawi
 //    read pixel, if it's 0 - read next pixel and make this number of black pixels, otherwise write as normal pixel
 rawblock_t *RawExtract_Type4(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
-	int numobjects, filesize;
-	int	i, objbitssize, objwidth, objheight, objsize, objoffset, pixelpos, chunkpos, lastoffset, nullpixels, nullpixelsi;
-	unsigned char *chunk;
-	qboolean detect255, halfres;
-	byte *objects, *objectbits;
-	byte mystic[4];
-	byte pixel;
+	int numobjects, filesize, i, objbitssize, chunkpos, last;
+	rawchunk_t *rawchunk;
 	rawblock_t *rawblock;
+	qboolean halfres;
+	byte *chunk;
 
 	// check header
 	if (filelen < 782)
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
-	numobjects = buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
+	numobjects = ReadInt(buffer);
 	if (numobjects <= 0 || numobjects > 1000)
 		return RawErrorBlock(NULL, RAWX_ERROR_IMPLICIT_OBJECTS_COUNT);
 	if (verbose == true)
@@ -1014,7 +1112,7 @@ rawblock_t *RawExtract_Type4(char *basefilename, byte *buffer, int filelen, rawi
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
 	// file size
-	filesize = buffer[7]*16777216 + buffer[6]*65536 + buffer[5]*256 + buffer[4];
+	filesize = ReadInt(buffer + 4);
 	if (verbose == true)
 	{
 		Print("filesize: %i\n", filesize);
@@ -1023,195 +1121,84 @@ rawblock_t *RawExtract_Type4(char *basefilename, byte *buffer, int filelen, rawi
 	rawblock = EmptyRawBlock(numobjects);
 
 	// objectbits
-	objectbits = qmalloc(numobjects);
 	for (i = 0; i < numobjects; i++)
-		objectbits[i] = buffer[8 + numobjects];
+		rawblock->chunk[i].flagbit = buffer[8 + numobjects];
 	objbitssize = RoundStruct(numobjects);
 
 	// colormap
-	rawblock->colormap = RawReadColormap(buffer, filelen, 8 + objbitssize, 3);
+	rawblock->colormap = ReadColormap(buffer, filelen, 8 + objbitssize, 3);
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
 
 	// VorteX: hack - check if there is many repeating indexes
-	// if so, we do repeat colormap each 16 bytes
-	pixelpos = 0;
-	for (i = 1, objsize = 0; i < 768; i++)
+	// if so, we do perturbate colormap
+	chunkpos = 0;
+	for (i = 1, last = 0; i < 768; i++)
 	{
-		if (rawblock->colormap[i] == pixelpos)
-			objsize++;
+		if (rawblock->colormap[i] == chunkpos)
+			last++;
 		else
 		{
-			pixelpos = rawblock->colormap[i];
-			objsize = 0;
+			chunkpos = rawblock->colormap[i];
+			last = 0;
 		}
-		if (objsize > 200)
+		if (last > 200)
 		{
-			for (i = 1; i < 16; i++)
-			{
-				for (pixelpos = 0; pixelpos < 16; pixelpos++)
-				{
-					//rawblock->colormap[i*16*3 + pixelpos*3] = (int)(rawblock->colormap[pixelpos*3]*0.2) + (int)(rawblock->colormap[i*3]*0.8);
-					//rawblock->colormap[i*16*3 + pixelpos*3 + 1] = (int)(rawblock->colormap[pixelpos*3 + 1]*0.2) + (int)(rawblock->colormap[i*3 + 1]*0.8);
-					//rawblock->colormap[i*16*3 + pixelpos*3 + 2] = (int)(rawblock->colormap[pixelpos*3 + 2]*0.2) + (int)(rawblock->colormap[i*3 + 2]*0.8);
-					rawblock->colormap[i*16*3 + pixelpos*3] = rawblock->colormap[i*3];
-					rawblock->colormap[i*16*3 + pixelpos*3 + 1] = rawblock->colormap[i*3 + 1];
-					rawblock->colormap[i*16*3 + pixelpos*3 + 2] = rawblock->colormap[i*3 + 2];
-				}
-			}
+			PerturbateColormapForHWCompression(rawblock->colormap);
 			break;
 		}
 	}
 
-	// VorteX: type4 always has shadow pixel compressed
-	detect255 = true;
-
-	// mystic bytes 2
-	mystic[0] = buffer[776 + objbitssize];
-	mystic[1] = buffer[777 + objbitssize];
-	mystic[2] = buffer[778 + objbitssize];
-	mystic[3] = buffer[779 + objbitssize];
+	// mystic bytes, check filelen again
 	if (verbose == true)
-		Print("mystic bytes 2: %03i %03i %03i %03i\n", mystic[0], mystic[1], mystic[2], mystic[3]);
-
+		Print("mystic bytes: %03i %03i %03i %03i\n", buffer[776 + objbitssize], buffer[777 + objbitssize], buffer[778 + objbitssize], buffer[779 + objbitssize]);
 	if (filelen < (780 + objbitssize + 8*numobjects + 2))
 		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
-	// read object headers
-	objects = qmalloc(8*numobjects);
-	for (i = 0; i < 8*numobjects; i++)
-		objects[i] = buffer[780 + objbitssize + i];
-
-	// print object headers
-	if (verbose == true)
-	{
-		for (i = 0; i < numobjects; i++)
-		{
-			chunk = objects + i*8;
-			objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-			Print("%03i: %8i %03ix%03i %03i - %03i\n", i, objoffset, chunk[4], chunk[5], chunk[6], chunk[7], chunk[7], objectbits[i]);    
-		}
-	}
-
-	// test objects, check width and height, offset
-	lastoffset = -1;
+	// read object headers, test them
+	last = -1;
 	for (i = 0; i < numobjects; i++)
 	{
-		chunk = objects + i*8;
+		chunk = buffer + 780 + objbitssize + i*8;
 
-		objwidth = objects[i*8 + 4];
-		objheight = objects[i*8 + 5];
-		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-		// VorteX: there may be chunks with width or height = 0
-		if (objwidth < 0 || objheight < 0)
+		rawchunk = &rawblock->chunk[i];
+		rawchunk->offset = 780 + objbitssize + numobjects*8 + ReadInt(chunk);
+		rawchunk->width = chunk[4];
+		rawchunk->height = chunk[5];
+		rawchunk->size = chunk[4]*chunk[5];
+		rawchunk->x = chunk[6];
+		rawchunk->y = chunk[7];
+		if (rawchunk->width < 0 || rawchunk->height < 0)
 			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_HEADER);
-		if (objoffset <= lastoffset && !forced)
+		if (rawchunk->offset <= last && !forced)
 			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_OFFSET);
-		lastoffset = objoffset;
+		if (verbose == true)
+			Print("%03i: %8i %03ix%03i %03i %03i - %03i\n", i, rawblock->chunk[i].offset, rawblock->chunk[i].width, rawblock->chunk[i].height, rawblock->chunk[i].x, rawblock->chunk[i].y, rawblock->chunk[i].flagbit);    
+		last = rawchunk->offset;
 	}
 
-
-	// VorteX: detect half-resolution, by scanning first entry and checkling offsets
-	halfres = true;
-	#define readpixel() if (chunkpos >= filelen) { return RawErrorBlock(rawblock, RAWX_ERROR_COMPRESSED_READ_OVERFLOW); } else { pixel=buffer[chunkpos];chunkpos++; }
-	#define writepixel(f) if (pixelpos >= objsize) {  if (!forced) return RawErrorBlock(rawblock, RAWX_ERROR_COMPRESSED_UNPACK_OVERFLOW); } else { if (halfres) pixelpos+=2; else pixelpos++; }
-	nullpixels = 0;
-	i = 0;
-	chunk = objects + i*8;
-	objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-	objwidth = objects[i*8 + 4];
-	objheight = objects[i*8 + 5];
-	objsize = objwidth*objheight;
-	chunkpos = 780 + objbitssize + numobjects*8 + objoffset; 
-	if (objwidth*objheight == 0)
-		chunkpos++;	
+	// VorteX: detect half-width compression, by reading first entry and checking offsets
+	rawchunk = &rawblock->chunk[0];
+	chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, true, true, forced);
+	if (chunkpos == rawblock->chunk[1].offset)
+		halfres = true;
 	else
-	{
-		// begin frame
-		for(pixelpos = 0; pixelpos < objsize; )
-		{
-			// fill with nulls
-			while(nullpixels > 0)
-			{
-				if (pixelpos >= objsize)
-					break;
-				writepixel(nullpixelsi); 
-				nullpixels--;
-			}
-			if (pixelpos >= objsize)
-				break;
-			// read pixel
-			readpixel();
-			if (!pixel || (detect255 && pixel == 255))
-			{	
-				nullpixelsi = pixel;
-				readpixel();
-				nullpixels = pixel;
-				continue;
-			}
-			writepixel(pixel);
-		}
-	}
-	chunk = objects + 8; // compare readpos that we acquire with next object offset
-	objoffset = 780 + objbitssize + numobjects*8 + chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-	if (chunkpos != objoffset)
 		halfres = false;
-	#undef readpixel
-	#undef writepixel
 
 	// read pixels
-	#define readpixel() if (chunkpos >= filelen) { return RawErrorBlock(rawblock, RAWX_ERROR_COMPRESSED_READ_OVERFLOW); } else { pixel=buffer[chunkpos];chunkpos++; }
-	#define writepixel(f) if (pixelpos >= objsize) {  if (!forced) return RawErrorBlock(rawblock, RAWX_ERROR_COMPRESSED_UNPACK_OVERFLOW); } else { if (halfres) { rawblock->chunk[i].pixels[pixelpos]=f - (int)(f/16)*16;pixelpos++; } rawblock->chunk[i].pixels[pixelpos]=f;pixelpos++; }
-	nullpixels = 0;
 	for (i = 0; i < numobjects; i++)
 	{
-		chunk = objects + i*8;
-		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-		objwidth = objects[i*8 + 4];
-		objheight = objects[i*8 + 5];
-		objsize = objwidth*objheight;
-		chunkpos = 780 + objbitssize + numobjects*8 + objoffset; 
-		RawBlockAllocateChunk(rawblock, i, objwidth, objheight, objects[i*8 + 6], objects[i*8 + 7], false);
-
-		// if width = 0 and height = 0, read one pixel!
-		if (objwidth*objheight == 0)
-			chunkpos++;	
-		else
-		{
-			// begin frame
-			for(pixelpos = 0; pixelpos < objsize; )
-			{
-				// fill with nulls
-				while(nullpixels > 0)
-				{
-					if (pixelpos >= objsize)
-						break;
-					writepixel(nullpixelsi); 
-					nullpixels--;
-				}
-				if (pixelpos >= objsize)
-					break;
-				// read pixel
-				readpixel();
-				if (!pixel || (detect255 && pixel == 255))
-				{	
-					nullpixelsi = pixel;
-					readpixel();
-					nullpixels = pixel;
-					continue;
-				}
-				writepixel(pixel);
-			}
-		}
+		rawchunk = &rawblock->chunk[i];
+		RawBlockAllocateChunkSimple(rawblock, i, false);
+		chunkpos = ReadRLCompressedStream(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, true, halfres, forced);
+		if (chunkpos < 0)
+			return RawErrorBlock(rawblock, chunkpos);
 	}
-	#undef writepixel
-	#undef readpixel
 
 	// warn if multiobject file
 	if (!testonly && chunkpos != filelen && verbose)
 		Print("Warning! Reading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
 
-	qfree(objects);
 	return rawblock;
 }
 
@@ -1241,18 +1228,16 @@ rawblock_t *RawExtract_Type4(char *basefilename, byte *buffer, int filelen, rawi
 //    read pixel, if it's 0 - read next pixel and make this number of black pixels, otherwise write as normal pixel
 rawblock_t *RawExtract_Type5(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
-	int numobjects, filesize;
-	int	i, objwidth, objheight, objsize, objoffset, pixelpos, chunkpos, lastoffset, nullpixels, nullpixelsi;
-	unsigned char *chunk;
+	int numobjects, filesize, i, chunkpos, last;
 	qboolean detect255;
-	byte *objects;
-	byte pixel;
+	rawchunk_t *rawchunk;
 	rawblock_t *rawblock;
+	byte *chunk;
 
 	// check header
 	if (filelen < 776)
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
-	numobjects = buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
+	numobjects = ReadInt(buffer);
 	if (numobjects <= 0 || numobjects > 1000)
 		return RawErrorBlock(NULL, RAWX_ERROR_IMPLICIT_OBJECTS_COUNT);
 	if (verbose == true)
@@ -1270,98 +1255,55 @@ rawblock_t *RawExtract_Type5(char *basefilename, byte *buffer, int filelen, rawi
 	rawblock = EmptyRawBlock(numobjects);
 
 	// colormap
-	rawblock->colormap = RawReadColormap(buffer, filelen, 8, 3);
+	rawblock->colormap = ReadColormap(buffer, filelen, 8, 3);
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
 	
 	// check last colormap pixel for blue to detect shadow pixel compression
-	if (rawblock->colormap[255*3] < rawblock->colormap[255*3 + 2])
+	if (rawblock->colormap[255*3] < rawblock->colormap[255*3 + 2] || 
+		max(max(rawblock->colormap[255*3], rawblock->colormap[255*3 + 1]), rawblock->colormap[255*3 + 2]) < 60)
 		detect255 = true;
 	else
 		detect255 = false;
-
 	if (filelen < (776 + 8*numobjects + 2))
 		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
-	// read object headers
-	objects = qmalloc(8*numobjects);
-	for (i = 0; i < 8*numobjects; i++)
-		objects[i] = buffer[776 + i];
-
-	// print object headers
-	if (verbose == true)
-	{
-		for (i = 0; i < numobjects; i++)
-		{
-			chunk = objects + i*8;
-			objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-			Print("%03i: %08i %03ix%03i %03i\n", i, objoffset, chunk[4], chunk[5], chunk[6], chunk[7]);    
-		}
-	}
-
-	// test objects, check width and height, offset
-	lastoffset = -1;
+	// read object headers, test them
+	last = -1;
 	for (i = 0; i < numobjects; i++)
 	{
-		chunk = objects + i*8;
+		chunk = buffer + 776 + i*8;
 
-		objwidth = objects[i*8 + 4];
-		objheight = objects[i*8 + 5];
-		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-		if (objwidth*objheight <= 0)
-			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_HEADER); // bad objects header
-		if (objoffset <= lastoffset && !forced)
-			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_OFFSET); // bad offsets
-		lastoffset = objoffset;
+		rawchunk = &rawblock->chunk[i];
+		rawchunk->offset = 776 + numobjects*8 + ReadInt(chunk);
+		rawchunk->width = chunk[4];
+		rawchunk->height = chunk[5];
+		rawchunk->size = chunk[4]*chunk[5];
+		rawchunk->x = chunk[6];
+		rawchunk->y = chunk[7];
+		if (rawchunk->width < 0 || rawchunk->height < 0)
+			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_HEADER);
+		if (rawchunk->offset <= last && !forced)
+			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_OFFSET);
+		if (verbose == true)
+			Print("%03i: %8i %03ix%03i %03i %03i - %03i\n", i, rawblock->chunk[i].offset, rawblock->chunk[i].width, rawblock->chunk[i].height, rawblock->chunk[i].x, rawblock->chunk[i].y, rawblock->chunk[i].flagbit);    
+		last = rawchunk->offset;
 	}
 
 	// read pixels
-	nullpixels = 0;
-	#define writepixel(f) if (pixelpos >= objsize) {  if (!forced) return RawErrorBlock(rawblock, RAWX_ERROR_COMPRESSED_READ_OVERFLOW); } else { rawblock->chunk[i].pixels[pixelpos]=f;pixelpos++; }
-	#define readpixel() if (chunkpos >= filelen) { return RawErrorBlock(rawblock, RAWX_ERROR_COMPRESSED_UNPACK_OVERFLOW); } else { pixel=buffer[chunkpos];chunkpos++; }
 	for (i = 0; i < numobjects; i++)
 	{
-		chunk = objects + i*8;
-		objoffset = chunk[3]*16777216 + chunk[2]*65536 + chunk[1]*256 + chunk[0];
-		objwidth = objects[i*8 + 4];
-		objheight = objects[i*8 + 5];
-		objsize = objwidth*objheight;
-		chunkpos = 776 + numobjects*8 + objoffset; 
-		RawBlockAllocateChunk(rawblock, i, objwidth, objheight, objects[i*8 + 6], objects[i*8 + 7], false);
-
-		// begin frame
-		for(pixelpos = 0; pixelpos < objsize; )
-		{
-			// fill with nulls
-			while(nullpixels > 0)
-			{
-				if (pixelpos >= objsize)
-					break;
-				writepixel(nullpixelsi); 
-				nullpixels--;
-			}
-			if (pixelpos >= objsize)
-				break;
-			// read pixel
-			readpixel();
-			if (!pixel || (detect255 && pixel == 255))
-			{	
-				nullpixelsi = pixel;
-				readpixel();
-				nullpixels = pixel;
-				continue;
-			}
-			writepixel(pixel);
-		}
+		rawchunk = &rawblock->chunk[i];
+		RawBlockAllocateChunkSimple(rawblock, i, false);
+		chunkpos = ReadRLCompressedStream(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, detect255, false, forced);
+		if (chunkpos < 0)
+			return RawErrorBlock(rawblock, chunkpos);
 	}
-	#undef writepixel
-	#undef readpixel
 
 	// warn if multiobject file
 	if (!testonly && chunkpos != filelen && verbose)
 		Print("Warning! Reading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
 
-	qfree(objects);
 	return rawblock;
 }
 
@@ -1378,11 +1320,12 @@ rawblock_t *RawExtract_Type5(char *basefilename, byte *buffer, int filelen, rawi
 */
 
 // RAW FILE TYPE 6
-// Description: multiobject file with shared palette, with zero-length compression, with no "mystic" bytes right after colormap
+// Description: multiobject file with shared palette, with zero-length compression
 // evil hybrid of type3,type4,type5, really it's type 5 with 4 mystic bytes after colormap and repeated colormap
 // unlike type 5 (and like type4) it has colormap repeated (only 16 colors are filled, rest are 248 white)
 // unlike type 3 (and like type4) width should be halfed
-// Format structure:
+// Notes: contains a special colormap-pixels compression (some objects are halfwidth, therefore 1 byte codes 2 pixels)
+// Spec:
 //   4 bytes - number of objects
 //   4 bytes - filesize
 //   768 bytes - colormap data (24-bit RGB)
@@ -1427,18 +1370,20 @@ rawblock_t *RawExtract_Type6(char *basefilename, byte *buffer, int filelen, rawi
 	rawblock = EmptyRawBlock(numobjects);
 
 	// colormap
-	rawblock->colormap = RawReadColormap(buffer, filelen, 8, 3);
+	rawblock->colormap = ReadColormap(buffer, filelen, 8, 3);
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
 
-	// repeat colormap each 16 bytes
+	// perturbate colormap
 	for (i = 1; i < 16; i++)
 	{
 		for (pixelpos = 0; pixelpos < 16; pixelpos++)
 		{
-			//rawblock->colormap[i*16*3 + pixelpos*3] = (int)(rawblock->colormap[pixelpos*3]*0.2) + (int)(rawblock->colormap[i*3]*0.8);
-			//rawblock->colormap[i*16*3 + pixelpos*3 + 1] = (int)(rawblock->colormap[pixelpos*3 + 1]*0.2) + (int)(rawblock->colormap[i*3 + 1]*0.8);
-			//rawblock->colormap[i*16*3 + pixelpos*3 + 2] = (int)(rawblock->colormap[pixelpos*3 + 2]*0.2) + (int)(rawblock->colormap[i*3 + 2]*0.8);
+			/*
+			rawblock->colormap[i*16*3 + pixelpos*3] = (int)(rawblock->colormap[pixelpos*3]*0.2) + (int)(rawblock->colormap[i*3]*0.8);
+			rawblock->colormap[i*16*3 + pixelpos*3 + 1] = (int)(rawblock->colormap[pixelpos*3 + 1]*0.2) + (int)(rawblock->colormap[i*3 + 1]*0.8);
+			rawblock->colormap[i*16*3 + pixelpos*3 + 2] = (int)(rawblock->colormap[pixelpos*3 + 2]*0.2) + (int)(rawblock->colormap[i*3 + 2]*0.8);
+			*/
 			rawblock->colormap[i*16*3 + pixelpos*3] = rawblock->colormap[i*3];
 			rawblock->colormap[i*16*3 + pixelpos*3 + 1] = rawblock->colormap[i*3 + 1];
 			rawblock->colormap[i*16*3 + pixelpos*3 + 2] = rawblock->colormap[i*3 + 2];
@@ -1496,7 +1441,7 @@ rawblock_t *RawExtract_Type6(char *basefilename, byte *buffer, int filelen, rawi
 
 	// read pixels
 	nullpixels = 0;
-	#define writepixel(f) if (pixelpos >= objsize) {  if (!forced) return RawErrorBlock(rawblock, RAWX_ERROR_COMPRESSED_READ_OVERFLOW); } else { rawblock->chunk[i].pixels[pixelpos]=f - (int)(f/16)*16;pixelpos++; rawblock->chunk[i].pixels[pixelpos]=f;pixelpos++; }
+	#define writepixel(f) if (pixelpos >= objsize) { if (!forced) return RawErrorBlock(rawblock, RAWX_ERROR_COMPRESSED_READ_OVERFLOW); } else { rawblock->chunk[i].pixels[pixelpos]=f - (int)(f/16)*16;pixelpos++; rawblock->chunk[i].pixels[pixelpos]=f;pixelpos++; }
 	#define readpixel() if (chunkpos >= filelen) { return RawErrorBlock(rawblock, RAWX_ERROR_COMPRESSED_UNPACK_OVERFLOW); } else { pixel=buffer[chunkpos];chunkpos++; }
 	for (i = 0; i < numobjects; i++)
 	{
@@ -1641,35 +1586,28 @@ int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawin
 	rawtype = (forcetype == RAW_TYPE_UNKNOWN) ? rawinfo->type : forcetype;
 	rawblock = NULL;
 
-	// special RAW type
-	if (rawtype == RAW_TYPE_0)
-	{
-		rawblock = RawExtract_Type0(basefilename, filedata, filelen, rawinfo, testonly, verbose, false);
-		goto gotit;
-	}
-
-	// autoscan default types
-	#define trytype(t,f) if (rawtype == RAW_TYPE_UNKNOWN || rawtype == t) { testtype = t; rawblock = f(basefilename, filedata, filelen, rawinfo, testonly, verbose, false); if (rawblock->errorcode >= 0) goto gotit; }
+	// pass or autoscan default types
+	if (rawtype == RAW_TYPE_0) { rawblock = RawExtract_Type0(basefilename, filedata, filelen, rawinfo, testonly, verbose, false); goto end; }
+	#define trytype(t,f)	if (rawtype == RAW_TYPE_UNKNOWN || rawtype == t) { testtype = t; rawblock = f(basefilename, filedata, filelen, rawinfo, testonly, verbose, false); if (rawblock->errorcode >= 0 || rawtype != RAW_TYPE_UNKNOWN) goto end; FreeRawBlock(rawblock); rawblock = NULL; }
 	trytype(RAW_TYPE_1, RawExtract_Type1)
 	trytype(RAW_TYPE_2, RawExtract_Type2)
 	trytype(RAW_TYPE_4, RawExtract_Type4) 	// VorteX: scan type4 and type5 before type3, because they are derivations from type3
 	trytype(RAW_TYPE_5, RawExtract_Type5)
 	trytype(RAW_TYPE_3, RawExtract_Type3)
-	trytype(RAW_TYPE_6, RawExtract_Type6)
-	trytype(RAW_TYPE_7, RawExtract_Type7)
-	trytype(RAW_TYPE_8, RawExtract_Type8)
+//	trytype(RAW_TYPE_6, RawExtract_Type6)
+//	trytype(RAW_TYPE_7, RawExtract_Type7)
+//	trytype(RAW_TYPE_8, RawExtract_Type8)
 	#undef trytype
-gotit:
-	if (!rawblock)
+end:
+	if (rawblock == NULL)
 		return -999;
-	if (testonly)
-	{
-		rawinfo->type = testtype; 
-		return rawblock->errorcode;
-	}
+	if (rawblock->errorcode < 0 && verbose)
+		Print("Raw error code %i: %s\n", rawblock->errorcode, RawStringForResult(rawblock->errorcode));
 	// export
 	code = rawblock->errorcode;
-	if (rawblock->chunks)
+	if (testonly)
+		rawinfo->type = testtype;
+	else if (rawblock->chunks && code >= 0)
 	{
 		// detect maxwidth/maxheight for alignment
 		maxwidth = maxheight = 0;
@@ -1693,11 +1631,9 @@ gotit:
 				RawTGA(name, rawblock->chunk[i].width, rawblock->chunk[i].height, 0, 0, 0, 0, rawblock->chunk[i].colormap ? rawblock->chunk[i].colormap : rawblock->colormap, rawblock->chunk[i].pixels, 8, rawinfo);
 			else
 				RawTGA(name, rawblock->chunk[i].width, rawblock->chunk[i].height, rawblock->chunk[i].x, rawblock->chunk[i].y, max(0, maxwidth - rawblock->chunk[i].width - rawblock->chunk[i].x), max(0, maxheight - rawblock->chunk[i].height - rawblock->chunk[i].y), rawblock->chunk[i].colormap ? rawblock->chunk[i].colormap : rawblock->colormap, rawblock->chunk[i].pixels, 8, rawinfo);
-		}
+		 }
 	}
 	FreeRawBlock(rawblock);
-	if (code < 0 && verbose == true && rawtype != RAW_TYPE_UNKNOWN)
-		Print("Raw error code %i: %s\n", code, RawStringForResult(code));
 	return code;
 }
 	

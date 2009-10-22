@@ -44,10 +44,14 @@ typedef enum
 // raw chunk
 typedef struct rawchunk_s
 {
+	int offset;
 	int width;
 	int height;
+	int size; // width*height
 	int x;
 	int y;
+	byte flagbit; 
+
 	byte *colormap;
 	qboolean colormapExternal; // set externally, don't free
 	byte *pixels;
