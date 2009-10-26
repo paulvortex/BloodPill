@@ -26,7 +26,7 @@ static char *bigentryext[BIGFILE_NUM_FILETYPES] =
 	"wav",
 	"raw",
 	"vag"
-};
+};	
 
 // filetype autopaths
 static char *bigentryautopaths[BIGFILE_NUM_FILETYPES] = 

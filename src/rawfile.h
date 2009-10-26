@@ -13,6 +13,7 @@ typedef enum
 	RAW_TYPE_6,
 	RAW_TYPE_7,
 	RAW_TYPE_8,
+	RAW_TYPE_SPECIAL,
 	NUM_RAW_TYPES
 }rawtype_t;
 
@@ -70,6 +71,9 @@ typedef struct rawblock_s
 	// chunks data
 	int chunks;
 	rawchunk_t chunk[MAX_RAW_CHUNKS];
+		
+	// set when chunk is readed, but it's not a end of file
+	qboolean notEOF;
 }rawblock_t;
 
 // raw information

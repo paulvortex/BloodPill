@@ -655,10 +655,13 @@ void BigfileEmitStats(bigfileheader_t *data)
 		Print(" %6i  raw type 7\n", rawstats[RAW_TYPE_7]);
 	if (rawstats[RAW_TYPE_8])
 		Print(" %6i  raw type 8\n", rawstats[RAW_TYPE_8]);
+	if (rawstats[RAW_TYPE_SPECIAL])
+		Print(" %6i  special raw\n", rawstats[RAW_TYPE_SPECIAL]);
 	if (stats[BIGENTRY_RAW_IMAGE])
 		Print(" %6i raw total\n", stats[BIGENTRY_RAW_IMAGE]);
 	if (stats[BIGENTRY_VAG])
 		Print(" %6i VAG\n", stats[BIGENTRY_VAG]);
+
 	// total
 	if (stats[BIGENTRY_UNKNOWN])
 		Print(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
@@ -1343,6 +1346,9 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 
 ==========================================================================================
 */
+
+#define MAX_INCLUDELIST		64
+#define MAX_EXCLUDELIST		64
 
 int BigFile_Main(int argc, char **argv)
 {

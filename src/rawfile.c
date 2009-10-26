@@ -594,11 +594,6 @@ void PerturbateColormapForHWCompression(byte *colormap)
 	for (i = 1; i < 16; i++)
 	for (j = 0; j < 16; j++)
 	{
-		/*
-		rawblock->colormap[i*16*3 + pixelpos*3] = (int)(rawblock->colormap[pixelpos*3]*0.2) + (int)(rawblock->colormap[i*3]*0.8);
-		rawblock->colormap[i*16*3 + pixelpos*3 + 1] = (int)(rawblock->colormap[pixelpos*3 + 1]*0.2) + (int)(rawblock->colormap[i*3 + 1]*0.8);
-		rawblock->colormap[i*16*3 + pixelpos*3 + 2] = (int)(rawblock->colormap[pixelpos*3 + 2]*0.2) + (int)(rawblock->colormap[i*3 + 2]*0.8);
-		*/
 		colormap[i*16*3 + j*3] = colormap[i*3];
 		colormap[i*16*3 + j*3 + 1] = colormap[i*3 + 1];
 		colormap[i*16*3 + j*3 + 2] = colormap[i*3 + 2];
@@ -857,7 +852,7 @@ rawblock_t *RawExtract_Type1(char *basefilename, unsigned char *buffer, int file
 //     width*height bytes - indexes into colormap
 rawblock_t *RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
-	int numobjects, i, pos1, pos2, pos, resmult;
+	int numobjects, i, pos1, pos2, chunkpos, resmult;
 	rawblock_t *rawblock;
 	byte *chunk;
 
@@ -880,10 +875,10 @@ rawblock_t *RawExtract_Type2(char *basefilename, unsigned char *buffer, int file
 	// print objects
 	for (i = 0; i < (int)numobjects; i++)
 	{
-		pos = 776 + (768 + 8)*i + 768;
-		if (filelen < (pos + 8))
+		chunkpos = 776 + (768 + 8)*i + 768;
+		if (filelen < (chunkpos + 8))
 			return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED); // file is smaller than required
-		chunk = buffer + pos;
+		chunk = buffer + chunkpos;
 		if (verbose == true)
 			Print("object %03i: %03i %03i %03i %3i %03i %03i %03i %03i\n", i + 1, chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5], chunk[6], chunk[7]);
 	}
@@ -909,12 +904,12 @@ rawblock_t *RawExtract_Type2(char *basefilename, unsigned char *buffer, int file
 		if ((filelen - pos1) < 32)
 		{
 			resmult = 1;
-			pos = pos1;
+			chunkpos = pos1;
 		}
 		else if ((filelen - pos2) < 32)
 		{
 			resmult = 2;
-			pos = pos2;
+			chunkpos = pos2;
 		}
 		else 
 		{	
@@ -923,38 +918,47 @@ rawblock_t *RawExtract_Type2(char *basefilename, unsigned char *buffer, int file
 			else // multiobject?
 			{
 				resmult = 2;
-				pos = pos2;
+				chunkpos = pos2;
 			}
 		}
 	}	
 	else if (rawinfo->doubleres == rtrue)
 	{
 		resmult = 2;
-		pos = pos2;
+		chunkpos = pos2;
 	}
 	else 
 	{
 		resmult = 1;
-		pos = pos1;
+		chunkpos = pos1;
 	}
 
 	// check if file is smaller than required
-	if (filelen < pos)
+	if (filelen < chunkpos)
 		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED); 
 
-	// write objects
-	pos = 776 + (768 + 8)*numobjects;
+	// read objects
+	chunkpos = 776 + (768 + 8)*numobjects;
 	for (i = 0; i < (int)numobjects; i++)
 	{		
 		chunk = buffer + 776 + (768 + 8)*i;
 		RawBlockAllocateChunk(rawblock, i, chunk[772]*resmult, chunk[773]*resmult, 0, 0, true);
 		rawblock->chunk[i].colormap = chunk;
 		rawblock->chunk[i].colormapExternal = true;
-		rawblock->chunk[i].pixels = buffer + pos;
-		pos = pos + chunk[772]*resmult*chunk[773]*resmult;
+		rawblock->chunk[i].pixels = buffer + chunkpos;
+		chunkpos = chunkpos + chunk[772]*resmult*chunk[773]*resmult;
 	}
 	if (testonly == true)
 		rawinfo->doubleres = (resmult == 2) ? rtrue : rfalse;
+	rawblock->errorcode = chunkpos;
+
+	// warn if multiobject file
+	if (chunkpos != filelen)
+	{
+		rawblock->notEOF = true;
+		if (!testonly && verbose)
+			Print("Warning! Reading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
+	}
 	return rawblock;
 }
 
@@ -1015,31 +1019,6 @@ rawblock_t *RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawi
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
 
-	// VorteX: hack - check if there is many repeating indexes
-	// if so, we do perturbate colormap
-	chunkpos = 0;
-	for (i = 1, last = 0; i < 768; i++)
-	{
-		if (rawblock->colormap[i] == chunkpos)
-			last++;
-		else
-		{
-			chunkpos = rawblock->colormap[i];
-			last = 0;
-		}
-		if (last > 200)
-		{
-			PerturbateColormapForHWCompression(rawblock->colormap);
-			break;
-		}
-	}
-
-	// check last colormap pixel for blue to detect shadow pixel compression
-	if (rawblock->colormap[255*3] < rawblock->colormap[255*3 + 2])
-		detect255 = true;
-	else
-		detect255 = false;
-
 	// mystic bytes
 	if (verbose == true)
 		Print("mystic bytes: %03i %03i %03i %03i\n", buffer[776],  buffer[777],  buffer[778],  buffer[779]);
@@ -1068,13 +1047,40 @@ rawblock_t *RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawi
 		last = rawchunk->offset;
 	}
 
-	// VorteX: detect half-width compression, by reading first entry and checking offsets
-	rawchunk = &rawblock->chunk[0];
-	chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, detect255, true, forced);
-	if (chunkpos == rawblock->chunk[1].offset)
+	// VorteX: detect half-width compression and compression of 255 index, initial guess is that all is ON
+	// test all variants and select one which fit
+	// yes, i know this is mess
+	halfres = true;
+	detect255 = true;
+	#define detect()	for (i = 0; i < numobjects; i++) \
+						{ \
+							rawchunk = &rawblock->chunk[i]; \
+							chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, detect255, halfres, false); \
+							last = ((i+1) < numobjects) ? rawblock->chunk[i+1].offset : filelen; \
+							if (chunkpos != last) \
+								break; \
+						}
+	detect()
+	if (i < numobjects)
+	{
 		halfres = true;
-	else
-		halfres = false;
+		detect255 = false;
+		detect()
+		if (i < numobjects)
+		{
+			halfres = false;
+			detect255 = true;
+			detect()
+			if (i < numobjects)
+			{
+				halfres = false;
+				detect255 = false;
+			}
+		}
+	}
+	if (halfres)
+		PerturbateColormapForHWCompression(rawblock->colormap);
+	#undef detect
 
 	// read pixels
 	for (i = 0; i < numobjects; i++)
@@ -1085,11 +1091,15 @@ rawblock_t *RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawi
 		if (chunkpos < 0)
 			return RawErrorBlock(rawblock, chunkpos);
 	}
+	rawblock->errorcode = chunkpos;
 
 	// warn if multiobject file
-	if (!testonly && chunkpos != filelen && verbose)
-		Print("Warning! Reading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
-
+	if (chunkpos != filelen)
+	{
+		rawblock->notEOF = true;
+		if (!testonly && verbose)
+			Print("Warning! Reading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
+	}
 	return rawblock;
 }
 
@@ -1158,25 +1168,6 @@ rawblock_t *RawExtract_Type4(char *basefilename, byte *buffer, int filelen, rawi
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
 
-	// VorteX: hack - check if there is many repeating indexes
-	// if so, we do perturbate colormap
-	chunkpos = 0;
-	for (i = 1, last = 0; i < 768; i++)
-	{
-		if (rawblock->colormap[i] == chunkpos)
-			last++;
-		else
-		{
-			chunkpos = rawblock->colormap[i];
-			last = 0;
-		}
-		if (last > 200)
-		{
-			PerturbateColormapForHWCompression(rawblock->colormap);
-			break;
-		}
-	}
-
 	// mystic bytes, check filelen again
 	if (verbose == true)
 		Print("mystic bytes: %03i %03i %03i %03i\n", buffer[776 + objbitssize], buffer[777 + objbitssize], buffer[778 + objbitssize], buffer[779 + objbitssize]);
@@ -1205,13 +1196,22 @@ rawblock_t *RawExtract_Type4(char *basefilename, byte *buffer, int filelen, rawi
 		last = rawchunk->offset;
 	}
 
-	// VorteX: detect half-width compression, by reading first entry and checking offsets
-	rawchunk = &rawblock->chunk[0];
-	chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, true, true, forced);
-	if (chunkpos == rawblock->chunk[1].offset)
-		halfres = true;
-	else
+	// VorteX: detect half-width compression
+	halfres = true;
+	#define detect()	for (i = 0; i < numobjects; i++) \
+						{ \
+							rawchunk = &rawblock->chunk[i]; \
+							chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, true, halfres, false); \
+							last = ((i+1) < numobjects) ? rawblock->chunk[i+1].offset : filelen; \
+							if (chunkpos != last) \
+								break; \
+						}
+	detect()
+	if (i < numobjects)
 		halfres = false;
+	else
+		PerturbateColormapForHWCompression(rawblock->colormap);
+	#undef detect
 
 	// read pixels
 	for (i = 0; i < numobjects; i++)
@@ -1222,11 +1222,15 @@ rawblock_t *RawExtract_Type4(char *basefilename, byte *buffer, int filelen, rawi
 		if (chunkpos < 0)
 			return RawErrorBlock(rawblock, chunkpos);
 	}
+	rawblock->errorcode = chunkpos;
 
 	// warn if multiobject file
-	if (!testonly && chunkpos != filelen && verbose)
-		Print("Warning! Reading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
-
+	if (chunkpos != filelen)
+	{
+		rawblock->notEOF = true;
+		if (!testonly && verbose)
+			Print("Warning! Reading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
+	}
 	return rawblock;
 }
 
@@ -1287,15 +1291,25 @@ rawblock_t *RawExtract_Type5(char *basefilename, byte *buffer, int filelen, rawi
 	rawblock->colormap = ReadColormap(buffer, filelen, 8, 3);
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
-	
-	// check last colormap pixel for blue to detect shadow pixel compression
-	if (rawblock->colormap[255*3] < rawblock->colormap[255*3 + 2] || 
-		max(max(rawblock->colormap[255*3], rawblock->colormap[255*3 + 1]), rawblock->colormap[255*3 + 2]) < 60)
-		detect255 = true;
-	else
-		detect255 = false;
+
+	// check file size again
 	if (filelen < (776 + 8*numobjects + 2))
 		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
+
+	// VorteX: detect compression of 255 index
+	detect255 = true;
+	#define detect()	for (i = 0; i < numobjects; i++) \
+						{ \
+							rawchunk = &rawblock->chunk[i]; \
+							chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, detect255, false, false); \
+							last = ((i+1) < numobjects) ? rawblock->chunk[i+1].offset : filelen; \
+							if (chunkpos != last) \
+								break; \
+						}
+	detect()
+	if (i < numobjects)
+		detect255 = false;
+	#undef detect
 
 	// read object headers, test them
 	last = -1;
@@ -1320,6 +1334,7 @@ rawblock_t *RawExtract_Type5(char *basefilename, byte *buffer, int filelen, rawi
 	}
 
 	// read pixels
+	// VorteX: there is a files without compression
 	for (i = 0; i < numobjects; i++)
 	{
 		rawchunk = &rawblock->chunk[i];
@@ -1328,11 +1343,15 @@ rawblock_t *RawExtract_Type5(char *basefilename, byte *buffer, int filelen, rawi
 		if (chunkpos < 0)
 			return RawErrorBlock(rawblock, chunkpos);
 	}
+	rawblock->errorcode = chunkpos;
 
 	// warn if multiobject file
-	if (!testonly && chunkpos != filelen && verbose)
-		Print("Warning! Reading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
-
+	if (chunkpos != filelen)
+	{
+		rawblock->notEOF = true;
+		if (!testonly && verbose)
+			Print("Warning! Reading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
+	}
 	return rawblock;
 }
 
@@ -1462,7 +1481,12 @@ end:
 	// export
 	code = rawblock->errorcode;
 	if (testonly)
-		rawinfo->type = testtype;
+	{
+		//if (rawblock->notEOF)
+		//	rawinfo->type = RAW_TYPE_SPECIAL;
+		//else
+			rawinfo->type = testtype;
+	}
 	else if (rawblock->chunks && code >= 0)
 	{
 		// detect maxwidth/maxheight for alignment
@@ -1487,7 +1511,7 @@ end:
 				RawTGA(name, rawblock->chunk[i].width, rawblock->chunk[i].height, 0, 0, 0, 0, rawblock->chunk[i].colormap ? rawblock->chunk[i].colormap : rawblock->colormap, rawblock->chunk[i].pixels, 8, rawinfo);
 			else
 				RawTGA(name, rawblock->chunk[i].width, rawblock->chunk[i].height, rawblock->chunk[i].x, rawblock->chunk[i].y, max(0, maxwidth - rawblock->chunk[i].width - rawblock->chunk[i].x), max(0, maxheight - rawblock->chunk[i].height - rawblock->chunk[i].y), rawblock->chunk[i].colormap ? rawblock->chunk[i].colormap : rawblock->colormap, rawblock->chunk[i].pixels, 8, rawinfo);
-		 }
+		}
 	}
 	FreeRawBlock(rawblock);
 	return code;
