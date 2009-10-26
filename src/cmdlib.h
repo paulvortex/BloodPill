@@ -24,6 +24,18 @@ typedef unsigned char byte;
 // LordHavoc: increased maximum token length from 128 to 16384
 #define	MAXTOKEN	16384
 
+// lists, used for several switches
+#define MAX_LIST_ITEMS	256
+typedef struct list_s
+{
+	int			items;
+	char		*item[MAX_LIST_ITEMS];
+	unsigned char x[MAX_LIST_ITEMS];
+}list_t;
+list_t *NewList();
+void FreeList(list_t *list);
+void ListAdd(list_t *list, const char *str, unsigned char x);
+
 // set these before calling CheckParm
 extern int myargc;
 extern char **myargv;

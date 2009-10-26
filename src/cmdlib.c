@@ -33,6 +33,45 @@ qboolean	com_eof;
 
 /*
 =================
+Lists
+=================
+*/
+
+list_t *NewList()
+{
+	list_t *list;
+
+	list = qmalloc(sizeof(list_t));
+	memset(list, 0, sizeof(list_t));
+	return list;
+}
+
+void FreeList(list_t *list)
+{
+	int i;
+
+	if (!list)
+		return;
+	if (list->items)
+		for (i = 0; i < list->items; i++)
+			qfree(list->item[i]);
+	qfree(list);
+}
+
+void ListAdd(list_t *list, const char *str, unsigned char x)
+{
+	if (!list)
+		return;
+	if (list->items >= MAX_LIST_ITEMS)
+		return;
+	list->item[list->items] = qmalloc(strlen(str));
+	list->x[list->items] = x;
+	strcpy(list->item[list->items], str);
+	list->items++;
+}
+
+/*
+=================
 Error
 
 For abnormal program terminations

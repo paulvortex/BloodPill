@@ -104,6 +104,93 @@ char *UnparseBigentryType(bigentrytype_t bigtype)
 /*
 ==========================================================================================
 
+  CHECK IF BIGFILE ENTRY MATCHES LIST
+
+==========================================================================================
+*/
+
+// #hash
+// $type
+// wildcard - *
+// whether to match include-exclude list
+qboolean MatchIXList(bigfileentry_t *entry, list_t *list, qboolean matchtypes, qboolean matchnames)
+{
+	char *buf, *name;
+	unsigned int hash;
+	int skip;
+	int i;
+
+	for (i = 0; i < list->items; i++)
+	{
+		buf = list->item[i];
+		// hashname compare
+		if (buf[0] == '#')
+		{
+			buf++;
+			sscanf(buf, "%X", &hash);
+			if (entry->hash == hash)
+				return (list->x[i]) ? true : false;
+			continue;
+		}
+		// type compare
+		if (buf[0] == '$')
+		{
+			if (matchtypes)
+			{
+				buf++;
+				if (entry->type == ParseBigentryType(buf))
+					return (list->x[i]) ? true : false;
+			}
+			continue;
+		}
+		// wildcard compare
+		if (!matchnames)
+			continue;
+	
+		skip = false;
+		name = entry->name;
+		while(name)
+		{
+			if (buf[0] == '*')
+			{
+				skip = -1;
+				buf++; if (!buf[0]) break;
+			}
+			else if (buf[0] == '?')
+			{
+				skip = 1;
+				buf++; if (!buf[0]) break;
+			}
+			// * were in previous try, skip all symbols until find match
+			if (skip)
+			{
+				if (skip != -1) // one char skip
+					name++;
+				else 
+				{
+					while(name[0] && name[0] != buf[0])
+						name++;
+				}
+				if (!name[0]) break;
+				name++;
+				buf++; if (!buf[0]) break;
+				skip = 0;
+				continue;
+			}
+			// check a char and continue
+			if (name[0] != buf[0]) break;
+			name++;
+			buf++; if (!buf[0]) break;
+		}
+		if (!name[0] || skip == -1) // passed
+			return (list->x[i]) ? true : false;
+	}
+	return false;
+}
+
+/*
+==========================================================================================
+
   KNOWN-FILES FEATURE
 
 ==========================================================================================
@@ -915,7 +1002,7 @@ bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry, qboolean sc
 	return BIGENTRY_UNKNOWN;
 }
 
-void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, rawtype_t forcerawtype)
+void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list_t *ixlist, rawtype_t forcerawtype)
 {
 	fpos_t fpos;
 	bigentrytype_t autotype;
@@ -929,6 +1016,11 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, rawt
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
+
+		// ignore if mismatched
+		if (ixlist)
+			if (!MatchIXList(entry, ixlist, false, false))
+				continue;
 
 		// ignore null-sized
 		if (!entry->size)
@@ -1026,7 +1118,7 @@ int BigFile_Analyse(int argc, char **argv, char *outfile)
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
 	data = ReadBigfileHeader(f, bigfile, false);
-	BigfileScanFiletypes(f, data, true, RAW_TYPE_UNKNOWN);
+	BigfileScanFiletypes(f, data, true, NULL, RAW_TYPE_UNKNOWN);
 
 	// analyse headers
 	chunkstats = (bigchunkstats_t *)qmalloc(sizeof(bigchunkstats_t));
@@ -1091,7 +1183,7 @@ int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw, char *
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
 	data = ReadBigfileHeader(f, bigfile, false);
-	BigfileScanFiletypes(f, data, true, RAW_TYPE_UNKNOWN);
+	BigfileScanFiletypes(f, data, true, NULL, RAW_TYPE_UNKNOWN);
 
 	// print or...
 	if (listfile[0] == '-')
@@ -1158,7 +1250,7 @@ int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw, char *
 	return 0;
 }
 
-int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg, qboolean scanraw, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign)
+int BigFile_Unpack(int argc, char **argv, char *dstdir, list_t *ixlist, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg, qboolean scanraw, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign)
 {
 	FILE *f, *f2;
 	char savefile[MAX_BLOODPATH];
@@ -1193,7 +1285,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
 	data = ReadBigfileHeader(f, bigfile, false);
-	BigfileScanFiletypes(f, data, scanraw, forcerawtype);
+	BigfileScanFiletypes(f, data, scanraw, ixlist->items ? ixlist : NULL, forcerawtype);
 
 	// make directory
 	Q_mkdir(dstdir);
@@ -1202,6 +1294,9 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, qboolean tim2tga, qboole
 	// export all files
 	for (i = 0; i < (int)data->numentries; i++)
 	{
+		if (ixlist->items)
+			if (!MatchIXList(&data->entries[i], ixlist, true, true))
+				continue;
 		Pacifier("unpacking entry %i of %i...", i + 1, data->numentries);
 		BigFileUnpackEntry(f, &data->entries[i], dstdir, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, rawconvert, forcerawtype, rawnoalign);
 	}
@@ -1355,7 +1450,9 @@ int BigFile_Main(int argc, char **argv)
 	int i = 1, k, returncode = 0;
 	char *tofile, *srcdir, *dstdir, *knownfiles, *c, *csvfile;
 	qboolean tim2tga, bpp16to24, lowmem, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, rawnoalign;
+	list_t *ixlist;
 	rawtype_t forcerawtype;
+	bigfileentry_t entry;
 
 	Verbose("=== BigFile ===\n");
 	if (i < 1)
@@ -1397,38 +1494,34 @@ int BigFile_Main(int argc, char **argv)
 	rawconvert = false;
 	forcerawtype = RAW_TYPE_UNKNOWN;
 	rawnoalign = false;
+	ixlist = NewList();
 	for (k = 2; k < argc; k++)
 	{
 		if (!strcmp(argv[k],"-to"))
 		{
-			k++;
-			if (k < argc)
+			k++; if (k < argc)
 				strcpy(tofile, argv[k]);
 		}
 		else if (!strcmp(argv[k],"-dstdir"))
 		{
-			k++;
-			if (k < argc)
+			k++; if (k < argc)
 				strcpy(dstdir, argv[k]);
 		}
 		else if (!strcmp(argv[k],"-srcdir"))
 		{
-			k++;
-			if (k < argc)
+			k++; if (k < argc)
 				strcpy(srcdir, argv[k]);
 		}
 		else if (!strcmp(argv[k],"-klist"))
 		{
-			k++;
-			if (k < argc)
+			k++; if (k < argc)
 				strcpy(knownfiles, argv[k]);
 		}
 		else if (!strcmp(argv[k],"-tim2tga"))
 			tim2tga = true;
 		else if (!strcmp(argv[k],"-csv"))
 		{
-			k++;
-			if (k < argc)
+			k++; if (k < argc)
 				strcpy(csvfile, argv[k]);
 		}
 		else if (!strcmp(argv[k],"-16to24"))
@@ -1447,14 +1540,35 @@ int BigFile_Main(int argc, char **argv)
 			scanraw = true;
 		else if (!strcmp(argv[k],"-forcerawtype"))
 		{
-			k++;
-			if (k < argc)
+			k++; if (k < argc)
 				forcerawtype = ParseRawType(argv[k]);
 		}
 		else if (!strcmp(argv[k],"-rawconvert"))
 			rawconvert = true;
 		else if (!strcmp(argv[k],"-noalign"))
 			rawnoalign = true;
+		else if (!strcmp(argv[k],"-x"))
+		{
+			k++; if (k < argc)
+				ListAdd(ixlist, argv[k], false);
+		}
+		else if (!strcmp(argv[k],"-i"))
+		{
+			k++; if (k < argc)
+				ListAdd(ixlist, argv[k], true);
+		}
+		else if (!strcmp(argv[k],"-matchtest"))
+		{
+			k++;
+			if (k < argc)
+			{
+				strcpy(entry.name, argv[k]);
+				if (MatchIXList(&entry, ixlist, false, true))
+					printf("%s matched\n", argv[k]);
+				else
+					printf("%s not matched\n", argv[k]);
+			}
+		}
 	}
 	
 	// load up knowledge base
@@ -1469,7 +1583,7 @@ int BigFile_Main(int argc, char **argv)
 	else if (!strcmp(argv[i], "-analyse"))
 		returncode = BigFile_Analyse(argc-i, argv+i, tofile);
 	else if (!strcmp(argv[i], "-unpack"))
-		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, forcerawtype, rawnoalign);
+		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, ixlist, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, forcerawtype, rawnoalign);
 	else if (!strcmp(argv[i], "-pack"))
 		returncode = BigFile_Pack(argc-i, argv+i, srcdir, lowmem);
 	else
