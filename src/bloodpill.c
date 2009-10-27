@@ -44,6 +44,8 @@ void Print(char *str, ...)
 {
 	va_list argptr;
 
+	if (noprint)
+		return;
 	va_start(argptr, str);
 	vprintf(str, argptr);
 	va_end(argptr);
@@ -53,7 +55,7 @@ void Verbose(char *str, ...)
 {
 	va_list argptr;
 
-	if (!verbose)
+	if (!verbose || noprint)
 		return;
 	va_start(argptr, str);
 	vprintf(str, argptr);
@@ -65,6 +67,8 @@ void Pacifier(char *str, ...)
 {
 	va_list argptr;
 
+	if (noprint)
+		return;
 	va_start(argptr, str);
 	printf("\r");
 	vprintf(str, argptr);
@@ -75,6 +79,8 @@ void Pacifier(char *str, ...)
 
 void PacifierEnd() 
 {
+	if (noprint)
+		return;
 	printf("\n");
 }
 
@@ -105,6 +111,7 @@ int Help_Main()
 	" -mem : print a memory usage stats\n"
 	" -nc : disable printing of caption\n"
 	" -c : compact mode, no verbose messages\n"
+	" -f : function mode, only error and warnings get printed\n"
 	"\n"
 	"=== ACTIONS ===\n"
 	"-bigfile [bigfilename] -list [-to filename] [optional_switches]\n"
@@ -235,11 +242,17 @@ int main(int argc, char **argv)
 	printcap = true;
 	waitforkey = false;
 	memstats = false;
+	noprint = false;
 	for (i = 1; i < argc; i++)
 	{
 		if (!strcmp(argv[i],"-nc")) // disable caption
 		{
 			printcap = false;
+			continue;
+		}
+		if (!strcmp(argv[i],"-f")) // disable all printings
+		{
+			noprint = true;
 			continue;
 		}
 		if (!strcmp(argv[i],"-mem"))

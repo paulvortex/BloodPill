@@ -373,123 +373,6 @@ void BigfileSeekContents(FILE *f, byte *contents, bigfileentry_t *entry)
 		Error( "error reading data on file %.8X (%s)", entry->hash, strerror(errno));
 }
 
-void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign)
-{
-	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
-	char inputcmd[512], outputcmd[512];
-	tim_image_t *tim;
-	FILE *f;
-	int i;
-
-	// nopaths, clear path
-	if (nopaths)
-	{
-		ExtractFileBase(entry->name, path);
-		strcpy(entry->name, path);
-	}
-
-	// make directory
-	ExtractFilePath(entry->name, path);
-	if (path[0])
-	{
-		sprintf(savefile, "%s/%s", dstdir, path);
-		FS_CreatePath(savefile);
-	}
-
-	// original pill.big has 'funky' files with zero len, export them as empty ones
-	if (entry->size <= 0) 
-	{
-		sprintf(savefile, "%s/%s", dstdir, entry->name);
-		f = SafeOpen(savefile, "wb");
-		fclose(f);
-		return;
-	}
-
-	// autoconvert TGA
-	// todo: optimise to use common pipeline
-	if (tim2tga && entry->type == BIGENTRY_TIM)
-	{
-		BigfileSeekFile(bigf, entry);
-		for (i = 0; i < entry->timlayers; i++)
-		{
-			StripFileExtension(entry->name, basename);
-			// extract base
-			tim = TIM_LoadFromStream(bigf);
-			if (i == 0)
-				sprintf(savefile, "%s/%s.tga", dstdir, basename);
-			else
-				sprintf(savefile, "%s/%s_layer%i.tga", dstdir, basename, i);
-			if (tim->error)
-				Error("error saving %s: %s\n", savefile, tim->error);
-		
-			// write basefile
-			sprintf(entry->name, "%s.tga", basename); // write correct listfile.txt
-			TIM_WriteTarga(tim, savefile, bpp16to24);
-
-			// write maskfile
-			if (tim->pixelmask != NULL)
-			{
-				if (i == 0)
-					sprintf(savefile, "%s/%s_mask.tga", dstdir, basename); 
-				else
-					sprintf(savefile, "%s/%s_layer%i_mask.tga", dstdir, basename, i);
-				TIM_WriteTargaGrayscale(tim->pixelmask, tim->dim.xsize, tim->dim.ysize, savefile);
-			}
-			FreeTIM(tim);
-		}
-		return;
-	}
-
-	// load file contents
-	if (entry->data == NULL)
-	{
-		entry->data = qmalloc(entry->size);
-		BigfileSeekContents(bigf, entry->data, entry);
-	}
-
-	// autoconvert VAG
-	if (vagconvert && entry->type == BIGENTRY_RAW_ADPCM)
-	{
-		StripFileExtension(entry->name, basename);
-
-		// try to save
-		sprintf(savefile, (vagogg) ? "%s/%s.ogg" : "%s/%s.wav", dstdir, basename);
-		sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
-		if (vagogg)
-			sprintf(outputcmd, "-t ogg -C 7");
-		else if (vagpcm)
-			sprintf(outputcmd, "-t wav -e signed-integer");
-		else 
-			sprintf(outputcmd, "-t wav");
-		if (SoX_DataToFile(entry->data, entry->size, "--no-dither", inputcmd, outputcmd, savefile))
-			sprintf(entry->name, (vagogg) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.tx
-		else
-		{
-			Warning("unable to convert %s, SoX Error #%i, unpacking original", entry->name, GetLastError());
-			sprintf(savefile, "%s/%s", dstdir, entry->name);
-			SaveFile(savefile, entry->data, entry->size);
-		}
-
-		qfree(entry->data);
-		entry->data = NULL;
-		return;
-	}
-
-	// convert raw file
-	if (rawconvert && entry->type == BIGENTRY_RAW_IMAGE)
-	{
-		StripFileExtension(entry->name, basename);
-		sprintf(savefile, "%s/%s", dstdir, basename);
-		RawExtract(savefile, entry->data, entry->size, entry->rawinfo, false, false, forcerawtype, rawnoalign);
-	}
-
-	// unpack original
-	sprintf(savefile, "%s/%s", dstdir, entry->name);
-	SaveFile(savefile, entry->data, entry->size);
-	qfree(entry->data);
-	entry->data = NULL;
-}
-
 void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 {
 	bigfileentry_t *entry;
@@ -532,6 +415,47 @@ void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 				break;
 		}
 	}
+}
+
+
+// quick way to get entry data from header
+bigfileentry_t *ReadBigfileHeaderOneEntry(FILE *f, unsigned int hash)
+{
+	unsigned int numentries, i;
+	unsigned int *read;
+	bigfileentry_t *entry;
+
+	entry = NULL;
+	if (fread(&numentries, sizeof(unsigned int), 1, f) < 1)
+		Error("BigfileHeader: wrong of broken file\n");
+	if (!numentries)
+		Error("BigfileHeader: funny entries count, perhaps file is broken\n");
+
+	read = qmalloc(numentries * 3 * sizeof(unsigned int));
+	if (fread(read, numentries * 3 * sizeof(unsigned int), 1, f) < 1)
+		Error("BigfileHeader: error reading header %s\n", strerror(errno));
+	
+	for (i = 0; i < numentries*3; i += 3)
+	{
+		if (read[i] != hash)
+			continue;
+		// make entry
+		entry = qmalloc(sizeof(bigfileentry_t));
+		BigfileEmptyEntry(entry);
+		
+		entry->hash = read[i];
+		entry->size = read[i+1];
+		entry->offset = read[i+2];
+		entry->type = BIGENTRY_UNKNOWN;
+		// assign default name
+		sprintf(entry->name, "%s%.8X.%s", bigentryautopaths[BIGENTRY_UNKNOWN], read[0], bigentryext[BIGENTRY_UNKNOWN]);
+		if (!entry->hash || !entry->offset)
+			Error("BigfileHeader: entry %i is broken\n", i);
+		break;
+	}
+
+	qfree(read);
+	return entry;
 }
 
 bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecontents)
@@ -860,6 +784,136 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
 	return data;
 }
 
+/*
+==========================================================================================
+
+  Extracting entries from bigfile
+
+==========================================================================================
+*/
+
+void BigfileExtractTGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16to24)
+{
+	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH];
+	tim_image_t *tim;
+	int i;
+
+	BigfileSeekFile(bigf, entry);
+	for (i = 0; i < entry->timlayers; i++)
+	{
+		StripFileExtension(outfile, basename);
+		// extract base
+		tim = TIM_LoadFromStream(bigf);
+		if (i == 0)
+			sprintf(savefile, "%s.tga", basename);
+		else
+			sprintf(savefile, "%s_layer%i.tga", basename, i);
+		if (tim->error)
+			Error("error saving %s: %s\n", savefile, tim->error);
+		// write basefile
+		sprintf(entry->name, "%s.tga", basename); // write correct listfile.txt
+		TIM_WriteTarga(tim, savefile, bpp16to24);
+		// write maskfile
+		if (tim->pixelmask != NULL)
+		{
+			if (i == 0)
+				sprintf(savefile, "%s_mask.tga", basename); 
+			else
+				sprintf(savefile, "%s_layer%i_mask.tga", basename, i);
+			TIM_WriteTargaGrayscale(tim->pixelmask, tim->dim.xsize, tim->dim.ysize, savefile);
+		}
+		FreeTIM(tim);
+	}
+}
+
+void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign)
+{
+	char savefile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
+	char inputcmd[512], outputcmd[512];
+	FILE *f;
+
+	// nopaths, clear path
+	if (nopaths)
+	{
+		ExtractFileBase(entry->name, path);
+		strcpy(entry->name, path);
+	}
+
+	// make directory
+	ExtractFilePath(entry->name, path);
+	if (path[0])
+	{
+		sprintf(savefile, "%s/%s", dstdir, path);
+		FS_CreatePath(savefile);
+	}
+
+	// original pill.big has 'funky' files with zero len, export them as empty ones
+	if (entry->size <= 0) 
+	{
+		sprintf(savefile, "%s/%s", dstdir, entry->name);
+		f = SafeOpen(savefile, "wb");
+		fclose(f);
+		return;
+	}
+
+	// autoconvert TGA
+	// todo: optimise to use common pipeline
+	if (tim2tga && entry->type == BIGENTRY_TIM)
+	{
+		sprintf(outfile, "%s/%s", dstdir, entry->name);
+		BigfileExtractTGAfromTIM(bigf, entry, outfile, bpp16to24);
+		return;
+	}
+
+	// load file contents
+	if (entry->data == NULL)
+	{
+		entry->data = qmalloc(entry->size);
+		BigfileSeekContents(bigf, entry->data, entry);
+	}
+
+	// autoconvert VAG
+	if (vagconvert && entry->type == BIGENTRY_RAW_ADPCM)
+	{
+		StripFileExtension(entry->name, basename);
+
+		// try to save
+		sprintf(savefile, (vagogg) ? "%s/%s.ogg" : "%s/%s.wav", dstdir, basename);
+		sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
+		if (vagogg)
+			sprintf(outputcmd, "-t ogg -C 7");
+		else if (vagpcm)
+			sprintf(outputcmd, "-t wav -e signed-integer");
+		else 
+			sprintf(outputcmd, "-t wav");
+		if (SoX_DataToFile(entry->data, entry->size, "--no-dither", inputcmd, outputcmd, savefile))
+			sprintf(entry->name, (vagogg) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.tx
+		else
+		{
+			Warning("unable to convert %s, SoX Error #%i, unpacking original", entry->name, GetLastError());
+			sprintf(savefile, "%s/%s", dstdir, entry->name);
+			SaveFile(savefile, entry->data, entry->size);
+		}
+
+		qfree(entry->data);
+		entry->data = NULL;
+		return;
+	}
+
+	// convert raw file
+	if (rawconvert && entry->type == BIGENTRY_RAW_IMAGE)
+	{
+		StripFileExtension(entry->name, basename);
+		sprintf(savefile, "%s/%s", dstdir, basename);
+		RawExtract(savefile, entry->data, entry->size, entry->rawinfo, false, false, forcerawtype, rawnoalign);
+	}
+
+	// unpack original
+	sprintf(savefile, "%s/%s", dstdir, entry->name);
+	SaveFile(savefile, entry->data, entry->size);
+	qfree(entry->data);
+	entry->data = NULL;
+}
 
 /*
 ==========================================================================================
@@ -1002,15 +1056,63 @@ bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry, qboolean sc
 	return BIGENTRY_UNKNOWN;
 }
 
+void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawtype_t forcerawtype)
+{
+	bigentrytype_t autotype;
+	bigkentry_t *kentry;
+	char *autopath;
+
+	// detect filetype automatically
+	autotype = BigfileDetectFiletype(f, entry, scanraw, forcerawtype);
+	if (autotype != BIGENTRY_UNKNOWN) 
+	{
+		entry->type = autotype;
+		// automatic path
+		autopath = NULL;
+		if (autotype == BIGENTRY_RAW_IMAGE)
+			autopath = PathForRawType(entry->rawinfo->type);
+		if (autopath == NULL)
+			autopath = bigentryautopaths[autotype];
+		sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
+	}
+	// check listfile
+	else
+	{
+		kentry = BigfileSearchKList(entry->hash);
+		if (kentry != NULL)
+		{
+			entry->type = (bigentrytype_t)kentry->type;
+			entry->adpcmrate = (int)kentry->adpcmrate;
+			if (entry->type == BIGENTRY_RAW_IMAGE)
+				entry->rawinfo = kentry->rawinfo;
+			// check custom path
+			if (kentry->path[0])
+				sprintf(entry->name, "%s", kentry->path);
+			else
+			{
+				// automatic path
+				autopath = NULL;
+				if (entry->type == BIGENTRY_RAW_IMAGE)
+					autopath = PathForRawType(entry->rawinfo->type);
+				if (autopath == NULL)
+					autopath = bigentryautopaths[autotype];
+				sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
+			}
+		}
+	}
+}
+
 void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list_t *ixlist, rawtype_t forcerawtype)
 {
 	fpos_t fpos;
-	bigentrytype_t autotype;
 	bigfileentry_t *entry;
+	int i;
+/*
+	bigentrytype_t autotype;
 	bigkentry_t *kentry;
 	char *autopath;
-	int i;
-
+*/
+	
 	fgetpos(f, &fpos);
 	// scan for filetypes
 	for (i = 0; i < (int)data->numentries; i++)
@@ -1027,7 +1129,8 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list
 			continue;
 
 		Pacifier("scanning type for entry %i of %i...", i + 1, data->numentries);
-		
+		BigfileScanFiletype(f, entry, scanraw, forcerawtype);
+		/*
 		// detect filetype automatically
 		autotype = BigfileDetectFiletype(f, entry, scanraw, forcerawtype);
 		if (autotype != BIGENTRY_UNKNOWN) 
@@ -1066,6 +1169,7 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list
 				}
 			}
 		}
+		*/
 	}
 	fsetpos(f, &fpos);
 	
@@ -1167,7 +1271,9 @@ int BigFile_Analyse(int argc, char **argv, char *outfile)
 /*
 ==========================================================================================
 
-  Actions
+  -bigfile -list
+
+  lists bigfile contents
 
 ==========================================================================================
 */
@@ -1249,6 +1355,117 @@ int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw, char *
 	fclose (f);
 	return 0;
 }
+
+/*
+==========================================================================================
+
+  -bigfile -extract
+
+  extract single entity
+
+==========================================================================================
+*/
+
+// "-bigfile c:/pill.big -extract 0AD312F45 -format tga"
+int BigFile_Extract(int argc, char **argv, char *outfile, unsigned int hash, char *whatformat)
+{
+	bigfileentry_t *entry;
+	char filename[MAX_BLOODPATH], basename[MAX_BLOODPATH];
+	char format[16];
+	char last;
+	FILE *f;
+
+	// check format
+	strcpy(format, whatformat);
+	if (!format[0])
+	{
+		if (outfile != NULL)
+			ExtractFileExtension(outfile, format);
+		if (!format[0])
+			Error("Format is not given\n");
+	}
+
+	// open & scan
+	f = SafeOpen(bigfile, "rb");
+	entry = ReadBigfileHeaderOneEntry(f, hash);
+	if (entry == NULL)
+		Error("Failed to find entry %.8X\n", hash);
+	BigfileScanFiletype(f, entry, true, RAW_TYPE_UNKNOWN);
+
+	// cannot extract empty files
+	if (entry->size == 0)
+		Error("Empty file\n", hash);
+	
+	// raw extract (no conversion)
+	if (!stricmp(format, "raw"))
+		return 0;	
+
+	// get outfile
+	if (outfile == NULL)
+		ExtractFileBase(entry->name, filename); // pick automatic name
+	else
+	{
+		last = outfile[strlen(outfile)-1];
+		if (last != '/' && last != '\\') // full path is given
+			strcpy(filename, outfile);
+		else // only path is given
+		{
+			ExtractFileBase(entry->name, filename);
+			StripFileExtension(filename, basename);
+			sprintf(filename, "%s%s", outfile, basename);
+		}
+	}
+	
+	// extract
+	switch(entry->type)
+	{
+		case BIGENTRY_UNKNOWN:
+			Error("unknown entry type, bad format '%s'\n", format);
+			break;
+		case BIGENTRY_TIM:
+			if (!stricmp(format, "tga"))
+			{
+				DefaultExtension(filename, ".tga", sizeof(filename));
+				Print("writing %s.\n", filename);
+				BigfileExtractTGAfromTIM(f, entry, filename, false); 
+			}
+			else if (!stricmp(format, "tga24"))
+			{
+				DefaultExtension(filename, ".tga", sizeof(filename));
+				Print("writing %s.\n", filename);
+				BigfileExtractTGAfromTIM(f, entry, filename, true); 
+			}
+			else
+				Error("unknown format '%s'\n", format);
+			break;
+		case BIGENTRY_RAW_ADPCM:
+			break;
+		case BIGENTRY_RIFF_WAVE:
+			break;
+		case BIGENTRY_RAW_IMAGE:
+			break;
+		case BIGENTRY_VAG:
+			Error("Vag extraction not supported");
+			break;
+		default:
+			Error("bad entry type\n");
+			break;
+	}
+
+	Print("done.\n");
+	fclose(f);
+	return 0;
+}
+
+/*
+==========================================================================================
+
+  -bigfile -unpack
+
+  unpack whole bigfile to a folder
+
+==========================================================================================
+*/
 
 int BigFile_Unpack(int argc, char **argv, char *dstdir, list_t *ixlist, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg, qboolean scanraw, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign)
 {
@@ -1448,8 +1665,9 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 int BigFile_Main(int argc, char **argv)
 {
 	int i = 1, k, returncode = 0;
-	char *tofile, *srcdir, *dstdir, *knownfiles, *c, *csvfile;
+	char tofile[MAX_BLOODPATH], srcdir[MAX_BLOODPATH], dstdir[MAX_BLOODPATH], knownfiles[MAX_BLOODPATH], csvfile[MAX_BLOODPATH], format[16], *c;
 	qboolean tim2tga, bpp16to24, lowmem, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, rawnoalign;
+	unsigned int hash;
 	list_t *ixlist;
 	rawtype_t forcerawtype;
 	bigfileentry_t entry;
@@ -1473,12 +1691,8 @@ int BigFile_Main(int argc, char **argv)
 		Error("no action specified, try %s -help", progname);
 
 	// parse cmdline
-	tofile = qmalloc(MAX_BLOODPATH);
-	srcdir = qmalloc(MAX_BLOODPATH);
-	dstdir = qmalloc(MAX_BLOODPATH);
-	csvfile = qmalloc(MAX_BLOODPATH);
-	knownfiles = qmalloc(MAX_BLOODPATH);
 	strcpy(tofile, "-");
+	strcpy(format, "");
 	strcpy(dstdir, DEFAULT_PACKPATH);
 	strcpy(srcdir, DEFAULT_PACKPATH);
 	strcpy(csvfile, "-");
@@ -1494,6 +1708,7 @@ int BigFile_Main(int argc, char **argv)
 	rawconvert = false;
 	forcerawtype = RAW_TYPE_UNKNOWN;
 	rawnoalign = false;
+	hash = 0;
 	ixlist = NewList();
 	for (k = 2; k < argc; k++)
 	{
@@ -1516,6 +1731,16 @@ int BigFile_Main(int argc, char **argv)
 		{
 			k++; if (k < argc)
 				strcpy(knownfiles, argv[k]);
+		}
+		else if (!strcmp(argv[k],"-extract"))
+		{
+			k++; if (k < argc)
+				sscanf(argv[k], "%X", &hash);
+		}
+		else if (!strcmp(argv[k],"-format"))
+		{
+			k++; if (k < argc)
+				strcpy(format, argv[k]);
 		}
 		else if (!strcmp(argv[k],"-tim2tga"))
 			tim2tga = true;
@@ -1564,9 +1789,9 @@ int BigFile_Main(int argc, char **argv)
 			{
 				strcpy(entry.name, argv[k]);
 				if (MatchIXList(&entry, ixlist, false, true))
-					printf("%s matched\n", argv[k]);
+					Print("%s matched\n", argv[k]);
 				else
-					printf("%s not matched\n", argv[k]);
+					Print("%s not matched\n", argv[k]);
 			}
 		}
 	}
@@ -1582,6 +1807,8 @@ int BigFile_Main(int argc, char **argv)
 		returncode = BigFile_List(argc-i, argv+i, tofile, scanraw, csvfile);
 	else if (!strcmp(argv[i], "-analyse"))
 		returncode = BigFile_Analyse(argc-i, argv+i, tofile);
+	else if (!strcmp(argv[i], "-extract"))
+		returncode = BigFile_Extract(argc-i, argv+i, (tofile[0] == '-') ? NULL : tofile, hash, format);
 	else if (!strcmp(argv[i], "-unpack"))
 		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, ixlist, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, forcerawtype, rawnoalign);
 	else if (!strcmp(argv[i], "-pack"))

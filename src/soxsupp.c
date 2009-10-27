@@ -65,7 +65,7 @@ qboolean SoX(char *in, char *generalcmd, char *inputcmd, char *outputcmd, char *
 	// run progress
 	GetStartupInfo(&si);
 	sprintf(cmd, "%s %s %s \"%s\" %s \"%s\"", soxpath, generalcmd, inputcmd, in, outputcmd, out);
-	//printf("cmd %s\n", cmd);
+	//Print("cmd %s\n", cmd);
 	memset(&pi, 0, sizeof(PROCESS_INFORMATION)); 
 	if (!CreateProcess(NULL, cmd, NULL, NULL, false, 0, NULL, NULL, &si, &pi))
 		return false;

@@ -8,6 +8,7 @@
 qboolean waitforkey;
 qboolean memstats;
 qboolean verbose;
+qboolean noprint;
 
 extern char progname[128];
 

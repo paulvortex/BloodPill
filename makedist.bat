@@ -22,6 +22,14 @@ copy tga2tim(test.tga).bat release\samples\tga2tim(test.tga).bat
 copy tim2tga(test.tim).bat release\samples\tim2tga(test.tim).bat
 copy tim2tga(test.tim)_16to24.bat release\samples\tim2tga(test.tim)_16to24.bat
 copy bigfile_unpack_tim2tga_vag2wav_rawconvert.bat release\samples\unpack_tim2tga_vag2wav_rawconvert.bat
+copy bigfile_unpack_rawconvert.bat release\samples\unpack_rawconvert.bat
+# sourcecode distrib
+mkdir release\bloodpillsource\
+copy src\*.c release\bloodpillsource\*.c
+copy src\*.h release\bloodpillsource\*.h
+copy src\*.dsp release\bloodpillsource\*.dsp
+copy src\*.vcproj release\bloodpillsource\*.vcproj
+
 
 
 

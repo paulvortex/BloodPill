@@ -134,6 +134,7 @@ qboolean ReadRawInfo(char *line, rawinfo_t *rawinfo)
 		rawinfo->dontSwapBgr = true;
 	else
 		return false;
+	
 	return true;
 }
 
@@ -586,7 +587,7 @@ byte *ReadColormap(unsigned char *buffer, int filelen, int offset, int palbytes)
 	return colormap;
 }
 
-// perturbate colormap for halfwidth compression used for type4 and type6
+// perturbate colormap for halfwidth compression used for type3 and type4
 void PerturbateColormapForHWCompression(byte *colormap)
 {
 	byte i, j;
