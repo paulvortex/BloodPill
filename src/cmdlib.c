@@ -776,6 +776,18 @@ void ExtractFileExtension (char *path, char *dest)
   strcpy (dest,src);
 }
 
+void AddSuffix(char *outpath, char *inpath, char *suffix)
+{
+	char basename[MAX_BLOODPATH], ext[128];
+
+	StripFileExtension(inpath, basename);
+	ExtractFileExtension(inpath, ext);
+	if (ext[0])
+		sprintf(outpath, "%s%s.%s", basename, suffix, ext);
+	else
+		sprintf(outpath, "%s%s", basename, suffix);
+}
+
 qboolean FileExists(char *filename) 
 {
 	struct stat fileinfo;

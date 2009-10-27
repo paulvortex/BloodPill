@@ -77,6 +77,7 @@ extern void ExtractFilePath (char *path, char *dest);
 extern void ExtractFileBase (char *path, char *dest);
 extern void StripFileExtension (char *path, char *dest);
 extern void ExtractFileExtension (char *path, char *dest);
+void AddSuffix(char *outpath, char *inpath, char *suffix);
 extern qboolean FileExists(char *filename);
 
 extern int ParseNum (char *str);

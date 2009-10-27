@@ -1,7 +1,7 @@
 // thanks to XentaX (www.xentax.com) community for providing bigfile specs
-
 #include "timfile.h"
 #include "rawfile.h"
+#include "sprfile.h"
 
 #define MAX_TIM_LAYERS
 
@@ -75,3 +75,7 @@ typedef struct
 		unsigned int	numentries;
 }
 bigfileheader_t;
+
+// convert functions
+void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16to24);
+void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolean rawnoalign, qboolean verbose);

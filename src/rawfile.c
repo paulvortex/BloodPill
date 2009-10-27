@@ -23,12 +23,12 @@
 // 05106F48 - трансформация в волка, 14050761 - в летучую мышь.
 
 #include "bloodpill.h"
-#include "rawfile.h"
+#include "bigfile.h"
 #include "cmdlib.h"
 #include "mem.h"
 
 // raw error messages
-char *rawextractresultstrings[12] =
+char *rawextractresultstrings[13] =
 {
 	"no errors occured",
 	"header not valid",
@@ -41,7 +41,8 @@ char *rawextractresultstrings[12] =
 	"bad object offset",
 	"decompression run off file size",
 	"decompession run of exported picture size",
-	"wrong options given to extract"
+	"wrong options given to extract",
+	"file cannot be parsed as raw image"
 };
 char rescodestr[512];
 
@@ -699,7 +700,7 @@ int ReadRLCompressedStreamTest(byte *outbuf, byte *inbuf, int startpos, int bufl
 ==========================================================================================
 */
 
-rawblock_t *RawExtract_Type0(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type0(unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	int outputsize, i, chunkpos;
 	byte pixel, nullpixels, nullpixelsi;
@@ -801,7 +802,7 @@ rawblock_t *RawExtract_Type0(char *basefilename, unsigned char *buffer, int file
 //  786: 1 byte x
 //  787: 1 byte y
 //  788: pixels width*height
-rawblock_t *RawExtract_Type1(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type1(unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	rawblock_t *rawblock;
 
@@ -851,7 +852,7 @@ rawblock_t *RawExtract_Type1(char *basefilename, unsigned char *buffer, int file
 //      1 byte - y
 //   <object pixels>
 //     width*height bytes - indexes into colormap
-rawblock_t *RawExtract_Type2(char *basefilename, unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type2(unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	int numobjects, i, pos1, pos2, chunkpos, resmult;
 	rawblock_t *rawblock;
@@ -987,7 +988,7 @@ rawblock_t *RawExtract_Type2(char *basefilename, unsigned char *buffer, int file
 //    1 byte - y
 // <zero-length compressed pixels data>
 //    read pixel, if it's 0 - read next pixel and make this number of black pixels, otherwise write as normal pixel
-rawblock_t *RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	int numobjects, filesize, i, chunkpos, last;
 	unsigned char *chunk;
@@ -1131,7 +1132,7 @@ rawblock_t *RawExtract_Type3(char *basefilename, byte *buffer, int filelen, rawi
 //    1 byte - y
 // <zero-length compressed pixels data>
 //    read pixel, if it's 0 - read next pixel and make this number of black pixels, otherwise write as normal pixel
-rawblock_t *RawExtract_Type4(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	int numobjects, filesize, i, objbitssize, chunkpos, last;
 	rawchunk_t *rawchunk;
@@ -1260,7 +1261,7 @@ rawblock_t *RawExtract_Type4(char *basefilename, byte *buffer, int filelen, rawi
 //    1 byte - y
 // <zero-length compressed pixels data>
 //    read pixel, if it's 0 - read next pixel and make this number of black pixels, otherwise write as normal pixel
-rawblock_t *RawExtract_Type5(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	int numobjects, filesize, i, chunkpos, last;
 	qboolean detect255;
@@ -1364,14 +1365,13 @@ rawblock_t *RawExtract_Type5(char *basefilename, byte *buffer, int filelen, rawi
 ==========================================================================================
 */
 
-rawblock_t *RawExtract_Type7(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	unsigned int datasize;
 	unsigned short data1, data2, data3, data4, data5;
 	int chunkpos, i;
 	byte *colormapdata;
 	byte *in, *out;
-	char name[MAX_BLOODPATH];
 
 	// as this format is unfinished, don't find if scanning, only direct request
 	if (testonly)
@@ -1415,13 +1415,11 @@ rawblock_t *RawExtract_Type7(char *basefilename, byte *buffer, int filelen, rawi
 	}
 
 	// write colormap
-	sprintf(name, "%s_palette.tga", basefilename);
-	RawTGAColormap(name, colormapdata, 24);
+	RawTGAColormap("palette.tga", colormapdata, 24);
 
 	// write image
 	in = buffer + 26 + 544;
-	sprintf(name, "%s.tga", basefilename);
-	RawTGA(name, 41, 140, 0, 0, 0, 0, colormapdata, in, 8, rawinfo);
+	RawTGA("file.tga", 41, 140, 0, 0, 0, 0, colormapdata, in, 8, rawinfo);
 
 	return RawErrorBlock(NULL, -1);
 }
@@ -1434,12 +1432,12 @@ rawblock_t *RawExtract_Type7(char *basefilename, byte *buffer, int filelen, rawi
 ==========================================================================================
 */
 
-rawblock_t *RawExtract_Type6(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type6(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	return RawErrorBlock(NULL, -1);
 }
 
-rawblock_t *RawExtract_Type8(char *basefilename, byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type8(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	return RawErrorBlock(NULL, -1);
 }
@@ -1452,19 +1450,17 @@ rawblock_t *RawExtract_Type8(char *basefilename, byte *buffer, int filelen, rawi
 ==========================================================================================
 */
 
-int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype, qboolean rawnoalign)
+rawblock_t *RawExtract(byte *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype)
 {
-	char name[MAX_BLOODPATH];
 	rawtype_t rawtype, testtype;
 	rawblock_t *rawblock;
-	int code, i, maxwidth, maxheight;
 
 	rawtype = (forcetype == RAW_TYPE_UNKNOWN) ? rawinfo->type : forcetype;
 	rawblock = NULL;
 
 	// pass or autoscan default types
-	if (rawtype == RAW_TYPE_0) { rawblock = RawExtract_Type0(basefilename, filedata, filelen, rawinfo, testonly, verbose, false); goto end; }
-	#define trytype(t,f)	if (rawtype == RAW_TYPE_UNKNOWN || rawtype == t) { testtype = t; rawblock = f(basefilename, filedata, filelen, rawinfo, testonly, verbose, false); if (rawblock->errorcode >= 0 || rawtype != RAW_TYPE_UNKNOWN) goto end; FreeRawBlock(rawblock); rawblock = NULL; }
+	if (rawtype == RAW_TYPE_0) { rawblock = RawExtract_Type0(filedata, filelen, rawinfo, testonly, verbose, false); goto end; }
+	#define trytype(t,f)	if (rawtype == RAW_TYPE_UNKNOWN || rawtype == t) { testtype = t; rawblock = f(filedata, filelen, rawinfo, testonly, verbose, false); if (rawblock->errorcode >= 0 || rawtype != RAW_TYPE_UNKNOWN) goto end; FreeRawBlock(rawblock); rawblock = NULL; }
 	trytype(RAW_TYPE_1, RawExtract_Type1)
 	trytype(RAW_TYPE_2, RawExtract_Type2)
 	trytype(RAW_TYPE_4, RawExtract_Type4) 	// VorteX: scan type4 and type5 before type3, because they are derivations from type3
@@ -1476,46 +1472,11 @@ int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawin
 	#undef trytype
 end:
 	if (rawblock == NULL)
-		return -999;
-	if (rawblock->errorcode < 0 && verbose)
-		Print("Raw error code %i: %s\n", rawblock->errorcode, RawStringForResult(rawblock->errorcode));
+		return RawErrorBlock(rawblock, RAWX_ERROR_NOT_INDENTIFIED);
 	// export
-	code = rawblock->errorcode;
 	if (testonly)
-	{
-		//if (rawblock->notEOF)
-		//	rawinfo->type = RAW_TYPE_SPECIAL;
-		//else
-			rawinfo->type = testtype;
-	}
-	else if (rawblock->chunks && code >= 0)
-	{
-		// detect maxwidth/maxheight for alignment
-		maxwidth = maxheight = 0;
-		for (i = 0; i < rawblock->chunks; i++)
-		{
-			maxwidth = max(maxwidth, (rawblock->chunk[i].width + rawblock->chunk[i].x));
-			maxheight = max(maxheight, (rawblock->chunk[i].height + rawblock->chunk[i].y));
-		}
-		// export all chunks
-		for (i = 0; i < rawblock->chunks; i++)
-		{
-			if (rawinfo->chunknum != -1 && i != rawinfo->chunknum)
-				continue; // skip this chunk
-			if (rawblock->chunks == 1)
-				sprintf(name, "%s.tga", basefilename);
-			else
-				sprintf(name, "%s_%03i.tga", basefilename, i);
-			if (verbose == true)
-				Print("writing %s.\n", name);
-			if (rawnoalign)
-				RawTGA(name, rawblock->chunk[i].width, rawblock->chunk[i].height, 0, 0, 0, 0, rawblock->chunk[i].colormap ? rawblock->chunk[i].colormap : rawblock->colormap, rawblock->chunk[i].pixels, 8, rawinfo);
-			else
-				RawTGA(name, rawblock->chunk[i].width, rawblock->chunk[i].height, rawblock->chunk[i].x, rawblock->chunk[i].y, max(0, maxwidth - rawblock->chunk[i].width - rawblock->chunk[i].x), max(0, maxheight - rawblock->chunk[i].height - rawblock->chunk[i].y), rawblock->chunk[i].colormap ? rawblock->chunk[i].colormap : rawblock->colormap, rawblock->chunk[i].pixels, 8, rawinfo);
-		}
-	}
-	FreeRawBlock(rawblock);
-	return code;
+		rawinfo->type = testtype;
+	return rawblock;
 }
 	
 int Raw_Main(int argc, char **argv)
@@ -1525,6 +1486,7 @@ int Raw_Main(int argc, char **argv)
 	int filelen;
 	qboolean forced, rawnoalign;
 	rawinfo_t rawinfo;
+	rawblock_t *rawblock;
 	int i;
 
 	FlushRawInfo(&rawinfo);
@@ -1671,10 +1633,14 @@ int Raw_Main(int argc, char **argv)
 	}
 
 	// open and extract file
-	StripFileExtension(outfile, basefilename);
 	filelen = LoadFile(filename, &filedata);
-	RawExtract(basefilename, filedata, filelen, &rawinfo, false, true, (forced == true) ? rawinfo.type : RAW_TYPE_UNKNOWN, rawnoalign);
+	rawblock = RawExtract(filedata, filelen, &rawinfo, false, true, (forced == true) ? rawinfo.type : RAW_TYPE_UNKNOWN);
 	qfree(filedata);
+	if (rawblock->errorcode < 0)
+		Print("Raw error code %i: %s\n", rawblock->errorcode, RawStringForResult(rawblock->errorcode));
+	else
+		TGAfromRAW(rawblock, &rawinfo, outfile, rawnoalign, true);
+	FreeRawBlock(rawblock);
 	Print("done.\n");
 	return 0;
 }

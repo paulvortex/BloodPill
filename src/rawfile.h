@@ -31,7 +31,8 @@ typedef enum
 	RAWX_ERROR_BAD_OBJECT_OFFSET = -8,
 	RAWX_ERROR_COMPRESSED_UNPACK_OVERFLOW = -9,
 	RAWX_ERROR_COMPRESSED_READ_OVERFLOW = -10,
-	RAWX_ERROR_BAD_OPTIONS = -11
+	RAWX_ERROR_BAD_OPTIONS = -11,
+	RAWX_ERROR_NOT_INDENTIFIED = -12
 }rawextractresult_t;
 
 // raw boolean type
@@ -112,4 +113,12 @@ char *UnparseRawType(rawtype_t rawtype);
 char *RawStringForResult(int rescode);
 char *PathForRawType(rawtype_t rawtype);
 
-int RawExtract(char *basefilename, char *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype, qboolean rawnoalign);
+// raw blocks
+char *RawStringForResult(int rescode);
+rawblock_t *EmptyRawBlock(int numchunks);
+rawblock_t *RawErrorBlock(rawblock_t *block, rawextractresult_t errorcode);
+void FreeRawBlock(rawblock_t *block);
+
+void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay, const char *colormapdata, const char *pixeldata, int bpp, rawinfo_t *rawinfo);
+void RawTGAColormap(char *outfile, const byte *colormapdata, byte bytes);
+rawblock_t *RawExtract(byte *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype);

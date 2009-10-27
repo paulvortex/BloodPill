@@ -1,1 +1,1 @@
-bpill -w -mem -bigfile pill.big -extract 0A1F6F3A -to file_0A1F6F3A -format tga24
+bpill -w -mem -bigfile pill.big -extract 74681A26 -to test.spr32 -format spr32.parallel

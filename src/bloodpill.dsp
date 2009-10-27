@@ -80,6 +80,10 @@ SOURCE=.\soxsupp.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\sprfile.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\timfile.c
 # End Source File
 # End Group
@@ -109,6 +113,10 @@ SOURCE=.\rawfile.h
 # Begin Source File
 
 SOURCE=.\soxsupp.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\sprfile.h
 # End Source File
 # Begin Source File
 

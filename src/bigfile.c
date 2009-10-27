@@ -792,37 +792,72 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
 ==========================================================================================
 */
 
-void BigfileExtractTGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16to24)
+void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16to24)
 {
-	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH];
+	char name[MAX_BLOODPATH], maskname[MAX_BLOODPATH], suffix[21];
 	tim_image_t *tim;
 	int i;
 
 	BigfileSeekFile(bigf, entry);
 	for (i = 0; i < entry->timlayers; i++)
 	{
-		StripFileExtension(outfile, basename);
 		// extract base
 		tim = TIM_LoadFromStream(bigf);
-		if (i == 0)
-			sprintf(savefile, "%s.tga", basename);
-		else
-			sprintf(savefile, "%s_layer%i.tga", basename, i);
+		strcpy(name, outfile);
+		strcpy(entry->name, name); // write correct listfile.txt
+		if (i != 0)
+		{
+			sprintf(suffix, "_layer%i", i);
+			AddSuffix(name, name, suffix);
+		}
 		if (tim->error)
-			Error("error saving %s: %s\n", savefile, tim->error);
+			Error("error saving %s: %s\n", name, tim->error);
 		// write basefile
-		sprintf(entry->name, "%s.tga", basename); // write correct listfile.txt
-		TIM_WriteTarga(tim, savefile, bpp16to24);
+		TIM_WriteTarga(tim, name, bpp16to24);
 		// write maskfile
 		if (tim->pixelmask != NULL)
 		{
 			if (i == 0)
-				sprintf(savefile, "%s_mask.tga", basename); 
+				sprintf(suffix, "_mask");
 			else
-				sprintf(savefile, "%s_layer%i_mask.tga", basename, i);
-			TIM_WriteTargaGrayscale(tim->pixelmask, tim->dim.xsize, tim->dim.ysize, savefile);
+				sprintf(suffix, "_layer%i_mask", i);
+			AddSuffix(maskname, name, suffix);
+			TIM_WriteTargaGrayscale(tim->pixelmask, tim->dim.xsize, tim->dim.ysize, maskname);
 		}
 		FreeTIM(tim);
+	}
+}
+
+void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolean rawnoalign, qboolean verbose)
+{
+	int maxwidth, maxheight, i;
+	char name[MAX_BLOODPATH], suffix[8];
+
+	// detect maxwidth/maxheight for alignment
+	maxwidth = maxheight = 0;
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		maxwidth = max(maxwidth, (rawblock->chunk[i].width + rawblock->chunk[i].x));
+		maxheight = max(maxheight, (rawblock->chunk[i].height + rawblock->chunk[i].y));
+	}
+
+	// export all chunks
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		if (rawinfo->chunknum != -1 && i != rawinfo->chunknum)
+			continue; // skip this chunk
+		strcpy(name, outfile);
+		if (rawblock->chunks != 1)
+		{
+			sprintf(suffix, "_%03i", i);
+			AddSuffix(name, name, suffix);
+		}
+		if (verbose == true)
+			Print("writing %s.\n", name);
+		if (rawnoalign)
+			RawTGA(name, rawblock->chunk[i].width, rawblock->chunk[i].height, 0, 0, 0, 0, rawblock->chunk[i].colormap ? rawblock->chunk[i].colormap : rawblock->colormap, rawblock->chunk[i].pixels, 8, rawinfo);
+		else
+			RawTGA(name, rawblock->chunk[i].width, rawblock->chunk[i].height, rawblock->chunk[i].x, rawblock->chunk[i].y, max(0, maxwidth - rawblock->chunk[i].width - rawblock->chunk[i].x), max(0, maxheight - rawblock->chunk[i].height - rawblock->chunk[i].y), rawblock->chunk[i].colormap ? rawblock->chunk[i].colormap : rawblock->colormap, rawblock->chunk[i].pixels, 8, rawinfo);
 	}
 }
 
@@ -830,6 +865,7 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 {
 	char savefile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
 	char inputcmd[512], outputcmd[512];
+	rawblock_t *rawblock;
 	FILE *f;
 
 	// nopaths, clear path
@@ -860,8 +896,8 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 	// todo: optimise to use common pipeline
 	if (tim2tga && entry->type == BIGENTRY_TIM)
 	{
-		sprintf(outfile, "%s/%s", dstdir, entry->name);
-		BigfileExtractTGAfromTIM(bigf, entry, outfile, bpp16to24);
+		sprintf(outfile, "%s/%s.tga", dstdir, entry->name);
+		TGAfromTIM(bigf, entry, outfile, bpp16to24);
 		return;
 	}
 
@@ -903,9 +939,16 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 	// convert raw file
 	if (rawconvert && entry->type == BIGENTRY_RAW_IMAGE)
 	{
-		StripFileExtension(entry->name, basename);
-		sprintf(savefile, "%s/%s", dstdir, basename);
-		RawExtract(savefile, entry->data, entry->size, entry->rawinfo, false, false, forcerawtype, rawnoalign);
+		rawblock = RawExtract(entry->data, entry->size, entry->rawinfo, true, false, forcerawtype);
+		if (rawblock->errorcode < 0)
+			Print("warning: cound not extract raw %s: %s\n", entry->name, RawStringForResult(rawblock->errorcode));
+		else
+		{
+			StripFileExtension(entry->name, basename);
+			sprintf(outfile, "%s/%s.tga", dstdir, basename);
+			TGAfromRAW(rawblock, entry->rawinfo, outfile, rawnoalign, false); 
+		}
+		FreeRawBlock(rawblock);
 	}
 
 	// unpack original
@@ -1018,6 +1061,7 @@ qboolean BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
 {
 	unsigned char *filedata;
 	rawinfo_t *rawinfo;
+	rawblock_t *rawblock;
 
 	// load file contents
 	BigfileSeekFile(f, entry);
@@ -1030,13 +1074,16 @@ qboolean BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
 
 	// check all raw types
 	rawinfo = NewRawInfo();
-	if (RawExtract("", filedata, entry->size, rawinfo, true, false, forcerawtype, false) >= 0)
+	rawblock = RawExtract(filedata, entry->size, rawinfo, true, false, forcerawtype);
+	if (rawblock->errorcode >= 0)
 	{
+		FreeRawBlock(rawblock);
 		entry->rawinfo = rawinfo;
 		qfree(filedata);
 		return true;
 	}
 	// not found
+	FreeRawBlock(rawblock);
 	qfree(filedata);
 	qfree(rawinfo);
 	return false;
@@ -1107,11 +1154,6 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list
 	fpos_t fpos;
 	bigfileentry_t *entry;
 	int i;
-/*
-	bigentrytype_t autotype;
-	bigkentry_t *kentry;
-	char *autopath;
-*/
 	
 	fgetpos(f, &fpos);
 	// scan for filetypes
@@ -1130,46 +1172,6 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list
 
 		Pacifier("scanning type for entry %i of %i...", i + 1, data->numentries);
 		BigfileScanFiletype(f, entry, scanraw, forcerawtype);
-		/*
-		// detect filetype automatically
-		autotype = BigfileDetectFiletype(f, entry, scanraw, forcerawtype);
-		if (autotype != BIGENTRY_UNKNOWN) 
-		{
-			entry->type = autotype;
-			// automatic path
-			autopath = NULL;
-			if (autotype == BIGENTRY_RAW_IMAGE)
-				autopath = PathForRawType(entry->rawinfo->type);
-			if (autopath == NULL)
-				autopath = bigentryautopaths[autotype];
-			sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
-		}
-		// check listfile
-		else
-		{
-			kentry = BigfileSearchKList(entry->hash);
-			if (kentry != NULL)
-			{
-				entry->type = (bigentrytype_t)kentry->type;
-				entry->adpcmrate = (int)kentry->adpcmrate;
-				if (entry->type == BIGENTRY_RAW_IMAGE)
-					entry->rawinfo = kentry->rawinfo;
-				// check custom path
-				if (kentry->path[0])
-					sprintf(entry->name, "%s", kentry->path);
-				else
-				{
-					// automatic path
-					autopath = NULL;
-					if (entry->type == BIGENTRY_RAW_IMAGE)
-						autopath = PathForRawType(entry->rawinfo->type);
-					if (autopath == NULL)
-						autopath = bigentryautopaths[autotype];
-					sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
-				}
-			}
-		}
-		*/
 	}
 	fsetpos(f, &fpos);
 	
@@ -1370,9 +1372,9 @@ int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw, char *
 int BigFile_Extract(int argc, char **argv, char *outfile, unsigned int hash, char *whatformat)
 {
 	bigfileentry_t *entry;
-	char filename[MAX_BLOODPATH], basename[MAX_BLOODPATH];
-	char format[16];
-	char last;
+	char filename[MAX_BLOODPATH], basename[MAX_BLOODPATH], format[16], last;
+	int spritex = 0, spritey = 0, spritesp = -1;
+	rawblock_t *rawblock;
 	FILE *f;
 
 	// check format
@@ -1427,13 +1429,13 @@ int BigFile_Extract(int argc, char **argv, char *outfile, unsigned int hash, cha
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				Print("writing %s.\n", filename);
-				BigfileExtractTGAfromTIM(f, entry, filename, false); 
+				TGAfromTIM(f, entry, filename, false); 
 			}
 			else if (!stricmp(format, "tga24"))
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				Print("writing %s.\n", filename);
-				BigfileExtractTGAfromTIM(f, entry, filename, true); 
+				TGAfromTIM(f, entry, filename, true); 
 			}
 			else
 				Error("unknown format '%s'\n", format);
@@ -1443,6 +1445,54 @@ int BigFile_Extract(int argc, char **argv, char *outfile, unsigned int hash, cha
 		case BIGENTRY_RIFF_WAVE:
 			break;
 		case BIGENTRY_RAW_IMAGE:
+			// read file contents and converto to rawblock
+			entry->data = qmalloc(entry->size);
+			BigfileSeekContents(f, entry->data, entry);
+			rawblock = RawExtract(entry->data, entry->size, entry->rawinfo, false, false, RAW_TYPE_UNKNOWN);
+			qfree(entry->data);
+			entry->data = NULL;
+			// convert rawblock to something
+			if (!strnicmp(format, "spr32", 5))
+			{
+				DefaultExtension(filename, ".spr32", sizeof(filename));
+				Print("writing %s.\n", filename);
+				if (!stricmp(format, "spr32:oriented") || !stricmp(format, "spr"))
+					SPR_WriteFromRawblock(rawblock, filename, SPR_DARKPLACES, SPR_ORIENTED, spritex, spritey, spritesp, 0);
+				else if (stricmp(format, "spr32:parallel_upright"))
+					SPR_WriteFromRawblock(rawblock, filename, SPR_DARKPLACES, SPR_VP_PARALLEL_UPRIGHT, spritex, spritey, spritesp, 0);
+				else if (!stricmp(format, "spr32:facing_upright"))
+					SPR_WriteFromRawblock(rawblock, filename, SPR_DARKPLACES, SPR_VP_FACING_UPRIGHT, spritex, spritey, spritesp, 0);
+				else if (!stricmp(format, "spr32:parallel"))
+					SPR_WriteFromRawblock(rawblock, filename, SPR_DARKPLACES, SPR_VP_PARALLEL, spritex, spritey, spritesp, 0);
+				else if (!stricmp(format, "spr32:parallel_oriented"))
+					SPR_WriteFromRawblock(rawblock, filename, SPR_DARKPLACES, SPR_VP_PARALLEL_ORIENTED, spritex, spritey, spritesp, 0);
+				else
+					Error("unknown format '%s'\n", format);
+			}
+			else if (!strnicmp(format, "spr", 3))
+			{
+				DefaultExtension(filename, ".spr", sizeof(filename));
+				Print("writing %s.\n", filename);
+				if (!stricmp(format, "spr:oriented") || !stricmp(format, "spr"))
+					SPR_WriteFromRawblock(rawblock, filename, SPR_QUAKE, SPR_ORIENTED, spritex, spritey, spritesp, 0);
+				else if (stricmp(format, "spr:parallel_upright"))
+					SPR_WriteFromRawblock(rawblock, filename, SPR_QUAKE, SPR_VP_PARALLEL_UPRIGHT, spritex, spritey, spritesp, 0);
+				else if (!stricmp(format, "spr:facing_upright"))
+					SPR_WriteFromRawblock(rawblock, filename, SPR_QUAKE, SPR_VP_FACING_UPRIGHT, spritex, spritey, spritesp, 0);
+				else if (!stricmp(format, "spr:parallel"))
+					SPR_WriteFromRawblock(rawblock, filename, SPR_QUAKE, SPR_VP_PARALLEL, spritex, spritey, spritesp, 0);
+				else if (!stricmp(format, "spr:parallel_oriented"))
+					SPR_WriteFromRawblock(rawblock, filename, SPR_QUAKE, SPR_VP_PARALLEL_ORIENTED, spritex, spritey, spritesp, 0);
+				else
+					Error("unknown format '%s'\n", format);
+			}
+			else if (!stricmp(format, "tga"))
+			{
+
+			}
+			else
+				Error("unknown format '%s'\n", format);
+			FreeRawBlock(rawblock);
 			break;
 		case BIGENTRY_VAG:
 			Error("Vag extraction not supported");
