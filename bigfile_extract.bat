@@ -1,1 +1,1 @@
-bpill -w -mem -bigfile pill.big -extract 74681A26 -to test.spr32 -format spr32.parallel
+bpill -w -mem -bigfile pill.big -extract 11050761 -to test.spr32 -format spr32:parallel_upright

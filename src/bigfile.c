@@ -1715,7 +1715,7 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 int BigFile_Main(int argc, char **argv)
 {
 	int i = 1, k, returncode = 0;
-	char tofile[MAX_BLOODPATH], srcdir[MAX_BLOODPATH], dstdir[MAX_BLOODPATH], knownfiles[MAX_BLOODPATH], csvfile[MAX_BLOODPATH], format[16], *c;
+	char tofile[MAX_BLOODPATH], srcdir[MAX_BLOODPATH], dstdir[MAX_BLOODPATH], knownfiles[MAX_BLOODPATH], csvfile[MAX_BLOODPATH], format[256], *c;
 	qboolean tim2tga, bpp16to24, lowmem, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, rawnoalign;
 	unsigned int hash;
 	list_t *ixlist;
@@ -1765,22 +1765,22 @@ int BigFile_Main(int argc, char **argv)
 		if (!strcmp(argv[k],"-to"))
 		{
 			k++; if (k < argc)
-				strcpy(tofile, argv[k]);
+				strlcpy(tofile, argv[k], sizeof(tofile));
 		}
 		else if (!strcmp(argv[k],"-dstdir"))
 		{
 			k++; if (k < argc)
-				strcpy(dstdir, argv[k]);
+				strlcpy(dstdir, argv[k], sizeof(dstdir));
 		}
 		else if (!strcmp(argv[k],"-srcdir"))
 		{
 			k++; if (k < argc)
-				strcpy(srcdir, argv[k]);
+				strlcpy(srcdir, argv[k], sizeof(srcdir));
 		}
 		else if (!strcmp(argv[k],"-klist"))
 		{
 			k++; if (k < argc)
-				strcpy(knownfiles, argv[k]);
+				strlcpy(knownfiles, argv[k], sizeof(knownfiles));
 		}
 		else if (!strcmp(argv[k],"-extract"))
 		{
@@ -1790,14 +1790,14 @@ int BigFile_Main(int argc, char **argv)
 		else if (!strcmp(argv[k],"-format"))
 		{
 			k++; if (k < argc)
-				strcpy(format, argv[k]);
+				strlcpy(format, argv[k], sizeof(format));
 		}
 		else if (!strcmp(argv[k],"-tim2tga"))
 			tim2tga = true;
 		else if (!strcmp(argv[k],"-csv"))
 		{
 			k++; if (k < argc)
-				strcpy(csvfile, argv[k]);
+				strlcpy(csvfile, argv[k], sizeof(csvfile));
 		}
 		else if (!strcmp(argv[k],"-16to24"))
 			bpp16to24 = true;
@@ -1837,7 +1837,7 @@ int BigFile_Main(int argc, char **argv)
 			k++;
 			if (k < argc)
 			{
-				strcpy(entry.name, argv[k]);
+				strlcpy(entry.name, argv[k], sizeof(entry.name));
 				if (MatchIXList(&entry, ixlist, false, true))
 					Print("%s matched\n", argv[k]);
 				else

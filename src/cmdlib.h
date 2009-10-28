@@ -46,6 +46,8 @@ extern int Q_strncasecmp (char *s1, char *s2, int n);
 extern int Q_strcasecmp (char *s1, char *s2);
 extern char *ConvSlash (char *start);
 //extern void Q_getwd (char *out);
+size_t strlcat(char *dst, const char *src, size_t siz);
+size_t strlcpy(char *dst, const char *src, size_t siz);
 
 extern int Q_filelength (FILE *f);
 extern int	FileTime (char *path);

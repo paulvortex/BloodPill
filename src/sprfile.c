@@ -142,9 +142,9 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 				d = chunk->pixels[p];
 				if (shadowpixel >= 0 && d == shadowpixel)
 					d = 0;
-				color[0] = colormap[d];
-				color[1] = colormap[d + 1];
-				color[2] = colormap[d + 2];
+				color[0] = colormap[d*3];
+				color[1] = colormap[d*3 + 1];
+				color[2] = colormap[d*3 + 2];
 				color[3] = (d == 0) ? 0 : 255;
 				// todo: fix for texture filtering - fill transparent pixels from neighbours 
 				// so we don't see a black outlines on objects
@@ -154,7 +154,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 				*buf++ = color[3];
 			}
 			buf -= chunk->size * 4;
-			fwrite(buf, 1, chunk->size * 4, f);
+			fwrite(buf, chunk->size * 4, 1, f);
 			qfree(buf);
 		}
 		else
