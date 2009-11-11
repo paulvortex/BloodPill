@@ -1365,6 +1365,20 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 ==========================================================================================
 */
 
+// RAW FILE TYPE 7
+// Description: tile?
+// Notes: unfinished
+// Spec:
+// 0: 4 bytes - data size
+// 4: 4 bytes - ?
+// 8: 4 bytes - ?
+// 12: 4 bytes - ?
+// 16: 4 bytes - ?
+// 20: 4 bytes - ?
+// 24: 2 bytes - ?
+// 26: colormap chunks
+//     8 bytes - 4 colors
+//     1 byte - unknown 'separator byte'
 rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	unsigned int datasize;
