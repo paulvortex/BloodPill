@@ -830,8 +830,8 @@ void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16
 
 void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolean rawnoalign, qboolean verbose)
 {
+	char name[MAX_BLOODPATH], suffix[8], path[MAX_BLOODPATH], file[MAX_BLOODPATH], basename[MAX_BLOODPATH];
 	int maxwidth, maxheight, i;
-	char name[MAX_BLOODPATH], suffix[8];
 
 	// detect maxwidth/maxheight for alignment
 	maxwidth = maxheight = 0;
@@ -841,12 +841,23 @@ void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolea
 		maxheight = max(maxheight, (rawblock->chunk[i].height + rawblock->chunk[i].y));
 	}
 
+	// quick fix for files in separate folders
+	// todo: optimize
+	strcpy(name, outfile);
+	ExtractFilePath(name, path);
+	ExtractFileBase(name, file);
+	StripFileExtension(file, basename);
+	sprintf(name, "%s%s/", path, basename);
+	Q_mkdir(name);
+	sprintf(name, "%s%s/%s.tga", path, basename, file);
+	strcpy(basename, name);
+
 	// export all chunks
 	for (i = 0; i < rawblock->chunks; i++)
 	{
 		if (rawinfo->chunknum != -1 && i != rawinfo->chunknum)
 			continue; // skip this chunk
-		strcpy(name, outfile);
+		strcpy(name, basename);
 		if (rawblock->chunks != 1)
 		{
 			sprintf(suffix, "_%03i", i);
