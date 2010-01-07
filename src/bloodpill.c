@@ -38,7 +38,7 @@ int Tim2Targa_Main(int argc, char **argv);
 int Raw_Main(int argc, char **argv);
 
 // soxsupp.c
-int VagConvert_Main(int argc, char **argv);
+int AdpcmConvert_Main(int argc, char **argv);
 
 void Print(char *str, ...)
 {
@@ -114,30 +114,27 @@ int Help_Main()
 	" -f : function mode, only error and warnings get printed\n"
 	"\n"
 	"=== ACTIONS ===\n"
-	"-bigfile [bigfilename] -list [-to filename] [optional_switches]\n"
+	"-bigfile [bigfilename] [-klist file] -list [filename] [optional_switches]\n"
 	"  list bigfile contents\n"
 	"  OPTIONAL SWITCHES:\n"
-	"    -to: outputs to external file\n"
 	"    -klist: use custom known-files-list (default is klist.txt)\n"
 	"     TIP: some filetypes like RAW ADPCM couldn't be detected automatically\n"
 	"     so known-files-list is only way to determine them\n"
 	"    -scanraw: extensively scan to detect RAW filetypes (sprites, tiles etc.)\n"
 	"    -csv filename: export CSV listfile which could be used by Wheel Of Doom\n"
 	"\n"
-	"-bigfile [bigfilename] -unpack [-dstdir dir] [optional_switches]\n"
+	"-bigfile [bigfilename] [-klist file] -unpack [dir] [optional_switches]\n"
 	"  unpacks all entries of bigfile and saves listfile\n" 
     "  OPTIONAL SWITCHES:\n"
-	"    -klist filename: use custom known-files-list\n"
-	"    -dstdir: outputs to other folder instead of 'bigfile'\n"
 	"    -tim2tga: converts all TIM files to Targa images\n"
 	"    -16to24: when write TGA, convert 16 bit colors 24 bit\n"
 	"     including colormaps, quite useful because not many tools has support\n"
 	"     for 16 Bit TGA's\n"
-	"    -vagconvert: enables VAG->WAV conversion, wav will use ADPCM encoding\n"
-	"    -pcm: use with -vagconvert to make 16-bit PCM wavefiles\n"
-	"    -oggvorbis: use with -vagconvert to make Ogg Vorbis files (Q7)\n"
+	"    -adpcm2wav: convert raw ADPCM to native ADPCM wave\n"
+	"    -adpcm2pcm: convert raw ADPCM to PCM wave\n"
+	"    -adpcm2ogg: convert raw ADPCM to Ogg Vorbis (quality 5)\n"
 	"    -scanraw: extensively scan to detect RAW filetypes (sprites, tiles etc.)\n"
-	"    -rawconvert: convert raw images to readable TGA\n"
+	"    -raw2tga: convert raw images to readable TGA\n"
 	"     WARNING: a lot of files will be extracted! (about 45000)\n"
 	"     TIP: unlike TIM->TGA, this is one way raw conversion, backward conversion\n"
 	"     on pill.big re-pack is not supported (original raw file will be used)\n"
@@ -147,14 +144,12 @@ int Help_Main()
 	"     and buggy at all). Helps to find out obfuscated/funky files\n"
 	"     that shall be identificated with known-files-list.\n"
 	"     TIP: For list of possible raw types see APPENDIX II\n"
-	"    -noalign: disables width/height aligning of all chunks in RAW images\n"
+	"    -rawnoalign: disables width/height aligning of all chunks in RAW images\n"
 	"     this makes all chunks of RAW image to be different size, yet smaller\n"
 	"     but harder to use in any way\n"
 	"\n"
-	"-bigfile [bigfilename] -pack [-srcdir dir] [-lowmem]\n"
+	"-bigfile [bigfilename] -pack [dir]\n"
 	"  create a bigfile from a folder containing all files and listfile\n"
-	"    -srcdir: inputs from other folder instead of 'bigfile'\n"
-	"    -lowmem: use smaller amount of memory but a bit slower\n"
 	"\n"
 	"-tim2tga timfile [tgafile] [-16to24] \n"
 	"  convert TIM image to Truevision TGA\n"
@@ -166,9 +161,9 @@ int Help_Main()
 	"  -ofs: override TIM image offset\n"
 	"  -mask: use a custom maskfile (default is filename_mask.tga)\n"
 	"\n"
-	"-vagconvert vagfile [outfile] [-rate X] [-pcm]/[-oggvorbis]/[-custom]\n"
-	" convert a Blood Omen headerless VAG file to someting that WinAmp could play\n"
-	" -rate: VAG sampling rate, defaults to 22050 if not presented\n"
+	"-adpcmconvert adpcmfile [outfile] [-rate X] [-pcm]/[-oggvorbis]/[-custom]\n"
+	" convert a Blood Omen raw ADPCM file to WAV/OGG\n"
+	" -rate: ADPCM sampling rate, defaults to 22050 if not presented\n"
 	" -pcm: make 16-bit PCM wavefile\n"
 	" -oggvorbis: make Ogg Vorbis files (Quality 7)\n"
 	" -custom: custom SoX output options (see SoX docs)\n"
@@ -318,8 +313,8 @@ int main(int argc, char **argv)
 		returncode = Targa2Tim_Main(argc-i, argv+i);
 	else if (!strcmp(argv[i], "-raw"))
 		returncode = Raw_Main(argc-i, argv+i);
-	else if (!strcmp(argv[i], "-vagconvert"))
-		returncode = VagConvert_Main(argc-i, argv+i);
+	else if (!strcmp(argv[i], "-adpcmconvert"))
+		returncode = AdpcmConvert_Main(argc-i, argv+i);
 	else if (!strcmp (argv[i], "-help"))
 		returncode = Help_Main();
 	else

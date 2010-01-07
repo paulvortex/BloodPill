@@ -113,6 +113,12 @@ char *UnparseRawType(rawtype_t rawtype);
 char *RawStringForResult(int rescode);
 char *PathForRawType(rawtype_t rawtype);
 
+// rawblock tools
+void RawblockFlip(rawblock_t *rawblock);
+rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margin);
+rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin);
+rawblock_t *RawblockPerturbate(rawblock_t *rawblock, list_t *includelist);
+
 // raw blocks
 char *RawStringForResult(int rescode);
 rawblock_t *EmptyRawBlock(int numchunks);

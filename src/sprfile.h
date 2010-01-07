@@ -31,11 +31,10 @@ typedef enum
 // sprite types
 typedef enum
 {
-	SPR_VP_PARALLEL_UPRIGHT = 0,
-	SPR_VP_FACING_UPRIGHT = 1,
-	SPR_VP_PARALLEL = 2,
-	SPR_ORIENTED = 3,
-	SPR_VP_PARALLEL_ORIENTED = 4
+	SPR_VP_PARALLEL_UPRIGHT = 0, // flames and such, vertical beam sprite, faces view plane
+	SPR_VP_FACING_UPRIGHT = 1, // flames and such, vertical beam sprite, faces viewer's origin (not the view plane)
+	SPR_VP_PARALLEL = 2, // normal sprite, faces view plane
+	SPR_ORIENTED = 3, // bullet marks on walls, ignores viewer entirely
 }sprtype_t;
 
 // frames and framegroup
@@ -59,10 +58,7 @@ typedef struct
 	long	synchtype;	// 0=synchron 1=random
 } spr_t;
 
-// sprite export flags
-#define SPR_FLAGS_SHADOWONLY	0x000001	// write only shadow
-
 // functions
-void SPR_WriteFromRawblock(void *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, int shadowpixel, int flags);
+void SPR_WriteFromRawblock(void *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, byte shadowpixel, byte shadowalpha, int flags);
 
 

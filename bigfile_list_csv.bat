@@ -1,1 +1,1 @@
-bpill -w -mem -bigfile pill.big -list -to listfile.txt -scanraw -csv bo.csv
+bpill -w -mem -bigfile pill.big -list listfile.txt -scanraw -csv bo.csv

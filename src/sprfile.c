@@ -116,7 +116,7 @@ void SPR_WriteFrameHeader(FILE *f, sprframetype_t frametype, rawchunk_t *chunk, 
 	fput_littleint(chunk->height, f);
 }
 
-void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, int shadowpixel, int flags)
+void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, byte shadowpixel, byte shadowalpha, int flags)
 {
 	int i, p, d;
 	byte *colormap, *buf, color[4];
@@ -131,7 +131,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 	{
 		chunk = &rawblock->chunk[i];
 		colormap = (chunk->colormap != NULL) ? chunk->colormap : rawblock->colormap;
-		SPR_WriteFrameHeader(f, SPR_FRAME_SINGLE, chunk, cx, cy);
+		SPR_WriteFrameHeader(f, SPR_FRAME_SINGLE, chunk, chunk->x + cx, chunk->y + cy);
 		if (version == SPR_DARKPLACES) // 32bit RGBA8 raw, ready for OpenGL
 		{
 			buf = qmalloc(chunk->size * 4);
@@ -140,12 +140,19 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			for (p = 0; p < chunk->size; p++) 
 			{
 				d = chunk->pixels[p];
-				if (shadowpixel >= 0 && d == shadowpixel)
-					d = 0;
 				color[0] = colormap[d*3];
 				color[1] = colormap[d*3 + 1];
 				color[2] = colormap[d*3 + 2];
-				color[3] = (d == 0) ? 0 : 255;
+				//if (shadowpixel >= 0 && !memcmp(colormap + shadowpixel*3, color, 3))
+				if (shadowpixel >= 0 && (d == 15 || d == 31 || d == 47 || d == 63 || d == 79 || d == 95 || d == 111 || d == 127 || d == 143 || d == 159 || d == 175 || d == 191 || d == 207 || d == 223 || d == 239 || d == 255))
+					color[3] = shadowalpha;
+				else if (!memcmp(colormap, color, 3))
+					color[3] = 0;
+				else
+					color[3] = 255;
+				color[0] = colormap[d*3];
+				color[1] = colormap[d*3 + 1];
+				color[2] = colormap[d*3 + 2];
 				// todo: fix for texture filtering - fill transparent pixels from neighbours 
 				// so we don't see a black outlines on objects
 				*buf++ = color[0];

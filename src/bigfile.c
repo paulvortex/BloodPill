@@ -587,7 +587,8 @@ void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry, qboolean lowme
 	{
 		sprintf(filename, "%s/%s", srcdir, entry->name);
 		if (!SoX_FileToData(filename, "--no-dither", "", "-t ima -c 1", &size, &contents))
-			Error("unable to convert %s, SoX Error #%i\n", entry->name, GetLastError());
+			//Error("unable to convert %s, SoX Error #%i\n", entry->name, GetLastError());
+			Error("unable to convert %s, SoX Error\n", entry->name);
 		entry->data = contents;
 		entry->size = (unsigned int)size;
 
@@ -828,7 +829,7 @@ void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16
 	}
 }
 
-void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolean rawnoalign, qboolean verbose)
+void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolean rawnoalign, qboolean verbose, qboolean usesubpaths)
 {
 	char name[MAX_BLOODPATH], suffix[8], path[MAX_BLOODPATH], file[MAX_BLOODPATH], basename[MAX_BLOODPATH];
 	int maxwidth, maxheight, i;
@@ -843,14 +844,19 @@ void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolea
 
 	// quick fix for files in separate folders
 	// todo: optimize
-	strcpy(name, outfile);
-	ExtractFilePath(name, path);
-	ExtractFileBase(name, file);
-	StripFileExtension(file, basename);
-	sprintf(name, "%s%s/", path, basename);
-	Q_mkdir(name);
-	sprintf(name, "%s%s/%s.tga", path, basename, file);
-	strcpy(basename, name);
+	if (usesubpaths)
+	{
+		strcpy(name, outfile);
+		ExtractFilePath(name, path);
+		ExtractFileBase(name, file);
+		StripFileExtension(file, basename);
+		sprintf(name, "%s%s/", path, basename);
+		FS_CreatePath(name);
+		sprintf(name, "%s%s/%s.tga", path, basename, file);
+		strcpy(basename, name);
+	}
+	else
+		sprintf(basename, outfile);
 
 	// export all chunks
 	for (i = 0; i < rawblock->chunks; i++)
@@ -898,7 +904,7 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 	if (entry->size <= 0) 
 	{
 		sprintf(savefile, "%s/%s", dstdir, entry->name);
-		f = SafeOpen(savefile, "wb");
+		f = SafeOpenWrite(savefile);
 		fclose(f);
 		return;
 	}
@@ -937,7 +943,8 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 			sprintf(entry->name, (vagogg) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.tx
 		else
 		{
-			Warning("unable to convert %s, SoX Error #%i, unpacking original", entry->name, GetLastError());
+			//Warning("unable to convert %s, SoX Error #%i, unpacking original", entry->name, GetLastError());
+			Warning("unable to convert %s, SoX Error, unpacking original", entry->name);
 			sprintf(savefile, "%s/%s", dstdir, entry->name);
 			SaveFile(savefile, entry->data, entry->size);
 		}
@@ -957,7 +964,7 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 		{
 			StripFileExtension(entry->name, basename);
 			sprintf(outfile, "%s/%s.tga", dstdir, basename);
-			TGAfromRAW(rawblock, entry->rawinfo, outfile, rawnoalign, false); 
+			TGAfromRAW(rawblock, entry->rawinfo, outfile, rawnoalign, false, true); 
 		}
 		FreeRawBlock(rawblock);
 	}
@@ -1224,80 +1231,54 @@ typedef struct
 }
 bigchunkstats_t;
 
-int BigFile_Analyse(int argc, char **argv, char *outfile)
-{
-	FILE *f;
-	bigfileheader_t *data;
-	bigfileentry_t *entry;
-	bigchunkstats_t *chunkstats;
-	int i, k;
-
-	// open file & load header
-	f = SafeOpen(bigfile, "rb");
-	data = ReadBigfileHeader(f, bigfile, false);
-	BigfileScanFiletypes(f, data, true, NULL, RAW_TYPE_UNKNOWN);
-
-	// analyse headers
-	chunkstats = (bigchunkstats_t *)qmalloc(sizeof(bigchunkstats_t));
-	for (i = 0; i < (int)data->numentries; i++)
-	{
-		entry = &data->entries[i];
-		if (entry->type != BIGENTRY_UNKNOWN)
-			continue;
-		Pacifier("analysing entry %i of %i...", i + 1, data->numentries);
-
-		// chunk4 stats
-		BigfileSeekFile(f, entry);
-		if (fread(&chunkstats->chunk4, sizeof(unsigned int), 1, f) > 0)
-		{
-			// try find chunk
-			for (k = 0; k < chunkstats->numchunks4; k++)
-			{
-				if (chunkstats->chunks4[k].data != chunkstats->chunk4)
-					continue;
-				chunkstats->chunks4[k].occurrences++;
-				break;
-			}
-			if (k >= chunkstats->numchunks4) // not found, allocate new
-			{
-				chunkstats->chunks4[chunkstats->numchunks4].data = chunkstats->chunk4;
-				chunkstats->chunks4[chunkstats->numchunks4].occurrences = 1;
-				chunkstats->numchunks4++;
-			}
-		}
-	}
-	PacifierEnd("\n");
-
-	// print stats
-	Print("=== Chunk (unsigned int) ===\n");
-	Print("  occurence threshold = 4\n");
-	for (i = 0; i < chunkstats->numchunks4; i++)
-		if (chunkstats->chunks4[i].occurrences > 4)
-			Print("  %.8X = %i occurences\n", chunkstats->chunks4[i].data, chunkstats->chunks4[i].occurrences);
-
-	fclose(f);
-	qfree(chunkstats);
-	return 0;
-
-}
-
 /*
 ==========================================================================================
 
-  -bigfile -list
+  -bigfile -list [-to]
 
   lists bigfile contents
 
 ==========================================================================================
 */
 
-int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw, char *csvfile)
+int BigFile_List(int argc, char **argv)
 {
 	FILE *f, *f2;
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
-	char name[MAX_BLOODPATH], typestr[128], extrainfo[128];
+	char name[MAX_BLOODPATH], listfile[MAX_BLOODPATH], csvfile[MAX_BLOODPATH], typestr[128], extrainfo[128];
+	qboolean scanraw;
 	int i;
+
+	// check parms
+	scanraw = false;
+	strcpy(csvfile, "-");
+	strcpy(listfile, "-");
+	if (argc > 0) 
+	{
+		strcpy(listfile, argv[0]);
+		for (i = 0; i < argc; i++)
+		{
+			if (!strcmp(argv[i], "-scanraw"))
+			{
+				scanraw = true;
+				Verbose("Option: scan for RAW filetypes\n", argv[i]);
+				continue;
+			}
+			if (!strcmp(argv[i], "-csv"))
+			{
+				i++; 
+				if (i < argc)
+				{
+					strlcpy(csvfile, argv[i], sizeof(csvfile));
+					Verbose("Option: export CSV file '%s'\n", argv[i]);
+				}
+				continue;
+			}
+			if (i != 0)
+				Warning("unknown parameter '%s'",  argv[i]);
+		}
+	}
 
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
@@ -1309,7 +1290,7 @@ int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw, char *
 		BigfileWriteListfile(stdout, data);
 	else // output to file
 	{
-		f2 = SafeOpen(listfile, "w");
+		f2 = SafeOpenWrite(listfile);
 		BigfileWriteListfile(f2, data);
 		Print("wrote %s\n", listfile);
 		fclose(f2);
@@ -1379,26 +1360,229 @@ int BigFile_List(int argc, char **argv, char *listfile, qboolean scanraw, char *
 ==========================================================================================
 */
 
-// "-bigfile c:/pill.big -extract 0AD312F45 -format tga"
-int BigFile_Extract(int argc, char **argv, char *outfile, unsigned int hash, char *whatformat)
+void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_t *entry, rawblock_t *rawblock, char *format)
 {
-	bigfileentry_t *entry;
-	char filename[MAX_BLOODPATH], basename[MAX_BLOODPATH], format[16], last;
-	int spritex = 0, spritey = 0, spritesp = -1;
-	rawblock_t *rawblock;
-	FILE *f;
+	int i, num, margin, spritex, spritey, spritesp, spriteflags;
+	sprtype_t spritetype = SPR_VP_PARALLEL;
+	rawblock_t *tb1, *tb2, *tb3;
+	qboolean noalign, nocrop, flip;
+	byte shadowalpha, c[3];
+	list_t *includelist;
 
-	// check format
-	strcpy(format, whatformat);
-	if (!format[0])
+	// additional parms
+	includelist = NewList();
+	shadowalpha = 160;
+	noalign = false;
+	nocrop = false;
+	flip = false;
+	margin = 1;
+	spritex = 0;
+	spritey = 0;
+	spritesp = -1;
+	spriteflags = 0;
+	for (i = 2; i < argc; i++)
 	{
-		if (outfile != NULL)
-			ExtractFileExtension(outfile, format);
-		if (!format[0])
-			Error("Format is not given\n");
+		if (!strcmp(argv[i], "-oriented"))
+		{
+			spritetype = SPR_ORIENTED;
+			Verbose("Option: sprite type = ORIENTED\n");
+			continue;
+		}
+		if (!strcmp(argv[i], "-parallel_upright"))
+		{
+			spritetype = SPR_VP_PARALLEL_UPRIGHT;
+			Verbose("Option: sprite type = PARALLEL_UPRIGHT\n");
+			continue;
+		}
+		if (!strcmp(argv[i], "-facing_upright"))
+		{
+			spritetype = SPR_VP_FACING_UPRIGHT;
+			Verbose("Option: sprite type = FACING_UPRIGHT\n");
+			continue;
+		}
+		if (!strcmp(argv[i], "-parallel"))
+		{
+			spritetype = SPR_VP_PARALLEL;
+			Verbose("Option: sprite type = PARALLEL\n");
+			continue;
+		}
+		if (!strcmp(argv[i], "-i"))
+		{
+			i++; 
+			if (i < argc)
+			{
+				ListAdd(includelist, argv[i], true);
+				Verbose("Option: include chunks '%s'\n", argv[i]);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-bgcolor"))
+		{
+			i++;
+			if (i < argc)
+			{
+				num = ParseHex(argv[i]);
+				c[0] = (byte)((num >> 16) & 0xFF);
+				c[1] = (byte)((num >> 8) & 0xFF);
+				c[2] = (byte)(num & 0xFF);
+				for (num = 0; num < 256; num += 16)
+					memcpy(rawblock->colormap + num*3, c, 3);
+				Verbose("Option: custom background color '%i %i %i'\n", rawblock->colormap[0], rawblock->colormap[1], rawblock->colormap[2]);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-shadowcolor"))
+		{
+			i++;
+			if (i < argc)
+			{
+				num = ParseHex(argv[i]);
+				c[0] = (byte)((num >> 16) & 0xFF);
+				c[1] = (byte)((num >> 8) & 0xFF);
+				c[2] = (byte)(num & 0xFF);
+				for (num = 15; num < 256; num += 16)
+					memcpy(rawblock->colormap + num*3, c, 3);
+				Verbose("Option: custom shadow color '%i %i %i'\n", rawblock->colormap[255*3 + 0], rawblock->colormap[255*3 + 1], rawblock->colormap[255*3 + 2]);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-shadowalpha"))
+		{
+			i++;
+			if (i < argc)
+			{
+				shadowalpha = (byte)atoi(argv[i]);
+				Verbose("Option: custom shadow alpha %i\n", shadowalpha);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-noalign"))
+		{
+			noalign = true;
+			Verbose("Option: Disable chunks aligning\n");
+			continue;
+		}
+		if (!strcmp(argv[i], "-nocrop"))
+		{
+			nocrop = true;
+			Verbose("Option: Disable null pixels cropping\n");
+			continue;
+		}
+		if (!strcmp(argv[i], "-margin"))
+		{
+			i++;
+			if (i < argc)
+			{
+				margin = atoi(argv[i]);
+				if (margin < 0)
+					margin = 0;
+				if (margin > 100)
+					margin = 100;
+				Verbose("Option: %i-pixel margin\n", margin);
+			}
+			continue;
+		} 
+		if (!strcmp(argv[i], "-flip"))
+		{
+			flip = true;
+			Verbose("Option: horizontal flipping\n", margin);
+			continue;
+		}
+		if (!strcmp(argv[i], "-ofs"))
+		{
+			i++;
+			if ((i + 1) < argc)
+			{
+				spritex = atoi(argv[i]);
+				i++;
+				spritey = atoi(argv[i]);
+				Verbose("Option: offset sprite by x = %i, y = %i\n", spritex, spritey);
+			}
+			continue;
+		}
+		Warning("unknown parameter '%s'",  argv[i]);
 	}
 
-	// open & scan
+	// perturbare rawblock
+	tb1 = NULL;
+	tb2 = NULL;
+	tb3 = NULL;
+	if (includelist->items)
+	{
+		Print("Perturbating...\n");
+		rawblock = tb1 = RawblockPerturbate(rawblock, includelist);
+	}
+	if (!noalign)
+	{
+		Print("Aligning...\n");
+		rawblock = tb2 = RawblockAlign(rawblock, margin);
+	}
+	if (!nocrop)
+	{
+		Print("Cropping...\n");
+		rawblock = tb3 = RawblockCrop(rawblock, false, margin);
+	}
+	if (flip)
+	{
+		Print("Flipping...\n");
+		RawblockFlip(rawblock);
+	}
+
+	// write file
+	Print("Writing images...\n");
+	if (!stricmp(format, "spr"))
+		Error("Quake sprites format is not supported!\n");
+	else if (!stricmp(format, "spr32"))
+		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, spritesp, shadowalpha, spriteflags);
+	else if (!stricmp(format, "tga"))
+		TGAfromRAW(rawblock, entry->rawinfo, outfile, true, true, false);
+	else
+		Error("unknown sprite format '%s'!\n", format);
+	Print("done.\n");
+
+	// free allocated data
+	if (tb1) FreeRawBlock(tb1);
+	if (tb2) FreeRawBlock(tb2);
+	if (tb3) FreeRawBlock(tb3);
+}
+
+// "-bigfile c:/pill.big -extract 0AD312F45 0AD312F45.tga"
+int BigFile_Extract(int argc, char **argv)
+{
+	char filename[MAX_BLOODPATH], basename[MAX_BLOODPATH], outfile[MAX_BLOODPATH], format[256], last;
+	unsigned int hash;
+	bigfileentry_t *entry;
+	rawblock_t *rawblock;
+	FILE *f;
+	int i;
+
+	// read source hash and out file
+	if (argc < 2)
+		Error("not enough parms");
+	sscanf(argv[0], "%X", &hash);
+	strcpy(outfile, argv[1]);
+	ExtractFileExtension(outfile, format);
+	
+	// additional parms
+	for (i = 2; i < argc; i++)
+	{
+		if (!strcmp(argv[i], "-format"))
+		{
+			i++; 
+			if (i < argc)
+			{
+				strlcpy(format, argv[i], sizeof(format));
+				Verbose("Option: format '%s'\n", argv[i]);
+			}
+			continue;
+		}
+	}
+
+	// check format
+	if (!format[0])
+		Error("Format is not given\n");
+
+	// open, get entry, scan
 	f = SafeOpen(bigfile, "rb");
 	entry = ReadBigfileHeaderOneEntry(f, hash);
 	if (entry == NULL)
@@ -1428,7 +1612,7 @@ int BigFile_Extract(int argc, char **argv, char *outfile, unsigned int hash, cha
 			sprintf(filename, "%s%s", outfile, basename);
 		}
 	}
-	
+
 	// extract
 	switch(entry->type)
 	{
@@ -1436,6 +1620,7 @@ int BigFile_Extract(int argc, char **argv, char *outfile, unsigned int hash, cha
 			Error("unknown entry type, bad format '%s'\n", format);
 			break;
 		case BIGENTRY_TIM:
+			// TIM extraction is simple
 			if (!stricmp(format, "tga"))
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
@@ -1452,68 +1637,28 @@ int BigFile_Extract(int argc, char **argv, char *outfile, unsigned int hash, cha
 				Error("unknown format '%s'\n", format);
 			break;
 		case BIGENTRY_RAW_ADPCM:
+			Error("ADPCM files not supported\n");
 			break;
 		case BIGENTRY_RIFF_WAVE:
+			Error("WAVE files not supported\n");
 			break;
 		case BIGENTRY_RAW_IMAGE:
-			// read file contents and converto to rawblock
+			// read file contents and convert to rawblock, then pass to extraction func
 			entry->data = qmalloc(entry->size);
 			BigfileSeekContents(f, entry->data, entry);
 			rawblock = RawExtract(entry->data, entry->size, entry->rawinfo, false, false, RAW_TYPE_UNKNOWN);
 			qfree(entry->data);
 			entry->data = NULL;
-			// convert rawblock to something
-			if (!strnicmp(format, "spr32", 5))
-			{
-				DefaultExtension(filename, ".spr32", sizeof(filename));
-				Print("writing %s.\n", filename);
-				if (!stricmp(format, "spr32:oriented") || !stricmp(format, "spr"))
-					SPR_WriteFromRawblock(rawblock, filename, SPR_DARKPLACES, SPR_ORIENTED, spritex, spritey, spritesp, 0);
-				else if (stricmp(format, "spr32:parallel_upright"))
-					SPR_WriteFromRawblock(rawblock, filename, SPR_DARKPLACES, SPR_VP_PARALLEL_UPRIGHT, spritex, spritey, spritesp, 0);
-				else if (!stricmp(format, "spr32:facing_upright"))
-					SPR_WriteFromRawblock(rawblock, filename, SPR_DARKPLACES, SPR_VP_FACING_UPRIGHT, spritex, spritey, spritesp, 0);
-				else if (!stricmp(format, "spr32:parallel"))
-					SPR_WriteFromRawblock(rawblock, filename, SPR_DARKPLACES, SPR_VP_PARALLEL, spritex, spritey, spritesp, 0);
-				else if (!stricmp(format, "spr32:parallel_oriented"))
-					SPR_WriteFromRawblock(rawblock, filename, SPR_DARKPLACES, SPR_VP_PARALLEL_ORIENTED, spritex, spritey, spritesp, 0);
-				else
-					Error("unknown format '%s'\n", format);
-			}
-			else if (!strnicmp(format, "spr", 3))
-			{
-				DefaultExtension(filename, ".spr", sizeof(filename));
-				Print("writing %s.\n", filename);
-				if (!stricmp(format, "spr:oriented") || !stricmp(format, "spr"))
-					SPR_WriteFromRawblock(rawblock, filename, SPR_QUAKE, SPR_ORIENTED, spritex, spritey, spritesp, 0);
-				else if (stricmp(format, "spr:parallel_upright"))
-					SPR_WriteFromRawblock(rawblock, filename, SPR_QUAKE, SPR_VP_PARALLEL_UPRIGHT, spritex, spritey, spritesp, 0);
-				else if (!stricmp(format, "spr:facing_upright"))
-					SPR_WriteFromRawblock(rawblock, filename, SPR_QUAKE, SPR_VP_FACING_UPRIGHT, spritex, spritey, spritesp, 0);
-				else if (!stricmp(format, "spr:parallel"))
-					SPR_WriteFromRawblock(rawblock, filename, SPR_QUAKE, SPR_VP_PARALLEL, spritex, spritey, spritesp, 0);
-				else if (!stricmp(format, "spr:parallel_oriented"))
-					SPR_WriteFromRawblock(rawblock, filename, SPR_QUAKE, SPR_VP_PARALLEL_ORIENTED, spritex, spritey, spritesp, 0);
-				else
-					Error("unknown format '%s'\n", format);
-			}
-			else if (!stricmp(format, "tga"))
-			{
-
-			}
-			else
-				Error("unknown format '%s'\n", format);
+			BigFile_ExtractRawImage(argc, argv, outfile, entry, rawblock, format);
 			FreeRawBlock(rawblock);
 			break;
 		case BIGENTRY_VAG:
-			Error("Vag extraction not supported");
+			Error("Vag files not supported");
 			break;
 		default:
 			Error("bad entry type\n");
 			break;
 	}
-
-	Print("done.\n");
 	fclose(f);
 	return 0;
 }
@@ -1528,36 +1673,127 @@ int BigFile_Extract(int argc, char **argv, char *outfile, unsigned int hash, cha
 ==========================================================================================
 */
 
-int BigFile_Unpack(int argc, char **argv, char *dstdir, list_t *ixlist, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg, qboolean scanraw, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign)
+int BigFile_Unpack(int argc, char **argv)
 {
 	FILE *f, *f2;
-	char savefile[MAX_BLOODPATH];
+	char savefile[MAX_BLOODPATH], dstdir[MAX_BLOODPATH];
+	qboolean tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, rawnoalign;
+	rawtype_t forcerawtype;
 	bigfileheader_t *data;
+	list_t *ixlist;
 	int i;
 
-	// show options
-	if (tim2tga)
-		Print("Option: TIM->TGA conversion\n");
-	if (bpp16to24)
-		Print("Option: Targa compatibility mode (converting 16-bit to 24-bit)\n");
-	if (nopaths)
-		Print("Option: Disallow klist-set subpaths\n");
-	if (scanraw)
-		Print("Option: Scan for raw filetypes\n");
-	if (forcerawtype != RAW_TYPE_UNKNOWN)
-		Print("Option: Guessing all raw images is %s\n", UnparseRawType(forcerawtype));
-	if (rawconvert)
-		Print("Option: Converting raw images to TGA\n");
-	if (rawnoalign)
-		Print("Option: Disable RAW images aligning\n");
-	if (vagconvert)
+	// parse commandline parms
+	strcpy(dstdir, DEFAULT_PACKPATH);
+	ixlist = NewList();
+	tim2tga = false;
+	bpp16to24 = false;
+	nopaths = false;
+	vagconvert = false;
+	vagpcm = false;
+	vagogg = false;
+	scanraw = false;
+	rawconvert = false;
+	forcerawtype = RAW_TYPE_UNKNOWN;
+	rawnoalign = false;
+	if (argc > 0)
 	{
-		if (vagogg)
-			Print("Option: VAG->OGG Vorbis Quality 5 conversion\n");
-		else if (vagpcm)
-			Print("Option: VAG->WAV PCM conversion\n");
-		else
-			Print("Option: VAG->WAV ADPCM conversion\n");
+		if (argv[0][0] != '-')
+		{
+			strcpy(dstdir, argv[0]);
+			Verbose("Option: destination directory '%s'\n", dstdir);
+		}
+		for (i = 0; i < argc; i++)
+		{
+			if (!strcmp(argv[i], "-x"))
+			{
+				i++; 
+				if (i < argc)
+					ListAdd(ixlist, argv[i], false);
+				Verbose("Option: exclude mask '%s'\n", argv[i]);
+				continue;
+			}
+			if (!strcmp(argv[i], "-i"))
+			{
+				i++; 
+				if (i < argc)
+					ListAdd(ixlist, argv[i], true);
+				Verbose("Option: include mask '%s'\n", argv[i]);
+				continue;
+			}
+			if (!strcmp(argv[i], "-tim2tga"))
+			{
+				tim2tga = true;
+				Verbose("Option: TIM->TGA conversion\n");
+				continue;
+			}
+			if (!strcmp(argv[i], "-16to24"))
+			{
+				bpp16to24 = true;
+				Verbose("Option: Targa compatibility mode (converting 16-bit to 24-bit)\n");
+				continue;
+			}
+			if (!strcmp(argv[i], "-nopaths"))
+			{
+				nopaths = true;
+				Verbose("Option: Disallow klist-set subpaths\n");
+				continue;
+			}
+			if (!strcmp(argv[i], "-adpcm2wav"))
+			{
+				vagconvert = true;
+				vagogg = false;
+				vagpcm = false;
+				Verbose("Option: ADPCM->WAV (native) conversion\n");
+				continue;
+			}
+			if (!strcmp(argv[i], "-adpcm2pcm"))
+			{
+				vagconvert = true;
+				vagogg = false;
+				vagpcm = true;
+				Verbose("Option: ADPCM->WAV (PCM) conversion\n");
+				continue;
+			}
+			if (!strcmp(argv[i], "-adpcm2ogg"))
+			{
+				vagconvert = true;
+				vagogg = true;
+				vagpcm = false;
+				Verbose("Option: ADPCM->OGG (Vorbis quality 5) conversion\n");
+				continue;
+			}
+			if (!strcmp(argv[i], "-scanraw"))
+			{
+				scanraw = true;
+				Verbose("Option: Scan for raw filetypes\n");
+				continue;
+			}
+			if (!strcmp(argv[i], "-forcerawtype"))
+			{
+				i++;
+				if (i < argc)
+				{
+					forcerawtype = ParseRawType(argv[i]);
+					Verbose("Option: Guessing all raw images is %s\n", UnparseRawType(forcerawtype));
+				}
+				continue;
+			}
+			if (!strcmp(argv[i], "-raw2tga"))
+			{
+				rawconvert = true;
+				Verbose("Option: Converting raw images to TGA\n");
+				continue;
+			}
+			if (!strcmp(argv[i], "-rawnoalign"))
+			{
+				rawnoalign = true;
+				Verbose("Option: Disable RAW images aligning\n");
+				continue;
+			}
+			if (i != 0)
+				Warning("unknown parameter '%s'",  argv[i]);
+		}
 	}
 
 	// open file & load header
@@ -1582,7 +1818,7 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, list_t *ixlist, qboolean
 
 	// write listfile
 	sprintf(savefile, "%s/listfile.txt", dstdir);
-	f2 = SafeOpen(savefile, "w");
+	f2 = SafeOpenWrite(savefile);
 	BigfileWriteListfile(f2, data);
 	fclose(f2);
 	Print("wrote %s\ndone.\n", savefile);
@@ -1591,17 +1827,34 @@ int BigFile_Unpack(int argc, char **argv, char *dstdir, list_t *ixlist, qboolean
 	return 0;
 }
 
-int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
+int BigFile_Pack(int argc, char **argv)
 {
 	FILE *f;
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
 	tim_image_t *tim;
-	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH];
+	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH], srcdir[MAX_BLOODPATH];
 	byte *contents;
 	int i, k, size;
 
-	data = BigfileOpenListfile(srcdir, lowmem);
+	// check parms
+	strcpy(srcdir, DEFAULT_PACKPATH);
+	if (argc > 0)
+	{
+		if (argv[0][0] != '-')
+		{
+			strcpy(srcdir, argv[0]);
+			Verbose("Option: source directory '%s'\n", srcdir);
+		}
+		for (i = 0; i < argc; i++)
+		{
+			if (i != 0)
+				Warning("unknown parameter '%s'",  argv[i]);
+		}
+	}
+
+	// open listfile
+	data = BigfileOpenListfile(srcdir, true);
 
 	// open bigfile
 	f = fopen(bigfile, "rb");
@@ -1610,7 +1863,7 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 		Verbose("%s already exists, overwriting\n", bigfile);
 		fclose(f);
 	}
-	f = SafeOpen(bigfile, "wb");
+	f = SafeOpenWrite(bigfile);
 
 	// write header
 	SafeWrite(f, &data->numentries, 4);
@@ -1626,10 +1879,6 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 	}
 	PacifierEnd();
 
-	// show options
-	if (lowmem)
-		Print("enabling low memory usage\n");
-
 	// write files
 	for (i = 0; i < (int)data->numentries; i++)
 	{
@@ -1644,12 +1893,11 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 			if (entry->type == BIGENTRY_TIM)
 			{
 				// VorteX: -lomem key support
-				if (lowmem)
-				{
-					sprintf(savefile, "%s/%s", srcdir, entry->name);
-					entry->data = TIM_LoadFromTarga(savefile, entry->timtype[0]);
-				}
-				
+				//	if (lowmem)
+			//	{
+				sprintf(savefile, "%s/%s", srcdir, entry->name);
+				entry->data = TIM_LoadFromTarga(savefile, entry->timtype[0]);
+			//	}
 				tim = entry->data;
 				size = tim->filelen;
 				TIM_WriteToStream(entry->data, f);
@@ -1673,16 +1921,17 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 			else if (entry->type == BIGENTRY_RAW_ADPCM)
 			{
 				// VorteX: -lomem key support
-				if (lowmem)
-				{
+			//	if (lowmem)
+			//	{
 					sprintf(savefile, "%s/%s", srcdir, entry->name);
 					if (!SoX_FileToData(savefile, "--no-dither", "", "-t ima -c 1", &size, &contents))
-						Error("unable to convert %s, SoX Error #%i\n", entry->name, GetLastError());
+						//Error("unable to convert %s, SoX Error #%i\n", entry->name, GetLastError());
+						Error("unable to convert %s, SoX Error\n", entry->name);
 					entry->data = contents;
 
 					if (size != (int)entry->size)
 						Error("entry %.8X (RAW ADPCM): file size changed (%s%i bytes, newsize %i) while packing\n", entry->hash, (size - (int)entry->size) < 0 ? "-" : "+", size - (int)entry->size, size);
-				}
+			//	}
 
 				// write
 				SafeWrite(f, entry->data, entry->size);
@@ -1720,18 +1969,10 @@ int BigFile_Pack(int argc, char **argv, char *srcdir, qboolean lowmem)
 ==========================================================================================
 */
 
-#define MAX_INCLUDELIST		64
-#define MAX_EXCLUDELIST		64
-
 int BigFile_Main(int argc, char **argv)
 {
-	int i = 1, k, returncode = 0;
-	char tofile[MAX_BLOODPATH], srcdir[MAX_BLOODPATH], dstdir[MAX_BLOODPATH], knownfiles[MAX_BLOODPATH], csvfile[MAX_BLOODPATH], format[256], *c;
-	qboolean tim2tga, bpp16to24, lowmem, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, rawnoalign;
-	unsigned int hash;
-	list_t *ixlist;
-	rawtype_t forcerawtype;
-	bigfileentry_t entry;
+	int i = 1, returncode = 0;
+	char knownfiles[MAX_BLOODPATH], *c;
 
 	Verbose("=== BigFile ===\n");
 	if (i < 1)
@@ -1747,135 +1988,44 @@ int BigFile_Main(int argc, char **argv)
 	else
 		strcpy(bigfile, "pill.big");
 
-	// args check
-	if (argc < i + 1)
-		Error("no action specified, try %s -help", progname);
-
-	// parse cmdline
-	strcpy(tofile, "-");
-	strcpy(format, "");
-	strcpy(dstdir, DEFAULT_PACKPATH);
-	strcpy(srcdir, DEFAULT_PACKPATH);
-	strcpy(csvfile, "-");
+	// check for special directives
 	strcpy(knownfiles, "-");
-	tim2tga = false;
-	bpp16to24 = false;
-	lowmem = false;
-	nopaths = false;
-	vagconvert = false;
-	vagpcm = false;
-	vagogg = false;
-	scanraw = false;
-	rawconvert = false;
-	forcerawtype = RAW_TYPE_UNKNOWN;
-	rawnoalign = false;
-	hash = 0;
-	ixlist = NewList();
-	for (k = 2; k < argc; k++)
+	while(i < argc)
 	{
-		if (!strcmp(argv[k],"-to"))
+		if (!strcmp(argv[i], "-klist"))
 		{
-			k++; if (k < argc)
-				strlcpy(tofile, argv[k], sizeof(tofile));
+			i++; 
+			if (i < argc)
+				strlcpy(knownfiles, argv[i], sizeof(knownfiles));
+			i++; 
+			continue;
 		}
-		else if (!strcmp(argv[k],"-dstdir"))
-		{
-			k++; if (k < argc)
-				strlcpy(dstdir, argv[k], sizeof(dstdir));
-		}
-		else if (!strcmp(argv[k],"-srcdir"))
-		{
-			k++; if (k < argc)
-				strlcpy(srcdir, argv[k], sizeof(srcdir));
-		}
-		else if (!strcmp(argv[k],"-klist"))
-		{
-			k++; if (k < argc)
-				strlcpy(knownfiles, argv[k], sizeof(knownfiles));
-		}
-		else if (!strcmp(argv[k],"-extract"))
-		{
-			k++; if (k < argc)
-				sscanf(argv[k], "%X", &hash);
-		}
-		else if (!strcmp(argv[k],"-format"))
-		{
-			k++; if (k < argc)
-				strlcpy(format, argv[k], sizeof(format));
-		}
-		else if (!strcmp(argv[k],"-tim2tga"))
-			tim2tga = true;
-		else if (!strcmp(argv[k],"-csv"))
-		{
-			k++; if (k < argc)
-				strlcpy(csvfile, argv[k], sizeof(csvfile));
-		}
-		else if (!strcmp(argv[k],"-16to24"))
-			bpp16to24 = true;
-		else if (!strcmp(argv[k],"-lowmem"))
-			lowmem = true;
-		else if (!strcmp(argv[k],"-nopaths"))
-			nopaths = true;
-		else if (!strcmp(argv[k],"-vagconvert"))
-			vagconvert = true;
-		else if (!strcmp(argv[k],"-pcm"))
-			vagpcm = true;
-		else if (!strcmp(argv[k],"-oggvorbis"))
-			vagogg = true;
-		else if (!strcmp(argv[k],"-scanraw"))
-			scanraw = true;
-		else if (!strcmp(argv[k],"-forcerawtype"))
-		{
-			k++; if (k < argc)
-				forcerawtype = ParseRawType(argv[k]);
-		}
-		else if (!strcmp(argv[k],"-rawconvert"))
-			rawconvert = true;
-		else if (!strcmp(argv[k],"-noalign"))
-			rawnoalign = true;
-		else if (!strcmp(argv[k],"-x"))
-		{
-			k++; if (k < argc)
-				ListAdd(ixlist, argv[k], false);
-		}
-		else if (!strcmp(argv[k],"-i"))
-		{
-			k++; if (k < argc)
-				ListAdd(ixlist, argv[k], true);
-		}
-		else if (!strcmp(argv[k],"-matchtest"))
-		{
-			k++;
-			if (k < argc)
-			{
-				strlcpy(entry.name, argv[k], sizeof(entry.name));
-				if (MatchIXList(&entry, ixlist, false, true))
-					Print("%s matched\n", argv[k]);
-				else
-					Print("%s not matched\n", argv[k]);
-			}
-		}
+		break;
 	}
-	
-	// load up knowledge base
-	if (knownfiles[0] == '-')
-		bigklist = BigfileLoadKList("klist.txt", true);
-	else
-		bigklist = BigfileLoadKList(knownfiles, false);
 
-	// action
-	if (!strcmp(argv[i], "-list"))
-		returncode = BigFile_List(argc-i, argv+i, tofile, scanraw, csvfile);
-	else if (!strcmp(argv[i], "-analyse"))
-		returncode = BigFile_Analyse(argc-i, argv+i, tofile);
-	else if (!strcmp(argv[i], "-extract"))
-		returncode = BigFile_Extract(argc-i, argv+i, (tofile[0] == '-') ? NULL : tofile, hash, format);
-	else if (!strcmp(argv[i], "-unpack"))
-		returncode = BigFile_Unpack(argc-i, argv+i, dstdir, ixlist, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, forcerawtype, rawnoalign);
-	else if (!strcmp(argv[i], "-pack"))
-		returncode = BigFile_Pack(argc-i, argv+i, srcdir, lowmem);
+	// load up knowledge base
+	// FIXME: stupid code, rewrite
+	if (knownfiles[0] == '-')
+		bigklist = BigfileLoadKList("klist.txt", false);
 	else
-		Warning("unknown option %s", argv[i]);
+	{
+		Print("Using custom known-files-list %s\n", knownfiles);
+		bigklist = BigfileLoadKList(knownfiles, true);
+	}
+
+	// now we have to parse action
+	if (argc <= i)
+		Error("no action specified, try %s -help", progname);
+	if (!strcmp(argv[i], "-list")) 
+		returncode = BigFile_List(argc-i-1, argv+i+1);
+	else if (!strcmp(argv[i], "-extract"))
+		returncode = BigFile_Extract(argc-i-1, argv+i+1);
+	else if (!strcmp(argv[i], "-unpack"))
+		returncode = BigFile_Unpack(argc-i-1, argv+i+1);
+	else if (!strcmp(argv[i], "-pack"))
+		returncode = BigFile_Pack(argc-i-1, argv+i+1);
+	else
+		Warning("unknown action %s", argv[i]);
 
 	return returncode;
 }

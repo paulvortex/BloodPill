@@ -7,7 +7,7 @@
 #include "mem.h"
 #include "soxsupp.h"
 
-#ifdef WIN32
+#if defined(WIN32) || defined(_WIN64)
 #include "windows.h"
 #include <shellapi.h> 
 #pragma comment(lib, "shell32.lib") 
@@ -26,7 +26,7 @@ char soxpath[MAX_BLOODPATH];
 
 qboolean SoX_Init(char *pathtoexe)
 {
-#ifdef WIN32
+#if defined(WIN32) || defined(_WIN64)
 	soxfound = false;
 	sprintf(soxpath, "%s", pathtoexe);
 	if (!FileExists(soxpath))
@@ -47,10 +47,9 @@ qboolean SoX_Init(char *pathtoexe)
 }
 
 // runs SoX on files presented, returs TRUE if succesful
-// Error("SoX Execution Error: #%i", GetLastError());
 qboolean SoX(char *in, char *generalcmd, char *inputcmd, char *outputcmd, char *out)
 {
-#ifdef WIN32
+#if defined(WIN32) || defined(_WIN64)
 	PROCESS_INFORMATION pi;
 	STARTUPINFO si;
 	DWORD exitcode = 0; 
@@ -58,7 +57,7 @@ qboolean SoX(char *in, char *generalcmd, char *inputcmd, char *outputcmd, char *
 
 	if (!soxfound)
 	{
-		SetLastError(SOXSUPP_ERROR_SOXNOTFOUND);
+	//	SetLastError(SOXSUPP_ERROR_SOXNOTFOUND);
 		return false;
 	}
 
@@ -74,7 +73,7 @@ qboolean SoX(char *in, char *generalcmd, char *inputcmd, char *outputcmd, char *
 	CloseHandle(pi.hThread);
 	return true;
 #else
-	SetLastError(SOXSUPP_ERROR_PROCESSFAIL);
+//	SetLastError(SOXSUPP_ERROR_PROCESSFAIL);
 	return false;
 #endif
 }
@@ -177,7 +176,7 @@ qboolean SoX_FileToData(char *in, char *generalcmd, char *inputcmd, char *output
 ==========================================================================================
 */
 
-int VagConvert_Main(int argc, char **argv)
+int AdpcmConvert_Main(int argc, char **argv)
 {
 	char filename[MAX_BLOODPATH], outfile[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], ext[15];
 	char inputcmd[2048], outputcmd[2048], *c;
@@ -214,7 +213,7 @@ int VagConvert_Main(int argc, char **argv)
 		if (!strcmp(argv[i], "-pcm"))
 		{
 			wavpcm = true;
-			Print("Option: export 16-bit PCM RIFF WAVE\n");
+			Verbose("Option: export 16-bit PCM RIFF WAVE\n");
 			sprintf(outputcmd, "-t wav -e signed-integer");
 		}
 		else if (!strcmp(argv[i], "-oggvorbis"))
@@ -227,7 +226,7 @@ int VagConvert_Main(int argc, char **argv)
 				vorbisquality = 10.0f;
 			if (vorbisquality < 0.0f)
 				vorbisquality = 0.0f;
-			Print("Option: export Ogg Vorbis (quality %f)\n", vorbisquality);
+			Verbose("Option: export Ogg Vorbis (quality %f)\n", vorbisquality);
 			sprintf(outputcmd, "-t ogg -C %f", vorbisquality);
 		}
 		else if (!strcmp(argv[i], "-custom"))
@@ -235,14 +234,14 @@ int VagConvert_Main(int argc, char **argv)
 			i++;
 			if (i < argc)
 				sprintf(outputcmd, "%s", argv[i]);
-			Print("Option: custom SoX commandline (%s)\n", outputcmd);
+			Verbose("Option: custom SoX commandline (%s)\n", outputcmd);
 		}
 		else if (!strcmp(argv[i], "-rate"))
 		{
 			i++;
 			if (i < argc)
 				rate = atoi(argv[i]);
-			Print("Option: rate %ihz\n", rate);
+			Verbose("Option: rate %ihz\n", rate);
 		}
 	}
 
@@ -258,7 +257,8 @@ int VagConvert_Main(int argc, char **argv)
 	// run SOX
 	Print("conversion in progress...\n");
 	if (!SoX(filename, "", inputcmd, outputcmd, outfile))
-		Error("SoX Error: #%i", GetLastError());
+		//Error("SoX Error: #%i", GetLastError());
+		Error("SoX Error");
 	Print("done.\n");
 	return 0;
 }

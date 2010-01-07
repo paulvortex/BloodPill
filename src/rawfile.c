@@ -337,6 +337,345 @@ void FreeRawBlock(rawblock_t *block)
 	qfree(block);
 }
 
+// flip all chunks in rawblock, do not return new rawblock but update current
+void RawblockFlip(rawblock_t *rawblock)
+{
+	rawchunk_t *chunk;
+	int i, start, end, p, w;
+	byte pixel;
+
+	// all chunks..
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		chunk = &rawblock->chunk[i];
+		// all lines
+		w = (int)chunk->width/2;
+		for (start = 0; start < chunk->size; start += chunk->width)
+		{
+			end = start + chunk->width - 1;
+			// flip line
+			for (p = 0; p < w; p++)
+			{
+				pixel = chunk->pixels[start + p];
+				chunk->pixels[start + p] = chunk->pixels[end - p];
+				chunk->pixels[end - p] = pixel;
+			}
+		}
+	}
+}
+
+// crop black pixels on raw blocl
+// returns completely new rawblock (only colormap are derived)
+rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margin)
+{
+	int i, r, cropx[2], cropy[2], mincropx[2], mincropy[2], halfwidth, halfheight;
+	rawblock_t *cropblock;
+	byte *buf, *srcbuf, ind;
+	
+	// create new block
+	cropblock = EmptyRawBlock(rawblock->chunks);
+	cropblock->colormap = rawblock->colormap;
+	cropblock->colormapExternal = true;
+
+	// if not cropping each chunk - find minimal/maximal crops
+	if (!cropeachchunk)
+	{
+		mincropx[0] = 100000000;
+		mincropx[1] = 100000000;
+		mincropy[0] = 100000000;
+		mincropy[1] = 100000000;
+		for (i = 0; i < rawblock->chunks; i++)
+		{
+			memset(&cropx, 0, sizeof(cropx));
+			memset(&cropy, 0, sizeof(cropx));
+			halfwidth = (int)(rawblock->chunk[i].width / 2);
+			halfheight = (int)(rawblock->chunk[i].height / 2);
+			// find left crop border
+			while(cropx[0] < halfwidth)
+			{
+				for (r = 0; r < rawblock->chunk[i].height; r++)
+				{
+					ind = rawblock->chunk[i].pixels[r*rawblock->chunk[i].width + cropx[0]];
+					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+						break;
+				}
+				if (r < rawblock->chunk[i].height)
+					break;
+				cropx[0]++;
+			}
+			// right crop border
+			while(cropx[1] < halfwidth)
+			{
+				for (r = 0; r < rawblock->chunk[i].height; r++)
+				{
+					ind = rawblock->chunk[i].pixels[r*rawblock->chunk[i].width + (rawblock->chunk[i].width - cropx[1] - 1)];
+					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+						break;
+				}
+				if (r < rawblock->chunk[i].height)
+					break;
+				cropx[1]++;
+			}
+			// up crop border
+			while(cropy[0] < halfheight)
+			{
+				for (r = 0; r < rawblock->chunk[i].width; r++)
+				{
+					ind = rawblock->chunk[i].pixels[cropy[0]*rawblock->chunk[i].width + r];
+					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+						break;
+				}
+				if (r < rawblock->chunk[i].width)
+					break;
+				cropy[0]++;
+			}
+			// down crop border
+			while(cropy[1] < halfheight)
+			{
+				for (r = 0; r < rawblock->chunk[i].width; r++)
+				{
+					ind = rawblock->chunk[i].pixels[(rawblock->chunk[i].height - cropy[0] - 1)*rawblock->chunk[i].width + r];
+					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+						break;
+				}
+				if (r < rawblock->chunk[i].width)
+					break;
+				cropy[1]++;
+			}
+			// get minimap crop
+			mincropx[0] = min(cropx[0], mincropx[0]);
+			mincropx[1] = min(cropx[1], mincropx[1]);
+			mincropy[0] = min(cropy[0], mincropy[0]);
+			mincropy[1] = min(cropy[1], mincropy[1]);
+		}
+	}
+
+	// crop each chunk
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		if (!cropeachchunk)
+		{
+			// apply margin
+			cropx[0] = max(0, mincropx[0] - margin);
+			cropx[1] = max(0, mincropx[1] - margin);
+			cropy[0] = max(0, mincropy[0] - margin);
+			cropy[1] = max(0, mincropy[1] - margin);
+		}
+		else
+		{
+			memset(&cropx, 0, sizeof(cropx));
+			memset(&cropy, 0, sizeof(cropx));
+			halfwidth = (int)(rawblock->chunk[i].width / 2);
+			halfheight = (int)(rawblock->chunk[i].height / 2);
+			// find left crop border
+			while(cropx[0] < halfwidth)
+			{
+				for (r = 0; r < rawblock->chunk[i].height; r++)
+				{
+					ind = rawblock->chunk[i].pixels[r*rawblock->chunk[i].width + cropx[0]];
+					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+						break;
+				}
+				if (r < rawblock->chunk[i].height)
+					break;
+				cropx[0]++;
+			}
+			// right crop border
+			while(cropx[1] < halfwidth)
+			{
+				for (r = 0; r < rawblock->chunk[i].height; r++)
+				{
+					ind = rawblock->chunk[i].pixels[r*rawblock->chunk[i].width + (rawblock->chunk[i].width - cropx[1] - 1)];
+					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+						break;
+				}
+				if (r < rawblock->chunk[i].height)
+					break;
+				cropx[1]++;
+			}
+			// up crop border
+			while(cropy[0] < halfheight)
+			{
+				for (r = 0; r < rawblock->chunk[i].width; r++)
+				{
+					ind = rawblock->chunk[i].pixels[cropy[0]*rawblock->chunk[i].width + r];
+					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+						break;
+				}
+				if (r < rawblock->chunk[i].width)
+					break;
+				cropy[0]++;
+			}
+			// down crop border
+			while(cropy[1] < halfheight)
+			{
+				for (r = 0; r < rawblock->chunk[i].width; r++)
+				{
+					ind = rawblock->chunk[i].pixels[(rawblock->chunk[i].height - cropy[0] - 1)*rawblock->chunk[i].width + r];
+					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+						break;
+				}
+				if (r < rawblock->chunk[i].width)
+					break;
+				cropy[1]++;
+			}
+			// apply margin
+			cropx[0] = max(0, cropx[0] - margin);
+			cropx[1] = max(0, cropx[1] - margin);
+			cropy[0] = max(0, cropy[0] - margin);
+			cropy[1] = max(0, cropy[1] - margin);
+		}
+		// create cropped image, copy lines
+		RawBlockAllocateChunk(cropblock, i, rawblock->chunk[i].width - cropx[0] - cropx[1], rawblock->chunk[i].height - cropy[0] - cropy[1], 0, 0, false);
+		cropblock->colormap = rawblock->colormap;
+		cropblock->colormapExternal = true;
+		for (r = 0; r < cropblock->chunk[i].height; r++)
+		{
+			buf = cropblock->chunk[i].pixels + r*cropblock->chunk[i].width;
+			srcbuf = rawblock->chunk[i].pixels + (r + cropy[0])*rawblock->chunk[i].width + cropx[0];
+			memcpy(buf, srcbuf, cropblock->chunk[i].width);
+		}
+	}
+
+	return cropblock;
+}
+
+// align all blocks in rawblock to same size
+// returns completely new rawblock (only colormap are derived)
+rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin)
+{
+	int maxwidth, maxheight, i, c, ax, ay, bx, by;
+	rawblock_t *newblock;
+	byte *buf, *srcbuf;
+
+	// detect maxwidth/maxheight
+	maxwidth = maxheight = 0;
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		maxwidth = max(maxwidth, (rawblock->chunk[i].width + rawblock->chunk[i].x));
+		maxheight = max(maxheight, (rawblock->chunk[i].height + rawblock->chunk[i].y));
+	}
+	maxwidth = maxwidth + margin*2;
+	maxheight = maxheight + margin*2;
+
+	// create rawblock
+	newblock = EmptyRawBlock(rawblock->chunks);
+	newblock->colormap = rawblock->colormap;
+	newblock->colormapExternal = true;
+
+	// align chunks
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		bx = rawblock->chunk[i].x + margin;
+		by = rawblock->chunk[i].y + margin;
+		ax = max(0, maxwidth - rawblock->chunk[i].width - bx);
+		ay = max(0, maxheight - rawblock->chunk[i].height - by);
+		RawBlockAllocateChunk(newblock, i, maxwidth, maxheight, 0, 0, false);
+		newblock->colormap = rawblock->colormap;
+		newblock->colormapExternal = true;
+		// write before-lines
+		buf = newblock->chunk[i].pixels;
+		c = by*maxwidth;
+		memset(buf, 0, c);
+		buf += c;
+		// write center
+		for(c = 0; c < rawblock->chunk[i].height; c++)
+		{
+			// write before=rows
+			memset(buf, 0, bx);
+			buf += bx;
+			// write pixels
+			srcbuf = rawblock->chunk[i].pixels + c*rawblock->chunk[i].width;
+			memcpy(buf, srcbuf, rawblock->chunk[i].width);
+			buf += rawblock->chunk[i].width;
+			// write after-rows
+			memset(buf, 0, ax);
+			buf += ax;
+		}
+		// write after-lines
+		c = ay*maxwidth;
+		memset(buf, 0, c);
+		buf += c;
+	}
+
+	return newblock;
+}
+
+// returns new "sliced" rawblock using includelist
+// includelist is order-dependent, same chunks could be added twice and more
+// note that all pixeldata will be external, so after base rawblock get freed this rawblock will be invalid
+// also all changes on this rawblock will affect pixels of base one
+rawblock_t *RawblockPerturbate(rawblock_t *rawblock, list_t *includelist)
+{
+	char *buf;
+	rawblock_t *newblock;
+	int i, c, start, end, numchunks;
+
+	// first pass - query number of records to add
+	numchunks = 0;
+	for (i = 0; i < includelist->items; i++)
+	{
+		buf = includelist->item[i];
+		// start-end
+		if (!sscanf(buf, "%i-%i", &start, &end))
+			start = end = atoi(buf);
+		// bound start/end
+		if (start < 0)
+			start = 0;
+		if (end >= rawblock->chunks)
+			end = rawblock->chunks - 1;
+		if (start > end)
+			continue;
+		// increase number of chunks
+		numchunks = numchunks + (end - start) + 1;
+	}
+
+	// second pass - make rawblock
+	newblock = EmptyRawBlock(numchunks);
+	newblock->colormap = rawblock->colormap;
+	newblock->colormapExternal = true;
+	for (i = 0, c = 0; i < includelist->items && c < numchunks; i++)
+	{
+		buf = includelist->item[i];
+		// start-end
+		if (!sscanf(buf, "%i-%i", &start, &end))
+			start = end = atoi(buf);
+		// bound start/end
+		if (start < 0)
+			start = 0;
+		if (end >= rawblock->chunks)
+			end = rawblock->chunks - 1;
+		if (start > end)
+			continue;
+		// add range to rawblock
+		while(start <= end)
+		{
+			if (c >= numchunks) // should never happen
+			{
+				Warning("RawblockSlice: chunk index overflow!");
+				break;
+			}
+			// copy chunk
+			newblock->chunk[c].colormap = rawblock->chunk[start].colormap;
+			newblock->chunk[c].colormapExternal = true;
+			newblock->chunk[c].flagbit = rawblock->chunk[start].flagbit;
+			newblock->chunk[c].width = rawblock->chunk[start].width;
+			newblock->chunk[c].height = rawblock->chunk[start].height;
+			newblock->chunk[c].size = rawblock->chunk[start].size;
+			newblock->chunk[c].offset = rawblock->chunk[start].offset;
+			newblock->chunk[c].pixels = rawblock->chunk[start].pixels;
+			newblock->chunk[c].pixelsExternal = true;
+			newblock->chunk[c].x = rawblock->chunk[start].x;
+			newblock->chunk[c].y = rawblock->chunk[start].y;
+
+			c++;
+			start++;
+		}
+	}
+
+	return newblock;
+}
+
 /*
 ==========================================================================================
 
@@ -371,7 +710,7 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 	// create targa header
 	buffer = qmalloc(pixelbytes*(int)(bpp / 8) + ((bpp == 8) ? 768 : 0) + 18);
 	memset(buffer, 0, 18);
-	f = SafeOpen(outfile, "wb");
+	f = SafeOpenWrite(outfile);
 	if (bpp == 8)
 	{
 		buffer[1] = 1;
@@ -1653,7 +1992,7 @@ int Raw_Main(int argc, char **argv)
 	if (rawblock->errorcode < 0)
 		Print("Raw error code %i: %s\n", rawblock->errorcode, RawStringForResult(rawblock->errorcode));
 	else
-		TGAfromRAW(rawblock, &rawinfo, outfile, rawnoalign, true);
+		TGAfromRAW(rawblock, &rawinfo, outfile, rawnoalign, true, false);
 	FreeRawBlock(rawblock);
 	Print("done.\n");
 	return 0;

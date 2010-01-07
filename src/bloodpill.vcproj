@@ -185,6 +185,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\sprfile.c"
+				>
+			</File>
+			<File
 				RelativePath="timfile.c"
 				>
 				<FileConfiguration
@@ -223,6 +227,10 @@
 			</File>
 			<File
 				RelativePath="soxsupp.h"
+				>
+			</File>
+			<File
+				RelativePath=".\sprfile.h"
 				>
 			</File>
 			<File

@@ -24,6 +24,13 @@ typedef unsigned char byte;
 // LordHavoc: increased maximum token length from 128 to 16384
 #define	MAXTOKEN	16384
 
+// VorteX: avoid 'deprecated' messages
+#if _MSC_VER >= 1400
+#define stricmp _stricmp
+#define strnicmp _strnicmp
+#define mkdir _mkdir
+#endif
+
 // lists, used for several switches
 #define MAX_LIST_ITEMS	256
 typedef struct list_s
@@ -64,7 +71,6 @@ extern int CheckParm (char *check);
 
 extern FILE *SafeOpen (char *filename, char mode[]);
 extern FILE *SafeOpenWrite (char *filename);
-extern FILE *SafeOpenRead (char *filename);
 extern void SafeRead (FILE *f, void *buffer, int count);
 extern void SafeWrite (FILE *f, void *buffer, int count);
 
@@ -83,6 +89,7 @@ void AddSuffix(char *outpath, char *inpath, char *suffix);
 extern qboolean FileExists(char *filename);
 
 extern int ParseNum (char *str);
+int ParseHex(char *hex);
 
 extern short BigShort (short l);
 extern short LittleShort (short l);

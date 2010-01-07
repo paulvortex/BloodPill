@@ -585,7 +585,7 @@ void TIM_WriteTargaGrayscale(char *data, short width, short height, char *savefi
 	}
 
 	// write file
-	f = SafeOpen(savefile, "wb");
+	f = SafeOpenWrite(savefile);
 	fwrite(buffer, width*height + 18, 1, f);
 	fclose(f);
 	qfree(buffer);
@@ -602,7 +602,7 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
 		return; // don't write erroneous TIM
 
 	// write header
-	f = SafeOpen(savefile, "wb");
+	f = SafeOpenWrite(savefile);
 	switch(tim->type)
 	{
 		case TIM_4Bit:
@@ -906,7 +906,7 @@ int Targa2Tim_Main(int argc, char **argv)
 	TimEmitStats(tim);
 
 	Print("writing %s\n", outfile);
-	f = SafeOpen(outfile, "wb");
+	f = SafeOpenWrite(outfile);
 	TIM_WriteToStream(tim, f);
 	fclose(f);
 	Print("done.\n");

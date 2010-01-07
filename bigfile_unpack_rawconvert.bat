@@ -1,1 +1,0 @@
-bpill -w -mem -bigfile pill.big -unpack -scanraw -rawconvert

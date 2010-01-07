@@ -1,25 +1,17 @@
 // Useful Functions Library
 // coded by  Forest [LordHavoc] Hale
 
-#ifndef WIN32
-#define USEGETTIMEOFDAY 1
-#endif
-
 #define PATHSEPERATOR   '/'
 #define __USE_BSD 1
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef WIN32
+#if defined(WIN32) || defined(_WIN64)
 #include <limits.h>
 #include <direct.h>
 #include <windows.h>
 #endif
 #include "cmdlib.h"
-#if USEGETTIMEOFDAY
-#include <sys/time.h>
-#include <unistd.h>
-#endif
 
 #include "mem.h"
 #include "bloodpill.h"
@@ -146,7 +138,7 @@ void ListAdd(list_t *list, const char *str, unsigned char x)
 		return;
 	if (list->items >= MAX_LIST_ITEMS)
 		return;
-	list->item[list->items] = qmalloc(strlen(str));
+	list->item[list->items] = qmalloc(strlen(str)+1);
 	list->x[list->items] = x;
 	strcpy(list->item[list->items], str);
 	list->items++;
@@ -209,7 +201,7 @@ I_DoubleTime
 */
 double I_DoubleTime (void)
 {
-#ifdef WIN32
+#if defined(WIN32) || defined(_WIN64)
 	static DWORD starttime;
 	static qboolean first = true;
 	DWORD now;
@@ -233,22 +225,6 @@ double I_DoubleTime (void)
 		return 0.0;
 
 	return (now - starttime) / 1000.0;
-#elif USEGETTIMEOFDAY
-	// LordHavoc: see top of file to disable this cleanly if your system does not support it
-#include <time.h>
-	struct timeval	tp;
-	struct timezone	tzp;
-	static int		secbase;
-
-	gettimeofday(&tp, &tzp);
-
-	if (!secbase)
-	{
-		secbase = tp.tv_sec;
-		return tp.tv_usec/1000000.0;
-	}
-
-	return (tp.tv_sec - secbase) + tp.tv_usec/1000000.0;
 #else
 	time_t	t;
 
@@ -258,29 +234,10 @@ double I_DoubleTime (void)
 #endif
 }
 
-/*
-void Q_getwd (char *out)
-{
-#ifdef WIN32
-   _getcwd (out, 256);
-   strcat (out, "\\");
-#else
-   getwd (out);
-   strcat (out, "/");
-#endif
-}
-*/
-/*
-void Q_getwd (char *out)
-{
-  getwd (out);
-}
-*/
-
 // single mkdir
 void Q_mkdir (char *path)
 {
-#ifdef WIN32
+#if defined(WIN32) || defined(_WIN64)
   if (mkdir (path) != -1)
 #else
   if (mkdir (path, 0777) != -1)
@@ -326,7 +283,7 @@ int	FileTime (char *path)
   if (stat (path,&buf) == -1)
     return -1;
 
-  return buf.st_mtime;
+  return (int)buf.st_mtime;
 }
 
 
@@ -580,27 +537,17 @@ FILE *SafeOpen (char *filename, char mode[])
 FILE *SafeOpenWrite (char *filename)
 {
   FILE	*f;
+  char path[MAX_BLOODPATH];
 
+  // automatically make dir structure
+  ExtractFilePath(filename, path);
+  FS_CreatePath(path);
+  // open file
   f = fopen(filename, "wb");
-
   if (!f)
-    Error ("Error opening %s: %s",filename,strerror(errno));
-
+	Error ("Error opening %s: %s",filename,strerror(errno));
   return f;
 }
-
-FILE *SafeOpenRead (char *filename)
-{
-  FILE	*f;
-
-  f = fopen(filename, "rb");
-
-  if (!f)
-    Error ("Error opening %s: %s",filename,strerror(errno));
-
-  return f;
-}
-
 
 void SafeRead (FILE *f, void *buffer, int count)
 {
@@ -628,7 +575,7 @@ int    LoadFile (char *filename, void **bufferptr)
   int    length;
   void    *buffer;
 
-  f = SafeOpenRead (filename);
+  f = SafeOpen(filename, "rb");
   length = Q_filelength (f);
   buffer = qmalloc (length+1);
   ((char *)buffer)[length] = 0;
@@ -645,11 +592,11 @@ int    LoadFile (char *filename, void **bufferptr)
 SaveFile
 ==============
 */
-void    SaveFile (char *filename, void *buffer, int count)
+void SaveFile (char *filename, void *buffer, int count)
 {
   FILE	*f;
 
-  f = SafeOpenWrite (filename);
+  f = SafeOpenWrite(filename);
   SafeWrite (f, buffer, count);
   fclose (f);
 }
@@ -665,7 +612,6 @@ void DefaultPath (char *path, char *basepath)
   strcpy (path,basepath);
   strcat (path,temp);
 }
-
 
 void ReplaceExtension (char *path, char *oldextension, char *replacementextension, char *missingextension)
 {
