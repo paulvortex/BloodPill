@@ -47,7 +47,7 @@ qboolean SoX_Init(char *pathtoexe)
 }
 
 // runs SoX on files presented, returs TRUE if succesful
-qboolean SoX(char *in, char *generalcmd, char *inputcmd, char *outputcmd, char *out)
+qboolean SoX(char *in, char *generalcmd, char *inputcmd, char *outputcmd, char *out, char *effects)
 {
 #if defined(WIN32) || defined(_WIN64)
 	PROCESS_INFORMATION pi;
@@ -63,8 +63,8 @@ qboolean SoX(char *in, char *generalcmd, char *inputcmd, char *outputcmd, char *
 
 	// run progress
 	GetStartupInfo(&si);
-	sprintf(cmd, "%s %s %s \"%s\" %s \"%s\"", soxpath, generalcmd, inputcmd, in, outputcmd, out);
-	//Print("cmd %s\n", cmd);
+	sprintf(cmd, "%s %s %s \"%s\" %s \"%s\" %s", soxpath, generalcmd, inputcmd, in, outputcmd, out, effects);
+	//Print("SoX: %s\n", cmd);
 	memset(&pi, 0, sizeof(PROCESS_INFORMATION)); 
 	if (!CreateProcess(NULL, cmd, NULL, NULL, false, 0, NULL, NULL, &si, &pi))
 		return false;
@@ -79,7 +79,7 @@ qboolean SoX(char *in, char *generalcmd, char *inputcmd, char *outputcmd, char *
 }
 
 // runs SoX on data presented and allocates output data
-qboolean SoX_DataToData(byte *data, int databytes, char *generalcmd, char *inputcmd, char *outputcmd, int *outdatabytesptr, void **outdataptr)
+qboolean SoX_DataToData(byte *data, int databytes, char *generalcmd, char *inputcmd, char *outputcmd, int *outdatabytesptr, void **outdataptr, char *effects)
 {	
 	char in[MAX_BLOODPATH], out[MAX_BLOODPATH], *outdata;
 	int outdatabytes;
@@ -95,7 +95,7 @@ qboolean SoX_DataToData(byte *data, int databytes, char *generalcmd, char *input
 	SaveFile(in, data, databytes);
 
 	// run
-	sox = SoX(in, generalcmd, inputcmd, outputcmd, out);
+	sox = SoX(in, generalcmd, inputcmd, outputcmd, out, effects);
 	if (!sox)
 		return false;
 
@@ -116,7 +116,7 @@ qboolean SoX_DataToData(byte *data, int databytes, char *generalcmd, char *input
 }
 
 // runs SoX on data presented and saves output file
-qboolean SoX_DataToFile(byte *data, int databytes, char *generalcmd, char *inputcmd, char *outputcmd, char *outfile)
+qboolean SoX_DataToFile(byte *data, int databytes, char *generalcmd, char *inputcmd, char *outputcmd, char *outfile, char *effects)
 {	
 	char in[MAX_BLOODPATH];
 	qboolean sox;
@@ -128,7 +128,7 @@ qboolean SoX_DataToFile(byte *data, int databytes, char *generalcmd, char *input
 	SaveFile(in, data, databytes);
 
 	// run
-	sox = SoX(in, generalcmd, inputcmd, outputcmd, outfile);
+	sox = SoX(in, generalcmd, inputcmd, outputcmd, outfile, effects);
 	if (!sox)
 		return false;
 
@@ -139,7 +139,7 @@ qboolean SoX_DataToFile(byte *data, int databytes, char *generalcmd, char *input
 }
 
 // runs SoX on file and allocates output data
-qboolean SoX_FileToData(char *in, char *generalcmd, char *inputcmd, char *outputcmd, int *outdatabytesptr, void **outdataptr)
+qboolean SoX_FileToData(char *in, char *generalcmd, char *inputcmd, char *outputcmd, int *outdatabytesptr, void **outdataptr, char *effects)
 {	
 	char out[MAX_BLOODPATH], *outdata;
 	int outdatabytes;
@@ -150,7 +150,7 @@ qboolean SoX_FileToData(char *in, char *generalcmd, char *inputcmd, char *output
 	//tmpnam(out);
 
 	// run
-	sox = SoX(in, generalcmd, inputcmd, outputcmd, out);
+	sox = SoX(in, generalcmd, inputcmd, outputcmd, out, effects);
 	if (!sox)
 		return false;
 
@@ -256,7 +256,7 @@ int AdpcmConvert_Main(int argc, char **argv)
 
 	// run SOX
 	Print("conversion in progress...\n");
-	if (!SoX(filename, "", inputcmd, outputcmd, outfile))
+	if (!SoX(filename, "", inputcmd, outputcmd, outfile, ""))
 		//Error("SoX Error: #%i", GetLastError());
 		Error("SoX Error");
 	Print("done.\n");

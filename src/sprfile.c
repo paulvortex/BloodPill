@@ -144,9 +144,9 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 				color[1] = colormap[d*3 + 1];
 				color[2] = colormap[d*3 + 2];
 				//if (shadowpixel >= 0 && !memcmp(colormap + shadowpixel*3, color, 3))
-				if (shadowpixel >= 0 && (d == 15 || d == 31 || d == 47 || d == 63 || d == 79 || d == 95 || d == 111 || d == 127 || d == 143 || d == 159 || d == 175 || d == 191 || d == 207 || d == 223 || d == 239 || d == 255))
+				if (shadowpixel >= 0 && d == 15)
 					color[3] = shadowalpha;
-				else if (!memcmp(colormap, color, 3))
+				else if (d == 0)
 					color[3] = 0;
 				else
 					color[3] = 255;

@@ -927,20 +927,6 @@ byte *ReadColormap(unsigned char *buffer, int filelen, int offset, int palbytes)
 	return colormap;
 }
 
-// perturbate colormap for halfwidth compression used for type3 and type4
-void PerturbateColormapForHWCompression(byte *colormap)
-{
-	byte i, j;
-
-	for (i = 1; i < 16; i++)
-	for (j = 0; j < 16; j++)
-	{
-		colormap[i*16*3 + j*3] = colormap[i*3];
-		colormap[i*16*3 + j*3 + 1] = colormap[i*3 + 1];
-		colormap[i*16*3 + j*3 + 2] = colormap[i*3 + 2];
-	}
-}
-
 // read run-lenght encoded stream, return startpos, error codes are < 0
 int ReadRLCompressedStream(byte *outbuf, byte *inbuf, int startpos, int buflen, int readpixels, qboolean decomress255, qboolean usehalfwidthcompression, qboolean forced)
 {
@@ -948,7 +934,7 @@ int ReadRLCompressedStream(byte *outbuf, byte *inbuf, int startpos, int buflen, 
 	byte pixel, nullpixelsi;
 
 	#define readpixel() if (startpos >= buflen) { return RAWX_ERROR_COMPRESSED_READ_OVERFLOW; } else { pixel = inbuf[startpos]; startpos++; }
-	#define writepixel(f) if (pixelpos >= readpixels) {  if (!forced) return RAWX_ERROR_COMPRESSED_UNPACK_OVERFLOW; } else { if (usehalfwidthcompression) { outbuf[pixelpos] = f - (int)(f/16)*16; pixelpos++; } outbuf[pixelpos] = f; pixelpos++; }
+	#define writepixel(f) if (pixelpos >= readpixels) {  if (!forced) return RAWX_ERROR_COMPRESSED_UNPACK_OVERFLOW; } else { if (usehalfwidthcompression) { outbuf[pixelpos] = f - (int)(f/16)*16; pixelpos++; outbuf[pixelpos] = (int)(f/16); } else outbuf[pixelpos] = f; pixelpos++; }
 
 	if (readpixels == 0)
 	{
@@ -1145,6 +1131,8 @@ rawblock_t *RawExtract_Type1(unsigned char *buffer, int filelen, rawinfo_t *rawi
 {
 	rawblock_t *rawblock;
 
+	if (!testonly && verbose)
+		Print("extracting type1\n");
 	if (buffer[0] != 1)
 		return RawErrorBlock(NULL, RAWX_ERROR_HEADER_NOT_VALID); // header not valid
 	if (buffer[784] > 120 || buffer[785] > 120 || buffer[784]*buffer[785] < 0)
@@ -1197,6 +1185,8 @@ rawblock_t *RawExtract_Type2(unsigned char *buffer, int filelen, rawinfo_t *rawi
 	rawblock_t *rawblock;
 	byte *chunk;
 
+	if (!testonly && verbose)
+		Print("extracting type2\n");
 	// read header
 	numobjects = buffer[1] * 256 + buffer[0];
 	if (verbose == true)
@@ -1335,6 +1325,8 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	rawchunk_t *rawchunk;
 	rawblock_t *rawblock;
 
+	if (!testonly && verbose)
+		Print("extracting type3\n");
 	// check headers
 	if (filelen < 780)
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
@@ -1419,8 +1411,6 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 			}
 		}
 	}
-	if (halfres)
-		PerturbateColormapForHWCompression(rawblock->colormap);
 	#undef detect
 
 	// read pixels
@@ -1479,6 +1469,8 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	qboolean halfres;
 	byte *chunk;
 
+	if (!testonly && verbose)
+		Print("extracting type4\n");
 	// check header
 	if (filelen < 782)
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
@@ -1550,8 +1542,6 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	detect()
 	if (i < numobjects)
 		halfres = false;
-	else
-		PerturbateColormapForHWCompression(rawblock->colormap);
 	#undef detect
 
 	// read pixels
@@ -1608,6 +1598,8 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	rawblock_t *rawblock;
 	byte *chunk;
 
+	if (!testonly && verbose)
+		Print("extracting type5\n");
 	// check header
 	if (filelen < 776)
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
@@ -1726,6 +1718,8 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	byte *colormapdata;
 	byte *in, *out;
 
+	if (!testonly && verbose)
+		Print("extracting type7\n");
 	// as this format is unfinished, don't find if scanning, only direct request
 	if (testonly)
 		return RawErrorBlock(NULL, -1);

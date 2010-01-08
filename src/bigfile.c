@@ -586,7 +586,7 @@ void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry, qboolean lowme
 	if (entry->type == BIGENTRY_RAW_ADPCM)
 	{
 		sprintf(filename, "%s/%s", srcdir, entry->name);
-		if (!SoX_FileToData(filename, "--no-dither", "", "-t ima -c 1", &size, &contents))
+		if (!SoX_FileToData(filename, "--no-dither", "", "-t ima -c 1", &size, &contents, ""))
 			//Error("unable to convert %s, SoX Error #%i\n", entry->name, GetLastError());
 			Error("unable to convert %s, SoX Error\n", entry->name);
 		entry->data = contents;
@@ -939,7 +939,7 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 			sprintf(outputcmd, "-t wav -e signed-integer");
 		else 
 			sprintf(outputcmd, "-t wav");
-		if (SoX_DataToFile(entry->data, entry->size, "--no-dither", inputcmd, outputcmd, savefile))
+		if (SoX_DataToFile(entry->data, entry->size, "--no-dither", inputcmd, outputcmd, savefile, ""))
 			sprintf(entry->name, (vagogg) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.tx
 		else
 		{
@@ -1366,8 +1366,9 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	sprtype_t spritetype = SPR_VP_PARALLEL;
 	rawblock_t *tb1, *tb2, *tb3;
 	qboolean noalign, nocrop, flip;
-	byte shadowalpha, c[3];
+	byte shadowalpha;
 	list_t *includelist;
+	byte pix, shadowpix;
 
 	// additional parms
 	includelist = NewList();
@@ -1380,6 +1381,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	spritey = 0;
 	spritesp = -1;
 	spriteflags = 0;
+	shadowpix = 15;
 	for (i = 2; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-oriented"))
@@ -1422,12 +1424,38 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			if (i < argc)
 			{
 				num = ParseHex(argv[i]);
-				c[0] = (byte)((num >> 16) & 0xFF);
-				c[1] = (byte)((num >> 8) & 0xFF);
-				c[2] = (byte)(num & 0xFF);
-				for (num = 0; num < 256; num += 16)
-					memcpy(rawblock->colormap + num*3, c, 3);
+				rawblock->colormap[0] = (byte)((num >> 16) & 0xFF);
+				rawblock->colormap[1] = (byte)((num >> 8) & 0xFF);
+				rawblock->colormap[2] = (byte)(num & 0xFF);
 				Verbose("Option: custom background color '%i %i %i'\n", rawblock->colormap[0], rawblock->colormap[1], rawblock->colormap[2]);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-altcolor"))
+		{
+			i++;
+			if (i < argc)
+			{
+				pix = (byte)atoi(argv[i]);
+				i++;
+				if (i < argc)
+				{
+					num = ParseHex(argv[i]);
+					rawblock->colormap[pix*3] = (byte)((num >> 16) & 0xFF);
+					rawblock->colormap[pix*3 + 1] = (byte)((num >> 8) & 0xFF);
+					rawblock->colormap[pix*3 + 2] = (byte)(num & 0xFF);
+					Verbose("Option: replace colormap index #%i by '%i %i %i'\n", rawblock->colormap[pix*3 + 0], rawblock->colormap[pix*3 + 1], rawblock->colormap[pix*3 + 2]);
+				}
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-shadowpixel"))
+		{
+			i++;
+			if (i < argc)
+			{
+				shadowpix = (byte)atoi(argv[i]);
+				Verbose("Option: shadow pixel index #%i\n", shadowpix);
 			}
 			continue;
 		}
@@ -1437,12 +1465,10 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			if (i < argc)
 			{
 				num = ParseHex(argv[i]);
-				c[0] = (byte)((num >> 16) & 0xFF);
-				c[1] = (byte)((num >> 8) & 0xFF);
-				c[2] = (byte)(num & 0xFF);
-				for (num = 15; num < 256; num += 16)
-					memcpy(rawblock->colormap + num*3, c, 3);
-				Verbose("Option: custom shadow color '%i %i %i'\n", rawblock->colormap[255*3 + 0], rawblock->colormap[255*3 + 1], rawblock->colormap[255*3 + 2]);
+				rawblock->colormap[shadowpix*3] = (byte)((num >> 16) & 0xFF);
+				rawblock->colormap[shadowpix*3 + 1] = (byte)((num >> 8) & 0xFF);
+				rawblock->colormap[shadowpix*3 + 2] = (byte)(num & 0xFF);
+				Verbose("Option: custom shadow color '%i %i %i'\n", rawblock->colormap[shadowpix*3], rawblock->colormap[shadowpix*3 + 1], rawblock->colormap[shadowpix*3 + 2]);
 			}
 			continue;
 		}
@@ -1546,10 +1572,58 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	if (tb3) FreeRawBlock(tb3);
 }
 
+void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *entry, char *infileformat, char *format)
+{
+	char effects[1024], temp[1024];
+	double trim;
+	int i;
+
+	if (!soxfound)
+		Error("SoX not found!");
+
+	// additional parms
+	trim = 0.0;
+	strcpy(effects, "");
+	for (i = 2; i < argc; i++)
+	{
+		if (!strcmp(argv[i], "-trimstart"))
+		{
+			i++;
+			if (i < argc)
+			{
+				trim = atof(argv[i]);
+				Verbose("Option: trim start by %f seconds\n", trim);
+			}
+			continue;
+		}
+		Warning("unknown parameter '%s'",  argv[i]);
+	}
+
+	// get format
+	if (!stricmp(format, "wav"))
+		strcpy(format, "-t wav -e signed-integer");
+	else if (!stricmp(format, "ogg"))
+		strcpy(format, "-t ogg -C 7");
+	else
+		Verbose("Option: using custom format '%s'\n", format);
+
+	// effects
+	if (trim)
+	{
+		strcpy(temp, effects);
+		sprintf(effects, "trim %f %s", trim, temp);
+	}
+	Print("effects: %s\n", effects);
+
+	// run SoX
+	if (!SoX_DataToFile(entry->data, entry->size, "--no-dither", infileformat, format, outfile, effects))
+		Error("SoX error\n");
+}
+
 // "-bigfile c:/pill.big -extract 0AD312F45 0AD312F45.tga"
 int BigFile_Extract(int argc, char **argv)
 {
-	char filename[MAX_BLOODPATH], basename[MAX_BLOODPATH], outfile[MAX_BLOODPATH], format[256], last;
+	char filename[MAX_BLOODPATH], basename[MAX_BLOODPATH], outfile[MAX_BLOODPATH], format[512], last;
 	unsigned int hash;
 	bigfileentry_t *entry;
 	rawblock_t *rawblock;
@@ -1595,7 +1669,17 @@ int BigFile_Extract(int argc, char **argv)
 	
 	// raw extract (no conversion)
 	if (!stricmp(format, "raw"))
-		return 0;	
+	{
+		// load file contents
+		entry->data = qmalloc(entry->size);
+		BigfileSeekContents(f, entry->data, entry);
+		// save file
+		SaveFile(outfile, entry->data, entry->size);
+		qfree(entry->data);
+		entry->data = NULL;
+		fclose(f);
+		return 0;
+	}
 
 	// get outfile
 	if (outfile == NULL)
@@ -1640,17 +1724,25 @@ int BigFile_Extract(int argc, char **argv)
 			Error("ADPCM files not supported\n");
 			break;
 		case BIGENTRY_RIFF_WAVE:
-			Error("WAVE files not supported\n");
+			// load file contents
+			entry->data = qmalloc(entry->size);
+			BigfileSeekContents(f, entry->data, entry);
+			// process
+			BigFile_ExtractSound(argc, argv, outfile, entry, "", format);
+			// close
+			qfree(entry->data);
+			entry->data = NULL;
+			fclose(f);
 			break;
 		case BIGENTRY_RAW_IMAGE:
 			// read file contents and convert to rawblock, then pass to extraction func
 			entry->data = qmalloc(entry->size);
 			BigfileSeekContents(f, entry->data, entry);
 			rawblock = RawExtract(entry->data, entry->size, entry->rawinfo, false, false, RAW_TYPE_UNKNOWN);
-			qfree(entry->data);
 			entry->data = NULL;
 			BigFile_ExtractRawImage(argc, argv, outfile, entry, rawblock, format);
 			FreeRawBlock(rawblock);
+			qfree(entry->data);
 			break;
 		case BIGENTRY_VAG:
 			Error("Vag files not supported");
@@ -1924,7 +2016,7 @@ int BigFile_Pack(int argc, char **argv)
 			//	if (lowmem)
 			//	{
 					sprintf(savefile, "%s/%s", srcdir, entry->name);
-					if (!SoX_FileToData(savefile, "--no-dither", "", "-t ima -c 1", &size, &contents))
+					if (!SoX_FileToData(savefile, "--no-dither", "", "-t ima -c 1", &size, &contents, ""))
 						//Error("unable to convert %s, SoX Error #%i\n", entry->name, GetLastError());
 						Error("unable to convert %s, SoX Error\n", entry->name);
 					entry->data = contents;
