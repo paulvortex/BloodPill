@@ -2,6 +2,7 @@
 set B=bpill -f -bigfile pill.big -extract
 set EXT=spr32
 
+echo processing kain model...
 REM --- kain alive ----
 %B% 5728197C kain0al0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-31 -ofs -40 45
 %B% 5728197C kain0al1.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 32-63 -ofs -63 50
@@ -40,6 +41,7 @@ REM --- kain spell effects ---
 %B% 17056235 kainreds.%EXT% -parallel -i 0-20 -ofs -39 41
 %B% 0D1F7A28 kaingrns.%EXT% -parallel -i 0-15 -ofs -39 41
 
+echo processing monsters...
 REM --- green skeleton ---
 %B% 79671C58 skel0wr0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -52 52
 %B% 79671C58 skel0wr1.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -52 52
@@ -74,6 +76,7 @@ REM --- ghoul ---
 %B% 79671C58 ghoulwk7.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -52 52 -flip
 %B% 79671C58 ghoulwkD.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 200-207 -ofs -52 52
 
+echo processing wav sounds...
 REM --- sounds ---
 %B% 12046C45 firesword1.wav
 %B% 1413141E firesword2.wav
@@ -120,10 +123,22 @@ REM --- sounds ---
 %B% 56286765 mechanic.wav
 %B% 5A341272 slash.wav
 
+echo processing music...
 REM --- music ---
-%B% 2574636C track01.ogg
+%B% 2574636C track01.ogg -ir 22050
+%B% 2577636C track02.ogg -ir 22050
+%B% 2570636C track03.ogg -ir 22050
+%B% 257C636C track04.ogg -ir 22050
+%B% 2572636C track05.ogg -ir 22050
+%B% 2575626C track06.ogg -ir 22050
+%B% 2575636C track07.ogg -ir 22050
+%B% 2571636C track08.ogg -ir 22050
+%B% 257D636C track09.ogg -ir 22050
+%B% 2573636C track10.ogg -ir 22050
+%B% 2576636C track11.ogg -ir 22050
 
 
+echo copy files...
 REM --- copy models ---
 set P=J:\Projects\SVN\bo1\
 mkdir %P%kain\models\legacy
@@ -138,6 +153,6 @@ move *.wav %P%kain\sound\legacy\
 REM --- copy cdtracks ---
 mkdir %P%kain\sound\cdtracks
 del %P%kain\sound\legacy\*.ogg /Q
-move *.wav %P%kain\sound\cdtracks\
+move *.ogg %P%kain\sound\cdtracks\
 
 pause

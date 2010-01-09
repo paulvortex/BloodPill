@@ -1574,9 +1574,9 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 
 void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *entry, char *infileformat, char *format)
 {
-	char effects[1024], temp[1024];
+	char informat[1024], effects[1024], temp[1024];
 	double trim;
-	int i;
+	int i, ir;
 
 	if (!soxfound)
 		Error("SoX not found!");
@@ -1584,6 +1584,7 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 	// additional parms
 	trim = 0.0;
 	strcpy(effects, "");
+	ir = 0;
 	for (i = 2; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-trimstart"))
@@ -1593,6 +1594,16 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 			{
 				trim = atof(argv[i]);
 				Verbose("Option: trim start by %f seconds\n", trim);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-ir"))
+		{
+			i++;
+			if (i < argc)
+			{
+				ir = atoi(argv[i]);
+				Verbose("Option: input rate %ihz\n", ir);
 			}
 			continue;
 		}
@@ -1607,16 +1618,23 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 	else
 		Verbose("Option: using custom format '%s'\n", format);
 
+	// input parms
+	strcpy(informat, infileformat);
+	if (ir)
+	{
+		strcpy(temp, informat);
+		sprintf(informat, "%s -r %i", temp, ir);
+	}
+
 	// effects
 	if (trim)
 	{
 		strcpy(temp, effects);
 		sprintf(effects, "trim %f %s", trim, temp);
 	}
-	Print("effects: %s\n", effects);
 
 	// run SoX
-	if (!SoX_DataToFile(entry->data, entry->size, "--no-dither", infileformat, format, outfile, effects))
+	if (!SoX_DataToFile(entry->data, entry->size, "--no-dither", informat, format, outfile, effects))
 		Error("SoX error\n");
 }
 
@@ -1721,7 +1739,15 @@ int BigFile_Extract(int argc, char **argv)
 				Error("unknown format '%s'\n", format);
 			break;
 		case BIGENTRY_RAW_ADPCM:
-			Error("ADPCM files not supported\n");
+			// load file contents
+			entry->data = qmalloc(entry->size);
+			BigfileSeekContents(f, entry->data, entry);
+			// process
+			BigFile_ExtractSound(argc, argv, outfile, entry, "-t ima -c 1", format);
+			// close
+			qfree(entry->data);
+			entry->data = NULL;
+			fclose(f);
 			break;
 		case BIGENTRY_RIFF_WAVE:
 			// load file contents
