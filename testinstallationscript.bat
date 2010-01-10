@@ -66,16 +66,16 @@ REM --- green skeleton ---
 %B% 79671C58 skel0wrD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 60-78 -ofs -58 41
 
 REM --- gravedigger ---
-%B% 79671C58 grvdigr0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-25 -ofs -52 52
-%B% 79671C58 grvdigr1.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 26-51 -ofs -52 52
-%B% 79671C58 grvdigr2.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 52-77 -ofs -52 52
-%B% 79671C58 grvdigr3.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 78-103 -ofs -52 52
-%B% 79671C58 grvdigr4.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 104-129 -ofs -52 52
-%B% 79671C58 grvdigr5.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 78-103 -ofs -52 52 -flip
-%B% 79671C58 grvdigr6.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 52-77 -ofs -52 52 -flip
-%B% 79671C58 grvdigr7.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 26-51 -ofs -52 52 -flip
-%B% 79671C58 grvdigrA.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 130-143 -ofs -52 52
-%B% 79671C58 grvdigrD.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 144-165 -ofs -52 52
+%B% 74671C5C grvdigr0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-25 -ofs -44 67
+%B% 74671C5C grvdigr1.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 26-51 -ofs -52 61
+%B% 74671C5C grvdigr2.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 52-77 -ofs -83 52
+%B% 74671C5C grvdigr3.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 78-103 -ofs -68 53
+%B% 74671C5C grvdigr4.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 104-129 -ofs -35 56
+%B% 74671C5C grvdigr5.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 78-103 -ofs -46 53 -flip
+%B% 74671C5C grvdigr6.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 52-77 -ofs -55 52 -flip
+%B% 74671C5C grvdigr7.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 26-51 -ofs -48 63 -flip
+%B% 74671C5C grvdigrA.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 130-143 -ofs -16 32
+%B% 74671C5C grvdigrD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 144-165 -ofs -75 61
 
 REM --- ghoul ---
 %B% 79671C58 ghoulwk0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-39 -ofs -52 52
@@ -86,7 +86,19 @@ REM --- ghoul ---
 %B% 79671C58 ghoulwk5.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 120-159 -ofs -52 52 -flip
 %B% 79671C58 ghoulwk6.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 41-119 -ofs -52 52 -flip
 %B% 79671C58 ghoulwk7.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -52 52 -flip
-%B% 79671C58 ghoulwkD.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 200-207 -ofs -52 52
+%B% 79671C58 ghoulwkD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 200-207 -ofs -52 52
+
+REM --- rogue commander ---
+REM 75671C56
+
+REM --- rogue (knifethrower) ---
+REM 79671C5D
+
+REM --- ariel ---
+REM 79661C56
+
+REM --- gog ---
+REM 79671C5A
 
 REM GOTO EXIT
 
