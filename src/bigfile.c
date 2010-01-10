@@ -851,7 +851,7 @@ void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolea
 		ExtractFileBase(name, file);
 		StripFileExtension(file, basename);
 		sprintf(name, "%s%s/", path, basename);
-		FS_CreatePath(name);
+		CreatePath(name);
 		sprintf(name, "%s%s/%s.tga", path, basename, file);
 		strcpy(basename, name);
 	}
@@ -897,7 +897,7 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 	if (path[0])
 	{
 		sprintf(savefile, "%s/%s", dstdir, path);
-		FS_CreatePath(savefile);
+		CreatePath(savefile);
 	}
 
 	// original pill.big has 'funky' files with zero len, export them as empty ones
@@ -1575,7 +1575,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *entry, char *infileformat, char *format)
 {
 	char informat[1024], effects[1024], temp[1024];
-	double trim;
+	double trim, speed;
 	int i, ir;
 
 	if (!soxfound)
@@ -1583,6 +1583,7 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 
 	// additional parms
 	trim = 0.0;
+	speed = 0.0;
 	strcpy(effects, "");
 	ir = 0;
 	for (i = 2; i < argc; i++)
@@ -1594,6 +1595,17 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 			{
 				trim = atof(argv[i]);
 				Verbose("Option: trim start by %f seconds\n", trim);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-speed"))
+		{
+
+			i++;
+			if (i < argc)
+			{
+				speed = atof(argv[i]);
+				Verbose("Option: sound speed %fx\n", speed);
 			}
 			continue;
 		}
@@ -1631,6 +1643,11 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 	{
 		strcpy(temp, effects);
 		sprintf(effects, "trim %f %s", trim, temp);
+	}
+	if (speed)
+	{
+		strcpy(temp, effects);
+		sprintf(effects, "speed %f %s", speed, temp);
 	}
 
 	// run SoX
@@ -1919,10 +1936,6 @@ int BigFile_Unpack(int argc, char **argv)
 	data = ReadBigfileHeader(f, bigfile, false);
 	BigfileScanFiletypes(f, data, scanraw, ixlist->items ? ixlist : NULL, forcerawtype);
 
-	// make directory
-	Q_mkdir(dstdir);
-	Verbose("%s folder created\n", dstdir);
-	
 	// export all files
 	for (i = 0; i < (int)data->numentries; i++)
 	{

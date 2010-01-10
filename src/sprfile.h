@@ -47,15 +47,15 @@ typedef enum
 // sprite header
 typedef struct
 { 
-	char	name[4];	// "IDSP"
-	long	ver1;		// Version = 1
-	long	type;		// See bove
-	float	radius;		// Bounding Radius
-	long	maxwidth;	// Width of the largest frame
-	long	maxheight;	// Height of the largest frame
-	long	nframes;	// Number of frames
-	float	beamlength;	// pushs the sprite away, strange legacy from DOOM?
-	long	synchtype;	// 0=synchron 1=random
+	char	name[4];	// 4 "IDSP"
+	long	ver1;		// 4 Version = 1
+	long	type;		// 4 See bove
+	float	radius;		// 4 Bounding Radius
+	long	maxwidth;	// 4 Width of the largest frame
+	long	maxheight;	// 4 Height of the largest frame
+	long	nframes;	// 4 Number of frames
+	float	beamlength;	// 4 pushs the sprite away, strange legacy from DOOM?
+	long	synchtype;	// 4 0=synchron 1=random
 } spr_t;
 
 // functions

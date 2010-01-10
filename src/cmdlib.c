@@ -249,10 +249,10 @@ void Q_mkdir (char *path)
 
 /*
 ============
-FS_CreatePath
+CreatePath
 ============
 */
-void FS_CreatePath (char *path)
+void CreatePath (char *path)
 {
 	char *ofs, save;
 
@@ -263,7 +263,11 @@ void FS_CreatePath (char *path)
 			// create the directory
 			save = *ofs;
 			*ofs = 0;
-			Q_mkdir (path);
+			if (path[0])
+			{
+				printf("mkdir: '%s'\n", path);
+				Q_mkdir (path);
+			}
 			*ofs = save;
 		}
 	}
@@ -541,7 +545,7 @@ FILE *SafeOpenWrite (char *filename)
 
   // automatically make dir structure
   ExtractFilePath(filename, path);
-  FS_CreatePath(path);
+  CreatePath(path);
   // open file
   f = fopen(filename, "wb");
   if (!f)
@@ -972,45 +976,4 @@ void CRC_ProcessByte(unsigned short *crcvalue, byte data)
 unsigned short CRC_Value(unsigned short crcvalue)
 {
   return crcvalue ^ CRC_XOR_VALUE;
-}
-//=============================================================================
-
-/*
-============
-COM_CreatePath
-============
-*/
-void	COM_CreatePath (char *path)
-{
-  char	*ofs, c;
-
-  for (ofs = path+1 ; *ofs ; ofs++)
-    {
-      c = *ofs;
-      if (c == '/' || c == '\\')
-	{	// create the directory
-	  *ofs = 0;
-	  Q_mkdir (path);
-	  *ofs = c;
-	}
-    }
-}
-
-
-/*
-============
-COM_CopyFile
-
-  Used to archive source files
-============
-*/
-void COM_CopyFile (char *from, char *to)
-{
-  void	*buffer;
-  int		length;
-
-  length = LoadFile (from, &buffer);
-  COM_CreatePath (to);
-  SaveFile (to, buffer, length);
-  qfree (buffer);
 }

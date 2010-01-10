@@ -1,8 +1,10 @@
 @echo off
 set B=bpill -f -bigfile pill.big -extract
+set S=bpill -f -spr32
 set EXT=spr32
 
 echo processing kain model...
+
 REM --- kain alive ----
 %B% 5728197C kain0al0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-31 -ofs -40 45
 %B% 5728197C kain0al1.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 32-63 -ofs -63 50
@@ -14,7 +16,7 @@ REM --- kain alive ----
 %B% 5728197C kain0al7.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 32-63 -ofs -25 50 -flip
 %B% 5728197C kain0alD.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 160-183 -ofs -31 62 -flip
 
-REM --- kain in iron armor with sword ---
+REM --- kain iron armor + sword ---
 %B% 080C020C kain1sw0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52
 %B% 080C020C kain1sw1.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -73 59
 %B% 080C020C kain1sw2.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -81 55
@@ -24,34 +26,44 @@ REM --- kain in iron armor with sword ---
 %B% 080C020C kain1sw6.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -24 55 -flip
 %B% 080C020C kain1sw7.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -36 58 -flip
 
-REM --- kain in iron armor and sword spelling ---
-%B% 6E017348 kain1ss0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -52 52
-%B% 6E017348 kain1ss1.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -73 59
-%B% 6E017348 kain1ss2.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -81 55
-%B% 6E017348 kain1ss3.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -80 45
-%B% 6E017348 kain1ss4.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 48-59 -ofs -64 45
-%B% 6E017348 kain1ss5.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -29 45 -flip
-%B% 6E017348 kain1ss6.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -24 55 -flip
-%B% 6E017348 kain1ss7.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -36 58 -flip
+REM --- kain iron armor + sword spelling ---
+%B% 6E017348 kain1ss0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -27 37
+%B% 6E017348 kain1ss1.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -36 34
+%B% 6E017348 kain1ss2.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -41 34
+%B% 6E017348 kain1ss3.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -39 35
+%B% 6E017348 kain1ss4.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 48-59 -ofs -24 37
+%B% 6E017348 kain1ss5.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -16 35 -flip
+%B% 6E017348 kain1ss6.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -25 34 -flip
+%B% 6E017348 kain1ss7.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -31 34 -flip
 %B% 6E016248 kain1spl.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-16 -ofs -39 41
+
+REM --- kain iron armor + sword - build single model ---
+%S% kain1sw0.%EXT% -merge kain1ss0.%EXT%
+%S% kain1sw1.%EXT% -merge kain1ss1.%EXT%
+%S% kain1sw2.%EXT% -merge kain1ss2.%EXT%
+%S% kain1sw3.%EXT% -merge kain1ss3.%EXT%
+%S% kain1sw4.%EXT% -merge kain1ss4.%EXT%
+%S% kain1sw5.%EXT% -merge kain1ss5.%EXT%
+%S% kain1sw6.%EXT% -merge kain1ss6.%EXT%
+%S% kain1sw7.%EXT% -merge kain1ss7.%EXT%
 
 REM --- kain spell effects ---
 %B% 011E0F07 kaingain.%EXT% -parallel -i 0-20 -ofs -44 48
-%B% 0303683A kaincure.%EXT% -parallel -i 0-16 -ofs -39 41
+%B% 0303683A kaincure.%EXT% -parallel -i 0-16 -ofs -45 44
 %B% 17056235 kainreds.%EXT% -parallel -i 0-20 -ofs -39 41
 %B% 0D1F7A28 kaingrns.%EXT% -parallel -i 0-15 -ofs -39 41
 
 echo processing monsters...
 REM --- green skeleton ---
-%B% 79671C58 skel0wr0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -52 52
-%B% 79671C58 skel0wr1.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -52 52
-%B% 79671C58 skel0wr2.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -52 52
-%B% 79671C58 skel0wr3.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -52 52
-%B% 79671C58 skel0wr4.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 48-59 -ofs -52 52
-%B% 79671C58 skel0wr5.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -52 52 -flip
-%B% 79671C58 skel0wr6.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -52 52 -flip
-%B% 79671C58 skel0wr7.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -52 52 -flip
-%B% 79671C58 skel0wrA.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 60-78
+%B% 79671C58 skel0wr0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -26 31
+%B% 79671C58 skel0wr1.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -30 31
+%B% 79671C58 skel0wr2.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -33 22
+%B% 79671C58 skel0wr3.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -33 26
+%B% 79671C58 skel0wr4.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 48-59 -ofs -24 35
+%B% 79671C58 skel0wr5.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -27 26 -flip
+%B% 79671C58 skel0wr6.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -31 22 -flip
+%B% 79671C58 skel0wr7.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -28 32 -flip
+%B% 79671C58 skel0wrD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 60-78 -ofs -58 41
 
 REM --- gravedigger ---
 %B% 79671C58 grvdigr0.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-25 -ofs -52 52
@@ -76,6 +88,8 @@ REM --- ghoul ---
 %B% 79671C58 ghoulwk7.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -52 52 -flip
 %B% 79671C58 ghoulwkD.%EXT% -parallel -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 200-207 -ofs -52 52
 
+REM GOTO EXIT
+
 echo processing wav sounds...
 REM --- sounds ---
 %B% 12046C45 firesword1.wav
@@ -94,13 +108,13 @@ REM --- sounds ---
 %B% 5A2B7268 hfdeath1.wav
 %B% 5A2B7168 hfdeath2.wav
 %B% 5A2F0E7F button.wav
-%B% 1D15111C bloodgain.wav
+%B% 1D15111C bloodgain.wav -speed 1.1
 %B% 24690B7C wolfpain.wav
 %B% 246A0B7C wolfjump.wav
-%B% 246F1779 hit1.wav
-%B% 246E1779 hit2.wav
-%B% 24691779 hit3.wav
-%B% 24701162 choir.wav
+%B% 246F1779 hit1.wav -trimstart 0.02 -speed 1.1
+%B% 246E1779 hit2.wav -trimstart 0.013 -speed 1.1
+%B% 24691779 hit3.wav -trimstart 0.013 -speed 0.95
+%B% 24701162 choir.wav -speed 1.1
 %B% 270F1664 switch.wav -trimstart 0.27
 %B% 2A0D1C79 heartbeat.wav
 %B% 2A0E0C7E kainlaugh.wav
@@ -137,10 +151,9 @@ REM --- music ---
 %B% 2573636C track10.ogg -ir 22050
 %B% 2576636C track11.ogg -ir 22050
 
-
 echo copy files...
 REM --- copy models ---
-set P=J:\Projects\SVN\bo1\
+set P=..\..\
 mkdir %P%kain\models\legacy
 del %P%kain\models\legacy\*.spr32 /Q
 move *.spr32 %P%kain\models\legacy\
@@ -155,4 +168,16 @@ mkdir %P%kain\sound\cdtracks
 del %P%kain\sound\legacy\*.ogg /Q
 move *.ogg %P%kain\sound\cdtracks\
 
+:QUIT
 pause
+exit
+
+:EXIT
+
+REM --- copy models ---
+set P=..\..\
+mkdir %P%kain\models\legacy
+del %P%kain\models\legacy\*.spr32 /Q
+move *.spr32 %P%kain\models\legacy\
+
+GOTO QUIT

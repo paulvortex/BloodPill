@@ -863,8 +863,9 @@ int Targa2Tim_Main(int argc, char **argv)
 				else
 					Error("parse commandline: bad bpp %i", argv[i]);
 			}
+			continue;
 		}
-		else if(!strcmp(argv[i], "-ofs"))
+		if(!strcmp(argv[i], "-ofs"))
 		{
 			i++;
 			if (i < argc)
@@ -874,13 +875,16 @@ int Targa2Tim_Main(int argc, char **argv)
 				if (i < argc)
 					ofsy = (short)atof(argv[i]);
 			}
+			continue;
 		}
-		else if (!strcmp(argv[i], "-mask"))
+		if (!strcmp(argv[i], "-mask"))
 		{
 			i++;
 			if (i < argc)
 				strcpy(maskfile, argv[i]);
+			continue;
 		}
+		Warning("unknown parameter '%s'", argv[i]);
 	}
 
 	// check if maskfile exist

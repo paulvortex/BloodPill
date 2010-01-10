@@ -44,28 +44,14 @@ void fput_littleint(int num, FILE* file)
 
 void fput_littlefloat(float num, FILE* file)
 {
-	/*
-	// although this is guarenteed to write out IEEE compliant floats,
-	// it is slow and silly unless the machine uses a non-IEEE compliant float...
-	int exponent;
-	double mantissa;
-	int mantissabits;
-	int data, *test;
-	mantissa = frexp(num, &exponent);
-	mantissabits = (int) (mantissa * 16777216.0);
-	mantissabits &= 0x007FFFFF;
-	if (exponent < -127) exponent = -127;
-	if (exponent > 127) exponent = 127;
-	data = ((exponent + 126) << 23) | mantissabits; // 126 seems a bit odd to me, but worked...
-	if (num < 0.0f)
-		data |= 0x80000000;
-//	test = (void*) &num; // just for testing the results if needed
-//	if (data != *test)
-//		data = *test;
-	*/
 	int *data;
 	data = (void*) &num; // note: this is *NOT* byte order dependent
 	fput_littleint(*data, file);
+}
+
+int LittleInt(byte *buffer)
+{
+	return buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
 }
 
 /*
@@ -76,19 +62,9 @@ void fput_littlefloat(float num, FILE* file)
 ==========================================================================================
 */
 
-void SPR_WriteHeader(FILE *f, rawblock_t *rawblock, sprversion_t version, sprtype_t type)
+void SPR_WriteHeader(FILE *f, sprversion_t version, sprtype_t type, int maxwidth, int maxheight, int numframes)
 {
-	int maxwidth, maxheight, i;
-
-	// calc max width/height
-	maxwidth = maxheight = 0;
-	for (i = 0; i < rawblock->chunks; i++)
-	{
-		maxwidth = max(maxwidth, (rawblock->chunk[i].width + rawblock->chunk[i].x));
-		maxheight = max(maxheight, (rawblock->chunk[i].height + rawblock->chunk[i].y));
-	}
-
-	// write ident IDSP
+	// IDSP
 	fputc('I', f);fputc('D', f);fputc('S', f);fputc('P', f); 
 	// version
 	fput_littleint(version, f); // 32bit color
@@ -100,7 +76,7 @@ void SPR_WriteHeader(FILE *f, rawblock_t *rawblock, sprversion_t version, sprtyp
 	fput_littleint(maxwidth, f); 
 	fput_littleint(maxheight, f);
 	// numframes
-	fput_littleint(rawblock->chunks, f);
+	fput_littleint(numframes, f);
 	// beamlength
 	fput_littlefloat(0.0f, f); 
 	// synctype
@@ -118,13 +94,21 @@ void SPR_WriteFrameHeader(FILE *f, sprframetype_t frametype, rawchunk_t *chunk, 
 
 void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, byte shadowpixel, byte shadowalpha, int flags)
 {
-	int i, p, d;
+	int i, p, d, maxwidth, maxheight;
 	byte *colormap, *buf, color[4];
 	rawchunk_t *chunk;
 	FILE *f;
 
 	f = SafeOpenWrite(outfile);
-	SPR_WriteHeader(f, rawblock, version, type);
+
+	// calc max width/height, write header
+	maxwidth = maxheight = 0;
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		maxwidth = max(maxwidth, (rawblock->chunk[i].width + rawblock->chunk[i].x));
+		maxheight = max(maxheight, (rawblock->chunk[i].height + rawblock->chunk[i].y));
+	}
+	SPR_WriteHeader(f, version, type, maxwidth, maxheight, rawblock->chunks);
 
 	// write frames
 	for (i = 0; i < rawblock->chunks; i++)
@@ -137,16 +121,16 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			buf = qmalloc(chunk->size * 4);
 			// in Blood Omen, black pixels (0) were transparent
 			// also we optionally threating shadow pixel as transparent
-			for (p = 0; p < chunk->size; p++) 
+			for (p = 0; p < chunk->size; p++)
 			{
 				d = chunk->pixels[p];
 				color[0] = colormap[d*3];
 				color[1] = colormap[d*3 + 1];
 				color[2] = colormap[d*3 + 2];
 				//if (shadowpixel >= 0 && !memcmp(colormap + shadowpixel*3, color, 3))
-				if (shadowpixel >= 0 && d == 15)
+				if (shadowpixel >= 0 && d == shadowpixel)
 					color[3] = shadowalpha;
-				else if (d == 0)
+				else if (d == 0) // null pixel always transparent
 					color[3] = 0;
 				else
 					color[3] = 255;
@@ -169,4 +153,134 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			Error("SPR_WriteFromRawblock: cannot write quake sprites yet\n");
 		}
 	}
+}
+
+// FIXME: cleanup
+void SPR32_MergeSprites(list_t *mergelist, char *outfile, qboolean delmerged)
+{
+	int version, type, maxwidth, maxheight, numframes;
+	int i, bufsize;
+	byte *buf;
+	FILE *f, *f2;
+
+	// step1 - calc new sprite headers
+	Verbose("Calc headers...\n");
+	maxwidth = 0;
+	maxheight = 0;
+	numframes = 0;
+	buf = qmalloc(sizeof(spr_t));
+	for (i = 0; i < mergelist->items; i++)
+	{
+		// read header
+		f = SafeOpen(mergelist->item[i], "rb");
+		if (fread(buf, sizeof(spr_t), 1, f) < 1)
+			Error("Broken file\n");
+		fclose(f);
+		// check type
+		if (buf[0] != 'I' && buf[1] != 'D' && buf[2] != 'S' && buf[3] != 'P')
+			Error("%s: not IDSP file\n", mergelist->item[i]);
+		// check version
+		version = LittleInt(buf + 4);
+		if (version != SPR_DARKPLACES)
+			Error("%s: not SPR32 sprite\n", mergelist->item[i]);
+		// check type
+		if (i == 0)
+			type = LittleInt(buf + 8);
+		else if (type != LittleInt(buf + 8))
+			Error("%s: bad type %i, should be %i\n", LittleInt(buf + 8), type);
+		// print info
+		Verbose(" %s : %i frames, maxwidth %i, maxheight %i\n", mergelist->item[i], LittleInt(buf + 24), LittleInt(buf + 16), LittleInt(buf + 20));
+		// calc bounds
+		maxwidth = max(maxwidth, LittleInt(buf + 16));
+		maxheight = max(maxheight, LittleInt(buf + 20));
+		numframes = numframes + LittleInt(buf + 24);
+	}
+	qfree(buf);
+
+	// print some stats
+	Verbose("Total:\n", numframes);
+	Verbose(" framecount = %i\n", numframes);
+	Verbose(" max width = %i\n", maxwidth);
+	Verbose(" max height = %i\n", maxheight);
+
+	// save first file contents since it could be overwritten
+	Verbose("Write new header...\n");
+	f = SafeOpen(mergelist->item[0], "rb");
+	bufsize = Q_filelength(f) - sizeof(spr_t);
+	buf = qmalloc(bufsize);
+	fseek(f, sizeof(spr_t), SEEK_SET);
+	fread(buf, bufsize, 1, f);
+	fclose(f);
+
+	// step 2 - write header and file beginning
+	f = SafeOpenWrite(outfile);
+	SPR_WriteHeader(f, version, type, maxwidth, maxheight, numframes);
+	fwrite(buf, bufsize, 1, f);
+	qfree(buf);
+
+	// step 3 - merge tail files
+	Verbose("Merging...\n");
+	for (i = 1; i < mergelist->items; i++)
+	{
+		f2 = SafeOpen(mergelist->item[i], "rb");
+		fseek(f2, sizeof(spr_t), SEEK_SET);
+		bufsize = Q_filelength(f2) - sizeof(spr_t);
+		buf = qmalloc(bufsize);
+		fread(buf, bufsize, 1, f2);
+		fclose(f2);
+		fwrite(buf, bufsize, 1, f);
+		qfree(buf);
+		// delete merged file
+		if (delmerged)
+			remove(mergelist->item[i]);
+	}
+	fclose(f);
+}
+
+int Spr32_Main(int argc, char **argv)
+{
+	char infile[MAX_BLOODPATH];
+	list_t *mergelist;
+	qboolean delmerged;
+	int i;
+
+	// in file
+	if (argc < 2)
+		Error("not enough parms");
+	strcpy(infile, argv[1]);
+	Verbose("Base: '%s'\n", infile);
+
+	// commandline actions
+	delmerged = true;
+	mergelist = NewList();
+	ListAdd(mergelist, infile, false);
+	for(i = 2; i < argc; i++)
+	{
+		if (!strcmp(argv[i], "-merge"))
+		{
+			i++; 
+			while (i < argc && argv[i][0] != '-')
+			{
+				Verbose("Option: merging file '%s'\n", argv[i]);
+				ListAdd(mergelist, argv[i], false);
+				i++; 
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-keepfiles"))
+		{
+			delmerged = false;
+			Verbose("Option: keeping merged files undeleted\n");
+			continue;
+		}
+		if (i != 0)
+			Warning("unknown parameter '%s'",  argv[i]);
+	}
+
+	// merge sprites
+	if (mergelist->items > 1)
+		SPR32_MergeSprites(mergelist, infile, delmerged);
+
+	Verbose("Done.\n");
+	return 0;
 }
