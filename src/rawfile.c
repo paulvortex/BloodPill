@@ -852,12 +852,15 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 	#undef skiprows3
 }
 
-void RawTGAColormap(char *outfile, const byte *colormapdata, byte bytes)
+void RawTGAColormap(char *outfile, const byte *colormapdata, byte bytes, int width, int height)
 {
 	rawinfo_t rawinfo;
+
+	if (width*height != 256)
+		Error("RawTGAColormap: bad width/height!");
 	
 	FlushRawInfo(&rawinfo);
-	RawTGA(outfile, 16, 16, 0, 0, 0, 0, NULL, colormapdata, bytes, &rawinfo);
+	RawTGA(outfile, width, height, 0, 0, 0, 0, NULL, colormapdata, bytes, &rawinfo);
 }
 
 /*
@@ -1032,7 +1035,7 @@ rawblock_t *RawExtract_Type0(unsigned char *buffer, int filelen, rawinfo_t *rawi
 	rawblock_t *rawblock;
 
 	// read header
-	if (rawinfo->bytes != 1 && rawinfo->bytes != 2 && rawinfo->bytes != 3)
+	if (rawinfo->bytes != 1 && rawinfo->bytes != 2 && rawinfo->bytes != 3 && rawinfo->bytes != 4 && rawinfo->bytes != 5)
 		return RawErrorBlock(NULL, RAWX_ERROR_BAD_OPTIONS);
 	if (rawinfo->width*rawinfo->height < 0)
 		return RawErrorBlock(NULL, RAWX_ERROR_WIDTH_OR_HEIGHT_NOT_VALID);
@@ -1051,7 +1054,22 @@ rawblock_t *RawExtract_Type0(unsigned char *buffer, int filelen, rawinfo_t *rawi
 		filelen = 0;
 
 	// calc output size
-	outputsize = rawinfo->width*rawinfo->height*rawinfo->bytes;
+	if (rawinfo->bytes == 4)
+	{
+		Print("%8i colors per byte\n", 4);
+		rawinfo->width = rawinfo->width * 4;
+		outputsize = rawinfo->width*rawinfo->height;
+	}
+	else if (rawinfo->bytes == 5)
+	{
+		Print("%8i colors per byte\n", 2);
+		rawinfo->width = rawinfo->width * 2;
+		outputsize = rawinfo->width*rawinfo->height;
+	}
+	else
+		outputsize = rawinfo->width*rawinfo->height*rawinfo->bytes;
+
+	// some info
 	if (verbose == true)
 	{
 		Print("%8i bytes given\n", filelen);
@@ -1099,10 +1117,60 @@ rawblock_t *RawExtract_Type0(unsigned char *buffer, int filelen, rawinfo_t *rawi
 		#undef writepixel
 		#undef readpixel
 	}
+	else if (rawinfo->bytes == 4) // 4 colors per byte
+	{
+		for (i = 0; i < outputsize; i += 4)
+		{
+			if ((i/4) >= filelen)
+				break;
+			rawblock->chunk[0].pixels[i] = ((buffer[i/4] & 3))*85;
+			rawblock->chunk[0].pixels[i+1] = ((buffer[i/4] >> 2) & 3)*85;
+			rawblock->chunk[0].pixels[i+2] = ((buffer[i/4] >> 4) & 3)*85;
+			rawblock->chunk[0].pixels[i+3] = ((buffer[i/4] >> 6) & 3)*85;
+		/*
+			rawblock->chunk[0].pixels[i] = ((buffer[i/4] & 0x7))*63;
+			rawblock->chunk[0].pixels[i+1] = ((buffer[i/4] >> 2) & 0x7)*63;
+			rawblock->chunk[0].pixels[i+2] = ((buffer[i/4] >> 4) & 0x7)*63;
+			rawblock->chunk[0].pixels[i+3] = ((buffer[i/4] >> 6) & 0x7)*63;
+		*/
+		}
+	}
+	else if (rawinfo->bytes == 5) // 2 colors per byte
+	{
+		for (i = 0; i < outputsize; i += 2)
+		{
+			if ((i/2) >= filelen)
+				break;
+			rawblock->chunk[0].pixels[i] = ((buffer[i/2] & 15))*16;
+			rawblock->chunk[0].pixels[i+1] = ((buffer[i/2] >> 4) & 15)*16;
+		}
+	}
 	else
 	{
+		int numbers[256];
+		for (i = 0; i < 256; i++)
+			numbers[i] = 0;
+
 		for (i = 0; i < filelen; i++)
-			rawblock->chunk[0].pixels[i] = buffer[i];
+		{
+			if (i > 2)
+			{
+				if (buffer[i-1] == 255)
+				{
+					//printf("after: %i\n", buffer[i]);
+					numbers[buffer[i]] = numbers[buffer[i]] + 1;
+					rawblock->chunk[0].pixels[i] = buffer[i];
+				}
+				else
+					rawblock->chunk[0].pixels[i] = (buffer[i] == 255) ? 255 : 0;
+			}
+			else
+				rawblock->chunk[0].pixels[i] = (buffer[i] == 255) ? 255 : 0;
+		}
+		printf("table:\n");
+		for (i = 0; i < 256; i++)
+			if (numbers[i])
+				printf("%3i: %i\n", i, numbers[i]); 
 	}
 	return rawblock; // who care out eendpos that for type0?
 }
@@ -1720,13 +1788,15 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 
 	if (!testonly && verbose)
 		Print("extracting type7\n");
+	
 	// as this format is unfinished, don't find if scanning, only direct request
-	if (testonly)
-		return RawErrorBlock(NULL, -1);
+	//if (testonly)
+	//	return RawErrorBlock(NULL, -1);
 
 	if (filelen < (26 + 512 + 32))
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
+	// set of magic numbers
 	datasize = ReadInt(buffer);
 	data1 = ReadInt(buffer + 4);
 	data2 = ReadInt(buffer + 8);
@@ -1745,7 +1815,8 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		Print("more: %i %i\n", buffer[24], buffer[25]);
 	}
 
-	// read 16-bit colormap, convert to 24-bit
+	// read palettes
+	// palettes go as 8 bytes (4 16-bit colors) + 1 mystic byte
 	colormapdata = qmalloc(768);
 	in = buffer + 26;
 	out = colormapdata;
@@ -1762,7 +1833,7 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	}
 
 	// write colormap
-	RawTGAColormap("palette.tga", colormapdata, 24);
+	RawTGAColormap("palette.tga", colormapdata, 24, 4, 64);
 
 	// write image
 	in = buffer + 26 + 544;
@@ -1928,8 +1999,10 @@ int Raw_Main(int argc, char **argv)
 		{
 			i++;
 			if (i < argc)
+			{
 				rawinfo.bytes = atoi(argv[i]);
-			Verbose("Color bytes: %i\n", rawinfo.bytes);
+				Verbose("Color bytes: %i\n", rawinfo.bytes);
+			}
 		}
 		else if(!strcmp(argv[i], "-colormapoffset"))
 		{

@@ -90,7 +90,7 @@ typedef struct rawinfo_s
 	int width;
 	int height;
 	int offset; // offset into file when actual data starts
-	int bytes;	// how many bytes per color (1, 2 or 3)
+	int bytes;	// how many bytes per color (1, 2 or 3), 4 is 2 bits
 	int colormapoffset; // - 1 - no colormal
 	int colormapbytes; // 2 or 3
 
@@ -126,5 +126,5 @@ rawblock_t *RawErrorBlock(rawblock_t *block, rawextractresult_t errorcode);
 void FreeRawBlock(rawblock_t *block);
 
 void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay, const char *colormapdata, const char *pixeldata, int bpp, rawinfo_t *rawinfo);
-void RawTGAColormap(char *outfile, const byte *colormapdata, byte bytes);
+void RawTGAColormap(char *outfile, const byte *colormapdata, byte bytes, int width, int height);
 rawblock_t *RawExtract(byte *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype);

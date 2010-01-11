@@ -1408,6 +1408,12 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			Verbose("Option: sprite type = PARALLEL\n");
 			continue;
 		}
+		if (!strcmp(argv[i], "-overhead"))
+		{
+			spritetype = SPR_OVERHEAD;
+			Verbose("Option: sprite type = OVERHEAD\n");
+			continue;
+		}
 		if (!strcmp(argv[i], "-i"))
 		{
 			i++; 

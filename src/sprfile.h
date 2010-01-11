@@ -35,6 +35,7 @@ typedef enum
 	SPR_VP_FACING_UPRIGHT = 1, // flames and such, vertical beam sprite, faces viewer's origin (not the view plane)
 	SPR_VP_PARALLEL = 2, // normal sprite, faces view plane
 	SPR_ORIENTED = 3, // bullet marks on walls, ignores viewer entirely
+	SPR_OVERHEAD = 7, // VP_PARALLEL with couple of hacks
 }sprtype_t;
 
 // frames and framegroup

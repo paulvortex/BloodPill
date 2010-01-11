@@ -264,10 +264,7 @@ void CreatePath (char *path)
 			save = *ofs;
 			*ofs = 0;
 			if (path[0])
-			{
-				printf("mkdir: '%s'\n", path);
 				Q_mkdir (path);
-			}
 			*ofs = save;
 		}
 	}
