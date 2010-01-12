@@ -1362,7 +1362,7 @@ int BigFile_List(int argc, char **argv)
 
 void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_t *entry, rawblock_t *rawblock, char *format)
 {
-	int i, num, margin, spritex, spritey, spritesp, spriteflags;
+	int i, num, margin, spritex, spritey, spriteflags;
 	sprtype_t spritetype = SPR_VP_PARALLEL;
 	rawblock_t *tb1, *tb2, *tb3;
 	qboolean noalign, nocrop, flip;
@@ -1379,7 +1379,6 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	margin = 1;
 	spritex = 0;
 	spritey = 0;
-	spritesp = -1;
 	spriteflags = 0;
 	shadowpix = 15;
 	for (i = 2; i < argc; i++)
@@ -1488,6 +1487,19 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			}
 			continue;
 		}
+		if (!strcmp(argv[i], "-replacecolormap"))
+		{
+			i++;
+			if (i < argc)
+			{
+				Verbose("Option: replacing colormap from %s\n", argv[i]);
+				if (!rawblock->colormap)
+					Warning("cannot replace colormap, rawfile has no shared palette");
+				else
+					ColormapFromTGA(argv[i], rawblock->colormap);
+			}
+			continue;
+		}
 		if (!strcmp(argv[i], "-noalign"))
 		{
 			noalign = true;
@@ -1565,7 +1577,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	if (!stricmp(format, "spr"))
 		Error("Quake sprites format is not supported!\n");
 	else if (!stricmp(format, "spr32"))
-		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, spritesp, shadowalpha, spriteflags);
+		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, shadowpix, shadowalpha, spriteflags);
 	else if (!stricmp(format, "tga"))
 		TGAfromRAW(rawblock, entry->rawinfo, outfile, true, true, false);
 	else

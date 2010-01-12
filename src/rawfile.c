@@ -930,6 +930,35 @@ byte *ReadColormap(unsigned char *buffer, int filelen, int offset, int palbytes)
 	return colormap;
 }
 
+// read colormap from external tga file
+// returns allocated 24-bit colormap
+void ColormapFromTGA(char *filename, byte *colormap)
+{
+	byte *buf;
+	FILE *f;
+	int i;
+	
+	f = SafeOpen(filename, "rb");
+	buf = qmalloc(18+768);
+	if (fread(buf, 18+768, 1, f) < 1)
+		Error("ColormapFromTGA: %s - file is too small", filename);
+	if (!LoadFile(filename, &buf))
+		Error("ColormapFromTGA: failed to open %s", filename);
+	if (buf[1] != 1 || buf[2] != 1 || buf[16] != 8)
+		Error("ColormapFromTGA: %s - only colormapped/uncompressed images supported", filename);
+	if (buf[7] != 24)
+		Error("ColormapFromTGA: %s - only 24-bit colormaps supported (found %i)", filename, buf[7]);
+	// read colormal
+	for (i = 0; i < 256; i++)
+	{
+		*colormap++ = buf[18 + i*3 + 2];
+		*colormap++ = buf[18 + i*3 + 1];
+		*colormap++ = buf[18 + i*3];
+	}
+	qfree(buf);
+	fclose(f);
+}
+
 // read run-lenght encoded stream, return startpos, error codes are < 0
 int ReadRLCompressedStream(byte *outbuf, byte *inbuf, int startpos, int buflen, int readpixels, qboolean decomress255, qboolean usehalfwidthcompression, qboolean forced)
 {

@@ -79,15 +79,15 @@ echo  Gravedigger...
 
 REM --- ghoul ---
 echo  Ghoul...
-%B% 7C661C57 ghoulwk0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-39 -ofs -24 48
-%B% 7C661C57 ghoulwk1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -35 45
-%B% 7C661C57 ghoulwk2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 80-119 -ofs -42 31
-%B% 7C661C57 ghoulwk3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 120-159 -ofs -50 36
-%B% 7C661C57 ghoulwk4.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 160-199 -ofs -29 42
-%B% 7C661C57 ghoulwk5.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 120-159 -ofs -23 35 -flip
-%B% 7C661C57 ghoulwk6.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 80-119 -ofs -27 31 -flip
-%B% 7C661C57 ghoulwk7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -21 43 -flip
-%B% 7C661C57 ghoulwkD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 199-207 -ofs -25 29
+%B% 7C661C57 ghoulwk0.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-39 -ofs -24 48
+%B% 7C661C57 ghoulwk1.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -35 45
+%B% 7C661C57 ghoulwk2.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 80-119 -ofs -42 31
+%B% 7C661C57 ghoulwk3.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 120-159 -ofs -50 36
+%B% 7C661C57 ghoulwk4.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 160-199 -ofs -29 42
+%B% 7C661C57 ghoulwk5.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 120-159 -ofs -23 35 -flip
+%B% 7C661C57 ghoulwk6.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 80-119 -ofs -27 31 -flip
+%B% 7C661C57 ghoulwk7.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -21 43 -flip
+%B% 7C661C57 ghoulwkD.%EXT% -replacecolormap ghoul_palette.tga -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 199-207 -ofs -25 29
 
 REM --- ghoul (strong) ---
 echo  Ghoul (strong)...
@@ -116,7 +116,7 @@ REM 79661C56
 REM --- gog ---
 REM 79671C5A
 
-REM GOTO EXIT
+GOTO EXIT
 
 echo Sounds...
 REM --- sounds ---

@@ -127,4 +127,5 @@ void FreeRawBlock(rawblock_t *block);
 
 void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay, const char *colormapdata, const char *pixeldata, int bpp, rawinfo_t *rawinfo);
 void RawTGAColormap(char *outfile, const byte *colormapdata, byte bytes, int width, int height);
+void ColormapFromTGA(char *filename, byte *colormap);
 rawblock_t *RawExtract(byte *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype);
