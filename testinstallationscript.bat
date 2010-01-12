@@ -74,8 +74,8 @@ echo  Gravedigger...
 %B% 74671C5C grvdigr5.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 78-103 -ofs -46 53 -flip
 %B% 74671C5C grvdigr6.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 52-77 -ofs -55 52 -flip
 %B% 74671C5C grvdigr7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 26-51 -ofs -48 63 -flip
-%B% 74671C5C grvdigrA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 130-143 -ofs -16 32
-%B% 74671C5C grvdigrD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 144-165 -ofs -75 61
+%B% 74671C5C grvdigrA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 144-151 -i 130-143 -ofs -17 31
+%B% 74671C5C grvdigrD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 152-165 -ofs -75 61
 
 REM --- ghoul ---
 echo  Ghoul...
