@@ -118,7 +118,7 @@ qboolean SoX_DataToData(byte *data, int databytes, char *generalcmd, char *input
 // runs SoX on data presented and saves output file
 qboolean SoX_DataToFile(byte *data, int databytes, char *generalcmd, char *inputcmd, char *outputcmd, char *outfile, char *effects)
 {	
-	char in[MAX_BLOODPATH];
+	char in[MAX_BLOODPATH], path[MAX_BLOODPATH];
 	qboolean sox;
 
 	// make input
@@ -126,7 +126,9 @@ qboolean SoX_DataToFile(byte *data, int databytes, char *generalcmd, char *input
 	//tmpnam(in);
 	strcpy(in, "soxin.tmp");
 	SaveFile(in, data, databytes);
-
+	// create path
+	ExtractFilePath(outfile, path);
+	CreatePath(path);
 	// run
 	sox = SoX(in, generalcmd, inputcmd, outputcmd, outfile, effects);
 	if (!sox)

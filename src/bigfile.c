@@ -1364,8 +1364,9 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 {
 	int i, num, margin, spritex, spritey, spriteflags;
 	sprtype_t spritetype = SPR_VP_PARALLEL;
-	rawblock_t *tb1, *tb2, *tb3;
-	qboolean noalign, nocrop, flip;
+	rawblock_t *tb1, *tb2, *tb3, *tb4;
+	qboolean noalign, nocrop, flip, scale;
+	double colorscale;
 	byte shadowalpha;
 	list_t *includelist;
 	byte pix, shadowpix;
@@ -1381,6 +1382,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	spritey = 0;
 	spriteflags = 0;
 	shadowpix = 15;
+	scale = false;
 	for (i = 2; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-oriented"))
@@ -1451,6 +1453,18 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 					rawblock->colormap[pix*3 + 2] = (byte)(num & 0xFF);
 					Verbose("Option: replace colormap index #%i by '%i %i %i'\n", rawblock->colormap[pix*3 + 0], rawblock->colormap[pix*3 + 1], rawblock->colormap[pix*3 + 2]);
 				}
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-colormapscale"))
+		{
+			i++;
+			if (i < argc)
+			{
+				colorscale = atof(argv[i]);
+				for (num = 0; num < 768; num++)
+					rawblock->colormap[num] = (byte)max(0, min(rawblock->colormap[num]*colorscale, 255));
+				Verbose("Option: scale colormap colors by %f'\n", colorscale);
 			}
 			continue;
 		}
@@ -1546,6 +1560,12 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			}
 			continue;
 		}
+		if (!strcmp(argv[i], "-nearest2x"))
+		{
+			scale = true;
+			Verbose("Option: Scale by factor 2 with nearest neighbour\n");
+			continue;
+		}
 		Warning("unknown parameter '%s'",  argv[i]);
 	}
 
@@ -1553,6 +1573,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	tb1 = NULL;
 	tb2 = NULL;
 	tb3 = NULL;
+	tb4 = NULL;
 	if (includelist->items)
 	{
 		Print("Perturbating...\n");
@@ -1573,6 +1594,13 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 		Print("Flipping...\n");
 		RawblockFlip(rawblock);
 	}
+	if (scale)
+	{
+		Print("Scaling...\n");
+		spritex = spritex * 2;
+		spritey = spritey * 2;
+		rawblock = tb4 = RawblockScale2x_Nearest(rawblock);
+	}
 
 	// write file
 	Print("Writing images...\n");
@@ -1590,6 +1618,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	if (tb1) FreeRawBlock(tb1);
 	if (tb2) FreeRawBlock(tb2);
 	if (tb3) FreeRawBlock(tb3);
+	if (tb4) FreeRawBlock(tb4);
 }
 
 void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *entry, char *infileformat, char *format)

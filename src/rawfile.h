@@ -118,6 +118,7 @@ void RawblockFlip(rawblock_t *rawblock);
 rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margin);
 rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin);
 rawblock_t *RawblockPerturbate(rawblock_t *rawblock, list_t *includelist);
+rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock);
 
 // raw blocks
 char *RawStringForResult(int rescode);

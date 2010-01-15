@@ -2,7 +2,7 @@
 
 #define BLOODPILL_VERSION "v0.5"
 #define BLOODPILL_WELCOME "----------------------------------------\nBlood Pill %s by VorteX and Mean Person\nA set of utils to manipulate Blood Omen: Legacy Of Kain files\nportions of code by LordHavoc\nAdditional thanks to Balder and Zench from XentaX forums (www.xentax.com)\nTIM specs by Klarth and Raul Sobon\nBigfile specs by Andrey [Rackot] Grachev\n----------------------------------------\n"
-#define MAX_BLOODPATH 512
+#define MAX_BLOODPATH 1024
 
 // global switches
 qboolean waitforkey;

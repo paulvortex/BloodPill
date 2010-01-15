@@ -676,6 +676,43 @@ rawblock_t *RawblockPerturbate(rawblock_t *rawblock, list_t *includelist)
 	return newblock;
 }
 
+// scale all rawblock images by a factor of 2 using nearest scaling
+// this alters entire rawblock
+rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock)
+{
+	rawchunk_t *chunk, *newchunk;
+	rawblock_t *newrawblock;
+	byte *out;
+	int i, r, c;
+
+	newrawblock = EmptyRawBlock(rawblock->chunks);
+	newrawblock->colormap = rawblock->colormap;
+	newrawblock->colormapExternal = true;
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		chunk = &rawblock->chunk[i];
+		RawBlockAllocateChunk(newrawblock, i, chunk->width*2, chunk->height*2, chunk->x*2, chunk->y*2, false);
+		newchunk = &newrawblock->chunk[i];
+		// simple 2x nearest scale
+		// fixme: optimize
+		out = newchunk->pixels;
+		for (r = 0; r < chunk->height; r++)
+		{
+			for (c = 0; c < chunk->width; c++)
+			{
+				*out++ = chunk->pixels[r*chunk->width + c];
+				*out++ = chunk->pixels[r*chunk->width + c];
+			}
+			for (c = 0; c < chunk->width; c++)
+			{
+				*out++ = chunk->pixels[r*chunk->width + c];
+				*out++ = chunk->pixels[r*chunk->width + c];
+			}
+		}
+	}
+	return newrawblock;
+}
+
 /*
 ==========================================================================================
 
