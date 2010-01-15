@@ -1495,8 +1495,10 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 				Verbose("Option: replacing colormap from %s\n", argv[i]);
 				if (!rawblock->colormap)
 					Warning("cannot replace colormap, rawfile has no shared palette");
-				else
+				else if (FileExists(argv[i]))
 					ColormapFromTGA(argv[i], rawblock->colormap);
+				else
+					Warning("cannot replace colormap, %s not found", argv[i]);
 			}
 			continue;
 		}

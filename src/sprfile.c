@@ -83,22 +83,22 @@ void SPR_WriteHeader(FILE *f, sprversion_t version, sprtype_t type, int maxwidth
 	fput_littleint(0, f);
 }
 
-void SPR_WriteFrameHeader(FILE *f, sprframetype_t frametype, rawchunk_t *chunk, int cx, int cy)
+void SPR_WriteFrameHeader(FILE *f, sprframetype_t frametype, int width, int height, int cx, int cy)
 {
 	fput_littleint(frametype, f);
-	fput_littleint(chunk->x + cx, f);
-	fput_littleint(chunk->y + cy, f);
-	fput_littleint(chunk->width, f);
-	fput_littleint(chunk->height, f);
+	fput_littleint(cx, f);
+	fput_littleint(cy, f);
+	fput_littleint(width, f);
+	fput_littleint(height, f);
 }
 
 void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, byte shadowpixel, byte shadowalpha, int flags)
 {
-	int i, p, d, maxwidth, maxheight;
+	int i, p, d, r, maxwidth, maxheight, cropx[2], cropy[2], cropwidth, cropheight;
 	byte *colormap, *buf, color[4];
 	rawchunk_t *chunk;
 	FILE *f;
-
+	
 	f = SafeOpenWrite(outfile);
 
 	// calc max width/height, write header
@@ -110,17 +110,19 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 	}
 	SPR_WriteHeader(f, version, type, maxwidth, maxheight, rawblock->chunks);
 
+	//54
+	//printf("Exporting %s: \n", outfile);
 	// write frames
 	for (i = 0; i < rawblock->chunks; i++)
 	{
 		chunk = &rawblock->chunk[i];
 		colormap = (chunk->colormap != NULL) ? chunk->colormap : rawblock->colormap;
-		SPR_WriteFrameHeader(f, SPR_FRAME_SINGLE, chunk, chunk->x + cx, chunk->y + cy);
 		if (version == SPR_DARKPLACES) // 32bit RGBA8 raw, ready for OpenGL
 		{
-			buf = qmalloc(chunk->size * 4);
+			// create initial image
 			// in Blood Omen, black pixels (0) were transparent
 			// also we optionally threating shadow pixel as transparent
+			buf = qmalloc(chunk->size * 4);
 			for (p = 0; p < chunk->size; p++)
 			{
 				d = chunk->pixels[p];
@@ -145,7 +147,85 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 				*buf++ = color[3];
 			}
 			buf -= chunk->size * 4;
-			fwrite(buf, chunk->size * 4, 1, f);
+
+			// get crop borders
+			memset(&cropx, 0, sizeof(cropx));
+			memset(&cropy, 0, sizeof(cropx));
+			cropwidth = chunk->width / 2;
+			cropheight = chunk->height / 2;
+			// find left crop border
+			while(cropx[0] < cropwidth)
+			{
+				for (r = 0; r < chunk->height; r++)
+					if (buf[r*chunk->width*4 + cropx[0]*4 + 3])
+						break;
+				if (r < chunk->height)
+					break;
+				cropx[0]++;
+			}
+			// right crop border
+			while(cropx[1] < cropwidth)
+			{
+				for (r = 0; r < chunk->height; r++)
+					if (buf[r*chunk->width*4 + (chunk->width - cropx[1] - 1)*4 + 3])
+						break;
+				if (r < chunk->height)
+					break;
+				cropx[1]++;
+			}
+			// up crop border
+			while(cropy[0] < cropheight)
+			{
+				for (r = 0; r < chunk->width; r++)
+					if (buf[cropy[0]*chunk->width*4 + r*4 + 3])
+						break;
+				if (r < chunk->width)
+					break;
+				cropy[0]++;
+			}
+			// down crop border
+			while(cropy[1] < cropheight)
+			{
+				for (r = 0; r < chunk->width; r++)
+					if (buf[(chunk->height - cropy[1] - 1)*chunk->width*4 + r*4 + 3])
+						break;
+				if (r < chunk->width)
+					break;
+				cropy[1]++;
+			}
+
+			// apply 1px margin
+			cropx[0] = max(0, cropx[0] - 1);
+			cropx[1] = max(0, cropx[1] - 1);
+			cropy[0] = max(0, cropy[0] - 1);
+			cropy[1] = max(0, cropy[1] - 1);
+
+			// write header
+			cropwidth = chunk->width - cropx[0] - cropx[1];
+			cropheight = chunk->height - cropy[0] - cropy[1];
+			//printf(" frame %i cropped from %ix%i to %ix%i (saving %.2f kb)\n", i, chunk->width, chunk->height, cropwidth, cropheight, (float)(chunk->width*chunk->height - cropwidth*cropheight)/256);
+			SPR_WriteFrameHeader(f, SPR_FRAME_SINGLE, cropwidth, cropheight, chunk->x + cx + cropx[1], chunk->y + cy - cropy[0]);
+			
+			/*
+			// test TGA output
+			char *out, *fin, *fout;
+			char sn[1024];
+			out = qmalloc(cropwidth*cropheight*4);
+			for (r = 0; r < cropheight; r++)
+			{
+				fin = buf + (cropy[0] + r)*chunk->width*4 + cropx[0]*4;
+				fout = out + r*cropwidth*4;
+				printf("copy: %i\n", fin[1]);
+				memcpy(fout, fin, cropwidth * 4);
+			}
+			sprintf(sn, "%s_%i.tga", outfile, i);
+			RawTGA(sn, cropwidth, cropheight, 0, 0, 0, 0, NULL, out, 32, NULL);
+			qfree(out);
+			*/
+
+			// write cropped pic
+			for (r = 0; r < cropheight; r++)
+				fwrite(buf + (cropy[0] + r)*chunk->width*4 + cropx[0]*4, cropwidth * 4, 1, f);
 			qfree(buf);
 		}
 		else

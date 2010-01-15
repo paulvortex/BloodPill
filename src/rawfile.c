@@ -696,8 +696,8 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 	realheight = height + by + ay;
 	pixelbytes = realwidth*realheight;
 	// check bpp
-	if (bpp != 8 && bpp != 16 && bpp != 24)
-		Error("RawTGA: bad bpp (only 8, 16 and 24 are supported)!\n");
+	if (bpp != 8 && bpp != 16 && bpp != 24 && bpp != 32)
+		Error("RawTGA: bad bpp (only 8, 16, 24 and 32 are supported)!\n");
 
 	// lineskippers
 	#define skiplines1(lines) for (i = 0; i < lines; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; }
@@ -724,7 +724,7 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 		buffer[15] = (realheight >> 8) & 0xFF;
 		buffer[16] = 8;
 		// 24-bit colormap, swap bgr->rgb
-		if (rawinfo->disableCLUT == true || colormapdata == NULL)
+		if ((rawinfo && rawinfo->disableCLUT == true) || colormapdata == NULL)
 		{
 			out = buffer + 18;
 			for (i = 0;i < 256;i++)
@@ -740,7 +740,7 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 			for (i = 0;i < 256;i++)
 			{
 				in = colormapdata + i*3;
-				if (rawinfo->dontSwapBgr == true)
+				if (rawinfo && rawinfo->dontSwapBgr == true)
 				{
 					*out++ = in[0];
 					*out++ = in[1];
@@ -788,7 +788,7 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 			for (;in < end; in += 2)
 			{
 				// swap bgr->rgb
-				if (rawinfo->dontSwapBgr == true)
+				if (rawinfo && rawinfo->dontSwapBgr == true)
 				{
 					*out++ = in[0]; 
 					*out++ = in[1];
@@ -823,7 +823,7 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 			for (;in < end; in += 3)
 			{
 				// swap bgr->rgb
-				if (rawinfo->dontSwapBgr == true)
+				if (rawinfo && rawinfo->dontSwapBgr == true)
 				{
 					*out++ = in[0];
 					*out++ = in[1];
@@ -840,6 +840,45 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 		}
 		skiplines3(by)
 		fwrite(buffer, pixelbytes*3 + 18, 1, f);
+	}
+	else if (bpp == 32)
+	{
+		buffer[2] = 2; // uncompressed
+		buffer[12] = (realwidth >> 0) & 0xFF;
+		buffer[13] = (realwidth >> 8) & 0xFF;
+		buffer[14] = (realheight >> 0) & 0xFF;
+		buffer[15] = (realheight >> 8) & 0xFF;
+		buffer[16] = 32;
+		// flip upside down, write
+		out = buffer + 18;
+		skiplines3(ay)
+		for (i = height - 1;i >= 0;i--)
+		{
+			skiprows3(bx)
+			in = pixeldata + i * width * 4;
+			end = in + width * 4;
+			for (;in < end; in += 4)
+			{
+				// swap bgr->rgb
+				if (rawinfo && rawinfo->dontSwapBgr == true)
+				{
+					*out++ = in[0];
+					*out++ = in[1];
+					*out++ = in[2];
+					*out++ = in[3];
+				}
+				else
+				{
+					*out++ = in[2];
+					*out++ = in[1];
+					*out++ = in[0];
+					*out++ = in[3];
+				}
+			}
+			skiprows3(ax)
+		}
+		skiplines3(by)
+		fwrite(buffer, pixelbytes*4 + 18, 1, f);
 	}
 	fclose(f);
 	qfree(buffer);
