@@ -2,8 +2,9 @@
 set B=bpill -f -bigfile pill.big -extract
 set S=bpill -f -spr32
 set N=testinstallation\script\legacy.nsx
+set CM=testinstallation\script\colormaps.nsx
 set EXT=spr32
-set scale2x=1
+set scale2x=0
 
 REM --- using 2x mode ---
 IF "%scale2x%"=="1" (
@@ -23,24 +24,31 @@ mkdir testinstallation\script
 
 REM --- CHARACTER SCRIPTS ----
 echo Creating script file...
-echo // Legacy stuff script file>>%N%
-echo [models]name={type,scale}>>%N%
-echo kain0al=oriented,%MS% >> %N%
-echo kain1sw=oriented,%MS% >> %N%
-echo kain1spl=flat,%MS% >> %N%
-echo kaingain=flat,%MS% >> %N%
-echo kaincure=flat,%MS% >> %N%
-echo kainreds=flat,%MS% >> %N%
-echo kaingrns=flat,%MS% >> %N%
-echo skel0wr=oriented,%MS% >> %N%
-echo skel0wrD=decal,%MDS% >> %N%
-echo grvdigr=oriented,%MS% >> %N%
-echo grvdigrA=flat,%MS% >> %N%
-echo grvdigrD=decal,%MDS% >> %N%
-echo skel0wr=oriented,%MS% >> %N%
-echo skel0wrD=decal,%MDS% >> %N%
-echo ghast=oriented,%MS% >> %N%
-echo ghastD=decal,%MDS% >> %N%
+echo // Legacy stuff script file >> %N%
+echo [models]name={type,scale,paletteindex} >> %N%
+echo kain0al=oriented,%MS%,32 >> %N%
+echo kain1sw=oriented,%MS%,33 >> %N%
+echo kain1spl=flat,%MS%,33 >> %N%
+echo kaingain=flat,%MS%,0 >> %N%
+echo kaincure=flat,%MS%,0 >> %N%
+echo kainreds=flat,%MS%,0 >> %N%
+echo kaingrns=flat,%MS%,0 >> %N%
+echo skel0wr=oriented,%MS%,34 >> %N%
+echo skel0wrD=decal,%MDS%,34 >> %N%
+echo grvdigr=oriented,%MS%,35 >> %N%
+echo grvdigrA=flat,%MS%,35 >> %N%
+echo grvdigrD=decal,%MDS%,35 >> %N%
+echo ghoul=oriented,%MS%,36 >> %N%
+echo ghoulD=decal,%MDS%,36 >> %N%
+echo ghast=oriented,%MS%,37 >> %N%
+echo ghastD=decal,%MDS%,37 >> %N%
+echo [colormaps]index={colormap} >> %CM%
+echo # colormaps 0-31 are system ones >> %CM%
+echo 1='8 0 0''11 0 0''12 0 0''19 0 0''24 0 0''28 0 0' >> %CM%
+echo 2='40 90 38''42 90 31''42 72 28''28 44 12''20 33 7' >> %CM%
+echo 3='7 7 7''8 7 8''12 12 12''13 12 13''15 15 15''17 15 17''20 20 20''23 20 23''24 24 24''27 24 27' >> %CM%
+echo 4=[blue blood] >> %CM%
+echo # misc colormaps >> %CM%
 
 REM --- CHARACTERS ----
 echo Character models...
@@ -48,7 +56,7 @@ set D=testinstallation/models/legacy
 
 REM --- kain alive ----
 echo  kain (alive)
-%B% 5728197C %D%/kain0al0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-31 -ofs -40 45 %BE%
+%B% 5728197C %D%/kain0al0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-31 -ofs -40 45 %BE% -colormap2nsx 1 14 32 %CM%
 %B% 5728197C %D%/kain0al1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 32-63 -ofs -63 50 %BE%
 %B% 5728197C %D%/kain0al2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 64-95 -ofs -69 44 %BE%
 %B% 5728197C %D%/kain0al3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 96-127 -ofs -71 36 %BE%
@@ -60,7 +68,7 @@ echo  kain (alive)
 
 REM --- kain iron armor + sword ---
 echo  kain (iron armor + sword)
-%B% 080C020C %D%/kain1sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52 %BE%
+%B% 080C020C %D%/kain1sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52 %BE% -colormap2nsx 1 14 33 %CM%
 %B% 080C020C %D%/kain1sw1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -73 59 %BE%
 %B% 080C020C %D%/kain1sw2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -81 55 %BE%
 %B% 080C020C %D%/kain1sw3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 204-271 -ofs -80 45 %BE%
@@ -95,7 +103,7 @@ REM --- kain spell effects ---
 
 REM --- green skeleton ---
 echo  Green skeleton
-%B% 79671C58 %D%/skel0wr0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -26 31 %BE%
+%B% 79671C58 %D%/skel0wr0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -26 31 %BE% -colormap2nsx 1 14 34 %CM%
 %B% 79671C58 %D%/skel0wr1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -30 31 %BE%
 %B% 79671C58 %D%/skel0wr2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -33 22 %BE%
 %B% 79671C58 %D%/skel0wr3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -33 26 %BE%
@@ -107,7 +115,7 @@ echo  Green skeleton
 
 REM --- gravedigger ---
 echo  Gravedigger
-%B% 74671C5C %D%/grvdigr0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-25 -ofs -44 67 %BE%
+%B% 74671C5C %D%/grvdigr0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-25 -ofs -44 67 %BE% -colormap2nsx 1 14 35 %CM%
 %B% 74671C5C %D%/grvdigr1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 26-51 -ofs -52 61 %BE%
 %B% 74671C5C %D%/grvdigr2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 52-77 -ofs -83 52 %BE%
 %B% 74671C5C %D%/grvdigr3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 78-103 -ofs -68 53 %BE%
@@ -120,7 +128,7 @@ echo  Gravedigger
 
 REM --- ghoul ---
 echo  Ghoul
-%B% 7C661C57 %D%/ghoul0.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-39 -ofs -24 48 %BE%
+%B% 7C661C57 %D%/ghoul0.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-39 -ofs -24 48 %BE% -colormap2nsx 1 14 36 %CM%
 %B% 7C661C57 %D%/ghoul1.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -35 45 %BE%
 %B% 7C661C57 %D%/ghoul2.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 80-119 -ofs -42 31 %BE%
 %B% 7C661C57 %D%/ghoul3.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 120-159 -ofs -50 36 %BE%
@@ -132,7 +140,7 @@ echo  Ghoul
 
 REM --- ghoul (strong) ---
 echo  Ghast
-%B% 7A661C5D %D%/ghast0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-39 -ofs -24 48 %BE%
+%B% 7A661C5D %D%/ghast0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-39 -ofs -24 48 %BE% -colormap2nsx 1 14 37 %CM%
 %B% 7A661C5D %D%/ghast1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -35 45 %BE%
 %B% 7A661C5D %D%/ghast2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 80-119 -ofs -42 31 %BE%
 %B% 7A661C5D %D%/ghast3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 120-159 -ofs -50 36 %BE%
@@ -156,8 +164,6 @@ REM 79661C56
 
 REM --- gog ---
 REM 79671C5A
-
-GOTO EXIT
 
 REM --- SOUNDS ---
 echo Sounds...

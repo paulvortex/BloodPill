@@ -1362,14 +1362,15 @@ int BigFile_List(int argc, char **argv)
 
 void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_t *entry, rawblock_t *rawblock, char *format)
 {
-	int i, num, margin, spritex, spritey, spriteflags;
+	int i, num, minp, maxp, margin, aver, diff, spritex, spritey, spriteflags;
 	sprtype_t spritetype = SPR_VP_PARALLEL;
 	rawblock_t *tb1, *tb2, *tb3, *tb4;
 	qboolean noalign, nocrop, flip, scale;
+	byte pix, shadowpix, shadowalpha;
+	byte c[3];
 	double colorscale;
-	byte shadowalpha;
 	list_t *includelist;
-	byte pix, shadowpix;
+	FILE *f;
 
 	// additional parms
 	includelist = NewList();
@@ -1564,6 +1565,39 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 		{
 			scale = true;
 			Verbose("Option: Scale by factor 2 with nearest neighbour\n");
+			continue;
+		}
+		if (!strcmp(argv[i], "-colormap2nsx"))
+		{
+			i++;
+			if ((i + 3) < argc)
+			{
+				f = fopen(argv[i+3], "a");
+				if (!f)
+					Warning("Option: cannot open %s for input\n", argv[i+2]);
+				else
+				{
+					fputs(argv[i+2], f);
+					fputs("=", f);
+					// write colormap
+					minp = min(255, max(0, atoi(argv[i])));
+					maxp = min(255, max(0, atoi(argv[i+1])));
+					for (num = minp; num < maxp; num++)
+					{
+						memcpy(c, rawblock->colormap + num*3, 3);
+						aver = (int)((c[0] + c[1] + c[2])/3);
+						diff = max(c[0], max(c[1], c[2]));
+						// reject any color thats too gray
+						if (!diff || aver/diff > 0.8)
+							continue;
+						fprintf(f, "'%i %i %i'", c[0], c[1], c[2]);
+					}
+					fputs("\n", f);
+					fclose(f);
+					Verbose("Option: Export palette indexes %s-%s as #%s to %s\n", argv[i], argv[i+1], argv[i+2], argv[i+3]);
+				}
+				i += 3;
+			}
 			continue;
 		}
 		Warning("unknown parameter '%s'",  argv[i]);
