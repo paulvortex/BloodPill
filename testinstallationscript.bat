@@ -150,6 +150,8 @@ echo  Ghast
 %B% 7A661C5D %D%/ghast7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -21 43 -flip %BE%
 %B% 7A661C5D %D%/ghastD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 199-207 -ofs -25 29 %BE%
 
+REM GOTO EXIT
+
 REM --- rogue swordsman ---
 REM 7C661C5D
 
@@ -172,8 +174,8 @@ set D=testinstallation/sound/legacy
 %B% 1413141E %D%/firesword2.wav
 %B% 564E2D74 %D%/firesword3.wav
 %B% 14091300 %D%/magicspike.wav
-%B% 141C0A12 %D%/power.wav
-%B% 17101D1F %D%/explode.wav
+%B% 141C0A12 %D%/power.wav -speed 1.1
+%B% 17101D1F %D%/explode.wav -speed 1.1
 %B% 19136C46 %D%/kainpain1.wav
 %B% 19136C47 %D%/kainpain2.wav
 %B% 1F04141D %D%/kainpain3.wav
@@ -187,9 +189,9 @@ set D=testinstallation/sound/legacy
 %B% 1D15111C %D%/bloodgain.wav -speed 1.1
 %B% 24690B7C %D%/wolfpain.wav
 %B% 246A0B7C %D%/wolfjump.wav
-%B% 246F1779 %D%/hit1.wav -trimstart 0.02 -speed 1.1
-%B% 246E1779 %D%/hit2.wav -trimstart 0.013 -speed 1.1
-%B% 24691779 %D%/hit3.wav -trimstart 0.013 -speed 0.95
+%B% 246F1779 %D%/hit1.wav -trimstart 0.02 -speed 1.2
+%B% 246E1779 %D%/hit2.wav -trimstart 0.013 -speed 1.2
+%B% 24691779 %D%/hit3.wav -trimstart 0.013 -speed 1.1
 %B% 24701162 %D%/choir.wav -speed 1.1
 %B% 270F1664 %D%/switch.wav -trimstart 0.27
 %B% 2A0D1C79 %D%/heartbeat.wav
@@ -211,7 +213,7 @@ set D=testinstallation/sound/legacy
 %B% 505A2D69 %D%/bats.wav
 %B% 51543C76 %D%/ambient2.wav
 %B% 56286765 %D%/mechanic.wav
-%B% 5A341272 %D%/slash.wav
+%B% 5A341272 %D%/slash.wav -speed 1.1
 
 REM --- MUSIC ---
 echo Music...
