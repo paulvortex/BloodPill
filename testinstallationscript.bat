@@ -9,11 +9,11 @@ set scale2x=0
 REM --- using 2x mode ---
 IF "%scale2x%"=="1" (
  set BE=-nearest2x
- set MS=0.4
+ set MS=0.41
  set MDS=0.9
 ) ELSE (
  set BE=
- set MS=0.8
+ set MS=0.82
  set MDS=0.9
 )
 
@@ -44,10 +44,10 @@ echo ghast=oriented,%MS%,37 >> %N%
 echo ghastD=decal,%MDS%,37 >> %N%
 echo [colormaps]index={colormap} >> %CM%
 echo # colormaps 0-31 are system ones >> %CM%
-echo 1='8 0 0''11 0 0''12 0 0''19 0 0''24 0 0''28 0 0' >> %CM%
+echo 1='12 0 0''19 0 0''28 0 0''37 0 0''42 0 0''56 0 0''69 0 0' >> %CM%
 echo 2='40 90 38''42 90 31''42 72 28''28 44 12''20 33 7' >> %CM%
 echo 3='7 7 7''8 7 8''12 12 12''13 12 13''15 15 15''17 15 17''20 20 20''23 20 23''24 24 24''27 24 27' >> %CM%
-echo 4=[blue blood] >> %CM%
+echo 4='20 19 90''21 16 90''21 17 72''14 6 44''10 4 33' >> %CM%
 echo # misc colormaps >> %CM%
 
 REM --- CHARACTERS ----
