@@ -9,12 +9,14 @@ set scale2x=0
 REM --- using 2x mode ---
 IF "%scale2x%"=="1" (
  set BE=-nearest2x
- set MS=0.41
- set MDS=0.9
+ set PS=0.41
+ set MS=0.46
+ set MDS=0.5
 ) ELSE (
  set BE=
- set MS=0.82
- set MDS=0.9
+ set PS=0.82
+ set MS=0.92
+ set MDS=1.0
 )
 
 REM --- INIT ----
@@ -26,13 +28,13 @@ REM --- CHARACTER SCRIPTS ----
 echo Creating script file...
 echo // Legacy stuff script file >> %N%
 echo [models]name={type,scale,paletteindex} >> %N%
-echo kain0al=oriented,%MS%,32 >> %N%
-echo kain1sw=oriented,%MS%,33 >> %N%
-echo kain1spl=flat,%MS%,33 >> %N%
-echo kaingain=flat,%MS%,0 >> %N%
-echo kaincure=flat,%MS%,0 >> %N%
-echo kainreds=flat,%MS%,0 >> %N%
-echo kaingrns=flat,%MS%,0 >> %N%
+echo kain0al=oriented,%PS%,32 >> %N%
+echo kain1sw=oriented,%PS%,33 >> %N%
+echo kain1spl=flat,%PS%,33 >> %N%
+echo kaingain=flat,%PS%,0 >> %N%
+echo kaincure=flat,%PS%,0 >> %N%
+echo kainreds=flat,%PS%,0 >> %N%
+echo kaingrns=flat,%PS%,0 >> %N%
 echo skel0wr=oriented,%MS%,34 >> %N%
 echo skel0wrD=decal,%MDS%,34 >> %N%
 echo grvdigr=oriented,%MS%,35 >> %N%
@@ -44,7 +46,7 @@ echo ghast=oriented,%MS%,37 >> %N%
 echo ghastD=decal,%MDS%,37 >> %N%
 echo [colormaps]index={colormap} >> %CM%
 echo # colormaps 0-31 are system ones >> %CM%
-echo 1='12 0 0''19 0 0''28 0 0''37 0 0''42 0 0''56 0 0''69 0 0' >> %CM%
+echo 1='28 0 0''37 0 0''42 0 0''56 0 0''69 0 0''74 0 0''79 0 0''84 0 0' >> %CM%
 echo 2='40 90 38''42 90 31''42 72 28''28 44 12''20 33 7' >> %CM%
 echo 3='7 7 7''8 7 8''12 12 12''13 12 13''15 15 15''17 15 17''20 20 20''23 20 23''24 24 24''27 24 27' >> %CM%
 echo 4='20 19 90''21 16 90''21 17 72''14 6 44''10 4 33' >> %CM%
@@ -186,7 +188,7 @@ set D=testinstallation/sound/legacy
 %B% 5A2B7268 %D%/hfdeath1.wav
 %B% 5A2B7168 %D%/hfdeath2.wav
 %B% 5A2F0E7F %D%/button.wav
-%B% 1D15111C %D%/bloodgain.wav -speed 1.1
+%B% 1D15111C %D%/bloodgain.wav -speed 1.3
 %B% 24690B7C %D%/wolfpain.wav
 %B% 246A0B7C %D%/wolfjump.wav
 %B% 246F1779 %D%/hit1.wav -trimstart 0.02 -speed 1.2
@@ -194,7 +196,7 @@ set D=testinstallation/sound/legacy
 %B% 24691779 %D%/hit3.wav -trimstart 0.013 -speed 1.1
 %B% 24701162 %D%/choir.wav -speed 1.1
 %B% 270F1664 %D%/switch.wav -trimstart 0.27
-%B% 2A0D1C79 %D%/heartbeat.wav
+%B% 2A0D1C79 %D%/heartbeat.wav -speed 1.1
 %B% 2A0E0C7E %D%/kainlaugh.wav
 %B% 2E06196A %D%/undead.wav
 %B% 39741C68 %D%/captivem1.wav

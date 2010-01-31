@@ -200,6 +200,10 @@
 					/>
 				</FileConfiguration>
 			</File>
+			<File
+				RelativePath=".\vagfile.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -235,6 +239,10 @@
 			</File>
 			<File
 				RelativePath="timfile.h"
+				>
+			</File>
+			<File
+				RelativePath=".\vagfile.h"
 				>
 			</File>
 		</Filter>

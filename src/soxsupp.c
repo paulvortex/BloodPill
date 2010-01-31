@@ -86,11 +86,11 @@ qboolean SoX_DataToData(byte *data, int databytes, char *generalcmd, char *input
 	qboolean sox;
 	FILE *f;
 
-	strcpy(out, "soxout.tmp");
+	strcpy(out, SOXTEMP_OUT);
 	//tmpnam(out);
 
 	// make input
-	strcpy(in, "soxin.tmp");
+	strcpy(in, SOXTEMP_IN);
 	//tmpnam(in);
 	SaveFile(in, data, databytes);
 
@@ -122,9 +122,9 @@ qboolean SoX_DataToFile(byte *data, int databytes, char *generalcmd, char *input
 	qboolean sox;
 
 	// make input
-	strcpy(in, "soxin.tmp");
+	strcpy(in, SOXTEMP_IN);
 	//tmpnam(in);
-	strcpy(in, "soxin.tmp");
+	strcpy(in, SOXTEMP_IN);
 	SaveFile(in, data, databytes);
 	// create path
 	ExtractFilePath(outfile, path);
@@ -148,7 +148,7 @@ qboolean SoX_FileToData(char *in, char *generalcmd, char *inputcmd, char *output
 	qboolean sox;
 	FILE *f;
 
-	strcpy(out, "soxout.tmp");
+	strcpy(out, SOXTEMP_OUT);
 	//tmpnam(out);
 
 	// run
@@ -186,7 +186,7 @@ int AdpcmConvert_Main(int argc, char **argv)
 	double vorbisquality;
 	qboolean wavpcm;
 
-	Print("=== VagConvert ==\n");
+	Print("=== AdpcmConvert ==\n");
 	if (i < 1)
 		Error("not enough parms");
 
@@ -252,7 +252,7 @@ int AdpcmConvert_Main(int argc, char **argv)
 		sprintf(inputcmd, "-t ima -r %i -c 1", rate);
 	else
 	{
-		Warning("file %s is not a VAG file, detecting type automatically\n", outputcmd);
+		Warning("file %s is not a APDCM file, detecting type automatically\n", outputcmd);
 		sprintf(inputcmd, "");
 	}
 

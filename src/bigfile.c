@@ -878,12 +878,14 @@ void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolea
 	}
 }
 
-void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, qboolean vagconvert, qboolean vagpcm, qboolean vagogg, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign)
+void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, int adpcmconvert, int vagconvert, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign, qboolean psone)
 {
 	char savefile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
 	char inputcmd[512], outputcmd[512];
 	rawblock_t *rawblock;
+	char *data;
 	FILE *f;
+	int c, size;
 
 	// nopaths, clear path
 	if (nopaths)
@@ -925,22 +927,43 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 		BigfileSeekContents(bigf, entry->data, entry);
 	}
 
-	// autoconvert VAG
-	if (vagconvert && entry->type == BIGENTRY_RAW_ADPCM)
+	// autoconvert raw ADPCM or VAG
+	if ((adpcmconvert && entry->type == BIGENTRY_RAW_ADPCM) || (vagconvert && entry->type == BIGENTRY_VAG))
 	{
 		StripFileExtension(entry->name, basename);
+		if (entry->type == BIGENTRY_RAW_ADPCM)
+		{
+			c = adpcmconvert;
+		//	if (psone) // if PlayStation pill.big, thread ADPCM as RAW VAG
+		//	{
+		//		VAG_Unpack(entry->data, 0, entry->size, &data, &size);
+		//		sprintf(inputcmd, "-t s16 -r %i -c 1", entry->adpcmrate);
+		//	}
+		//	else
+		//	{
+				data = entry->data;
+				size = entry->size;
+				sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
+		//  }
+		}
+		else
+		{
+			c = vagconvert;
+			// unpack vag
+			VAG_Unpack(entry->data, 64, entry->size, &data, &size);
+			sprintf(inputcmd, "-t s16 -r %i -c 1", entry->adpcmrate);
+		}
 
 		// try to save
-		sprintf(savefile, (vagogg) ? "%s/%s.ogg" : "%s/%s.wav", dstdir, basename);
-		sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
-		if (vagogg)
+		sprintf(savefile, (c == 3) ? "%s/%s.ogg" : "%s/%s.wav", dstdir, basename);
+		if (c == 3)
 			sprintf(outputcmd, "-t ogg -C 7");
-		else if (vagpcm)
+		else if (c == 2)
 			sprintf(outputcmd, "-t wav -e signed-integer");
 		else 
 			sprintf(outputcmd, "-t wav");
-		if (SoX_DataToFile(entry->data, entry->size, "--no-dither", inputcmd, outputcmd, savefile, ""))
-			sprintf(entry->name, (vagogg) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.tx
+		if (SoX_DataToFile(data, size, "--no-dither", inputcmd, outputcmd, savefile, ""))
+			sprintf(entry->name, (c == 3) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.tx
 		else
 		{
 			//Warning("unable to convert %s, SoX Error #%i, unpacking original", entry->name, GetLastError());
@@ -1895,11 +1918,11 @@ int BigFile_Unpack(int argc, char **argv)
 {
 	FILE *f, *f2;
 	char savefile[MAX_BLOODPATH], dstdir[MAX_BLOODPATH];
-	qboolean tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, scanraw, rawconvert, rawnoalign;
+	qboolean tim2tga, bpp16to24, nopaths, scanraw, rawconvert, rawnoalign, psone;
 	rawtype_t forcerawtype;
 	bigfileheader_t *data;
 	list_t *ixlist;
-	int i;
+	int i, adpcmconvert, vagconvert;
 
 	// parse commandline parms
 	strcpy(dstdir, DEFAULT_PACKPATH);
@@ -1907,13 +1930,13 @@ int BigFile_Unpack(int argc, char **argv)
 	tim2tga = false;
 	bpp16to24 = false;
 	nopaths = false;
-	vagconvert = false;
-	vagpcm = false;
-	vagogg = false;
+	adpcmconvert = 0;
+	vagconvert = 0;
 	scanraw = false;
 	rawconvert = false;
 	forcerawtype = RAW_TYPE_UNKNOWN;
 	rawnoalign = false;
+	psone = false;
 	if (argc > 0)
 	{
 		if (argv[0][0] != '-')
@@ -1959,26 +1982,32 @@ int BigFile_Unpack(int argc, char **argv)
 			}
 			if (!strcmp(argv[i], "-adpcm2wav"))
 			{
-				vagconvert = true;
-				vagogg = false;
-				vagpcm = false;
+				adpcmconvert = 1;
 				Verbose("Option: ADPCM->WAV (native) conversion\n");
 				continue;
 			}
 			if (!strcmp(argv[i], "-adpcm2pcm"))
 			{
-				vagconvert = true;
-				vagogg = false;
-				vagpcm = true;
+				adpcmconvert = 2;
 				Verbose("Option: ADPCM->WAV (PCM) conversion\n");
 				continue;
 			}
 			if (!strcmp(argv[i], "-adpcm2ogg"))
 			{
-				vagconvert = true;
-				vagogg = true;
-				vagpcm = false;
+				adpcmconvert = 3;
 				Verbose("Option: ADPCM->OGG (Vorbis quality 5) conversion\n");
+				continue;
+			}
+			if (!strcmp(argv[i], "-vag2wav"))
+			{
+				vagconvert = 2;
+				Verbose("Option: VAG->WAV (PCM native) conversion\n");
+				continue;
+			}
+			if (!strcmp(argv[i], "-vag2ogg"))
+			{
+				vagconvert = 3;
+				Verbose("Option: VAG->OGG (Vorbis quality 5) conversion\n");
 				continue;
 			}
 			if (!strcmp(argv[i], "-scanraw"))
@@ -2009,6 +2038,12 @@ int BigFile_Unpack(int argc, char **argv)
 				Verbose("Option: Disable RAW images aligning\n");
 				continue;
 			}
+			if (!strcmp(argv[i], "-psone"))
+			{
+				psone = true;
+				Verbose("Option: PlayStation pill.big\n");
+				continue;
+			}
 			if (i != 0)
 				Warning("unknown parameter '%s'",  argv[i]);
 		}
@@ -2026,7 +2061,7 @@ int BigFile_Unpack(int argc, char **argv)
 			if (!MatchIXList(&data->entries[i], ixlist, true, true))
 				continue;
 		Pacifier("unpacking entry %i of %i...", i + 1, data->numentries);
-		BigFileUnpackEntry(f, &data->entries[i], dstdir, tim2tga, bpp16to24, nopaths, vagconvert, vagpcm, vagogg, rawconvert, forcerawtype, rawnoalign);
+		BigFileUnpackEntry(f, &data->entries[i], dstdir, tim2tga, bpp16to24, nopaths, adpcmconvert, vagconvert, rawconvert, forcerawtype, rawnoalign, psone);
 	}
 	PacifierEnd();
 

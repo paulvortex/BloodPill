@@ -20,8 +20,6 @@
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ////////////////////////////////
 
-// 05106F48 - трансформация в волка, 14050761 - в летучую мышь.
-
 #include "bloodpill.h"
 #include "bigfile.h"
 #include "cmdlib.h"

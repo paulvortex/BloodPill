@@ -2,6 +2,7 @@
 #include "timfile.h"
 #include "rawfile.h"
 #include "sprfile.h"
+#include "vagfile.h"
 
 #define MAX_TIM_LAYERS
 
