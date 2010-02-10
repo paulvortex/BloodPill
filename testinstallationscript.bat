@@ -43,6 +43,7 @@ echo kaingain=flat,%PS%,0 >> %N%
 echo kaincure=flat,%PS%,0 >> %N%
 echo kainreds=flat,%PS%,0 >> %N%
 echo kaingrns=flat,%PS%,0 >> %N%
+echo kaintele=flat,%PS%,0 >> %N%
 echo skel0wr=oriented,%MS%,34 >> %N%
 echo skel0wrD=decal,%MDS%,34 >> %N%
 echo grvdigr=oriented,%MS%,35 >> %N%
@@ -197,10 +198,12 @@ REM --- kain flesh armor + sword - build single model ---
 %S% %D%/kain4sw7.%EXT% -merge %D%/kain4ss7.%EXT%
 
 REM --- kain spell effects ---
+echo  kain spell effects
 %B% 011E0F07 %D%/kaingain.%EXT% -overhead -i 0-20 -ofs -44 48 %BE%
 %B% 0303683A %D%/kaincure.%EXT% -overhead -i 0-16 -ofs -45 44 %BE%
 %B% 17056235 %D%/kainreds.%EXT% -overhead -i 0-20 -ofs -39 41 %BE%
 %B% 0D1F7A28 %D%/kaingrns.%EXT% -overhead -i 0-15 -ofs -39 41 %BE%
+%B% 1F146B3E %D%/kaintele.%EXT% -overhead -i 0-20 -ofs -39 141 %BE%
 
 REM --- green skeleton ---
 echo  Green skeleton
