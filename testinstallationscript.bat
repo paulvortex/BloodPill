@@ -12,11 +12,13 @@ IF "%scale2x%"=="1" (
  set PS=0.41
  set MS=0.46
  set MDS=0.5
+ set BS=0.625
 ) ELSE (
  set BE=
  set PS=0.82
  set MS=0.92
  set MDS=1.0
+ set BS=1.25
 )
 
 REM --- INIT ----
@@ -45,7 +47,7 @@ echo kainreds=flat,%PS%,0 >> %N%
 echo kaingrns=flat,%PS%,0 >> %N%
 echo kaintele=flat,%PS%,0 >> %N%
 echo kainmlit=flat,%PS%,0 >> %N%
-echo flayed=decal,%MDS%,34 >> %N%
+echo flayed=decal,%BS%,34 >> %N%
 echo skel0wr=oriented,%MS%,34 >> %N%
 echo skel0wrD=decal,%MDS%,34 >> %N%
 echo grvdigr=oriented,%MS%,35 >> %N%
@@ -207,7 +209,7 @@ echo  kain spell effects
 %B% 0D1F7A28 %D%/kaingrns.%EXT% -overhead -i 0-15 -ofs -39 41 %BE%
 %B% 1F146B3E %D%/kaintele.%EXT% -overhead -i 0-20 -ofs -20 36 %BE%
 %B% 512A0B71 %D%/kainmlit.%EXT% -overhead -i 0-13 -ofs -42 47 %BE%
-%B% 1D1B653E %D%/flayed.%EXT% -oriented -i 30-48 -ofs -23 26 -replacecolormap flayed_palette.tga %BE%
+%B% 1D1B653E %D%/flayed.%EXT% -oriented -i 30-48 -ofs -21 20 -replacecolormap flayed_palette.tga %BE%
 %B% 1D1B653E %D%/repel.%EXT% -overhead -i 49-49 -ofs -49 49 %BE%
 
 REM --- green skeleton ---
