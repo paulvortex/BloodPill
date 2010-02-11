@@ -44,6 +44,8 @@ echo kaincure=flat,%PS%,0 >> %N%
 echo kainreds=flat,%PS%,0 >> %N%
 echo kaingrns=flat,%PS%,0 >> %N%
 echo kaintele=flat,%PS%,0 >> %N%
+echo kainmlit=flat,%PS%,0 >> %N%
+echo flayed=decal,%MDS%,34 >> %N%
 echo skel0wr=oriented,%MS%,34 >> %N%
 echo skel0wrD=decal,%MDS%,34 >> %N%
 echo grvdigr=oriented,%MS%,35 >> %N%
@@ -203,7 +205,10 @@ echo  kain spell effects
 %B% 0303683A %D%/kaincure.%EXT% -overhead -i 0-16 -ofs -45 44 %BE%
 %B% 17056235 %D%/kainreds.%EXT% -overhead -i 0-20 -ofs -39 41 %BE%
 %B% 0D1F7A28 %D%/kaingrns.%EXT% -overhead -i 0-15 -ofs -39 41 %BE%
-%B% 1F146B3E %D%/kaintele.%EXT% -overhead -i 0-20 -ofs -39 141 %BE%
+%B% 1F146B3E %D%/kaintele.%EXT% -overhead -i 0-20 -ofs -20 36 %BE%
+%B% 512A0B71 %D%/kainmlit.%EXT% -overhead -i 0-13 -ofs -42 47 %BE%
+%B% 1D1B653E %D%/flayed.%EXT% -oriented -i 30-48 -ofs -23 26 -replacecolormap flayed_palette.tga %BE%
+%B% 1D1B653E %D%/repel.%EXT% -overhead -i 49-49 -ofs -49 49 %BE%
 
 REM --- green skeleton ---
 echo  Green skeleton
@@ -254,7 +259,7 @@ echo  Ghast
 %B% 7A661C5D %D%/ghast7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -21 43 -flip %BE%
 %B% 7A661C5D %D%/ghastD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 199-207 -ofs -25 29 %BE%
 
-GOTO EXIT
+REM GOTO EXIT
 
 REM --- rogue swordsman ---
 REM 7C661C5D
@@ -286,7 +291,7 @@ set D=testinstallation/sound/legacy
 %B% 1C136A4D %D%/hpain1.wav
 %B% 1C136A4E %D%/hpain2.wav
 %B% 1C1B6736 %D%/hdeath1.wav
-%B% 45572963 %D%/hdeath2.wav
+%B% 45572963 %D%/hdeath2.wav -trimstart 0.03 -speed 1.05
 %B% 5A2B7268 %D%/hfdeath1.wav
 %B% 5A2B7168 %D%/hfdeath2.wav
 %B% 5A2F0E7F %D%/button.wav
