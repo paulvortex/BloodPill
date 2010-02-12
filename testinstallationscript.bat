@@ -12,13 +12,13 @@ IF "%scale2x%"=="1" (
  set PS=0.41
  set MS=0.46
  set MDS=0.5
- set BS=0.625
+ set BS=0.6
 ) ELSE (
  set BE=
  set PS=0.82
  set MS=0.92
  set MDS=1.0
- set BS=1.25
+ set BS=1.2
 )
 
 REM --- INIT ----
@@ -57,6 +57,9 @@ echo ghoul=oriented,%MS%,36 >> %N%
 echo ghoulD=decal,%MDS%,36 >> %N%
 echo ghast=oriented,%MS%,37 >> %N%
 echo ghastD=decal,%MDS%,37 >> %N%
+echo brigand=oriented,%MS%,38 >> %N%
+echo brigandA=flat,%MS%,38 >> %N%
+echo brigandD=decal,%MDS%,38 >> %N%
 echo [colormaps]index={colormap} >> %CM%
 echo # colormaps 0-31 are system ones >> %CM%
 echo 1='28 0 0''37 0 0''42 0 0''56 0 0''69 0 0''74 0 0''79 0 0''84 0 0' >> %CM%
@@ -261,7 +264,20 @@ echo  Ghast
 %B% 7A661C5D %D%/ghast7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -21 43 -flip %BE%
 %B% 7A661C5D %D%/ghastD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 199-207 -ofs -25 29 %BE%
 
-REM GOTO EXIT
+REM --- brigand ---
+echo  Brigand
+%B% 7C661C5D %D%/brigand0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-33 -ofs -33 43 %BE% -colormap2nsx 1 14 43 %CM%
+%B% 7C661C5D %D%/brigand1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 34-67 -ofs -51 48 %BE%
+%B% 7C661C5D %D%/brigand2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-101 -ofs -54 44 %BE%
+%B% 7C661C5D %D%/brigand3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 102-135 -ofs -46 49 %BE%
+%B% 7C661C5D %D%/brigand4.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-169 -ofs -36 42 %BE%
+%B% 7C661C5D %D%/brigand5.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 102-135 -ofs -28 49 -flip %BE%
+%B% 7C661C5D %D%/brigand6.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-101 -ofs -41 44 -flip %BE%
+%B% 7C661C5D %D%/brigand7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 34-67 -ofs -38 48 -flip %BE%
+%B% 7C661C5D %D%/brigandA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 170-178 -ofs -15 19 %BE%
+%B% 7C661C5D %D%/brigandD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 179-200 -ofs -31 28 %BE%
+
+GOTO EXIT
 
 REM --- rogue swordsman ---
 REM 7C661C5D
