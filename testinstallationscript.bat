@@ -26,55 +26,91 @@ echo Initializing...
 mkdir testinstallation
 mkdir testinstallation\script
 
+REM --- COLORMAPS ---
+set colormap_null=0
+set colormap_blood_red=1
+set colormap_blood_green=2
+set colormap_blood_black=3
+set colormap_blood_blue=4
+set colormap_gray=5
+set colormap_kain_alive=32
+set colormap_kain_armor1=33
+set colormap_kain_armor2=34
+set colormap_kain_armor3=35
+set colormap_kain_armor4=36
+set colormap_kain_armor5=37
+set colormap_flayed_skeleton=38
+set colormap_gravedigger=39
+set colormap_green_skeleton=40
+set colormap_ghoul=41
+set colormap_ghast=42
+set colormap_brigand=43
+set colormap_brigandmerc=44
+set colormap_brigandmace=45
+set colormap_macemerc=46
+
 REM --- CHARACTER SCRIPTS ----
 echo Creating script file...
 echo // Legacy stuff script file >> %N%
 echo [models]name={type,scale,paletteindex} >> %N%
-echo kain0al=oriented,%PS%,32 >> %N%
-echo kain1sw=oriented,%PS%,33 >> %N%
-echo kain1spl=flat,%PS%,33 >> %N%
-echo kain2sw=oriented,%PS%,33 >> %N%
-echo kain2spl=flat,%PS%,33 >> %N%
-echo kain3sw=oriented,%PS%,33 >> %N%
-echo kain3spl=flat,%PS%,33 >> %N%
-echo kain4sw=oriented,%PS%,33 >> %N%
-echo kain4spl=flat,%PS%,33 >> %N%
-echo kain5sw=oriented,%PS%,33 >> %N%
-echo kain5spl=flat,%PS%,33 >> %N%
-echo kaingain=flat,%PS%,0 >> %N%
-echo kaincure=flat,%PS%,0 >> %N%
-echo kainreds=flat,%PS%,0 >> %N%
-echo kaingrns=flat,%PS%,0 >> %N%
-echo kaintele=flat,%PS%,0 >> %N%
-echo kainmlit=flat,%PS%,0 >> %N%
-echo flayed=decal,%BS%,34 >> %N%
-echo skel0wr=oriented,%MS%,34 >> %N%
-echo skel0wrD=decal,%MDS%,34 >> %N%
-echo grvdigr=oriented,%MS%,35 >> %N%
-echo grvdigrA=flat,%MS%,35 >> %N%
-echo grvdigrD=decal,%MDS%,35 >> %N%
-echo ghoul=oriented,%MS%,36 >> %N%
-echo ghoulD=decal,%MDS%,36 >> %N%
-echo ghast=oriented,%MS%,37 >> %N%
-echo ghastD=decal,%MDS%,37 >> %N%
-echo brigand=oriented,%MS%,38 >> %N%
-echo brigandA=flat,%MS%,38 >> %N%
-echo brigandD=decal,%MDS%,38 >> %N%
+echo kain0al=oriented,%PS%,%colormap_kain_alive% >> %N%
+echo kain1sw=oriented,%PS%,%colormap_kain_armor1% >> %N%
+echo kain1spl=flat,%PS%,%colormap_kain_armor1% >> %N%
+echo kain2sw=oriented,%PS%,%colormap_kain_armor2% >> %N%
+echo kain2spl=flat,%PS%,%colormap_kain_armor2% >> %N%
+echo kain3sw=oriented,%PS%,%colormap_kain_armor3% >> %N%
+echo kain3spl=flat,%PS%,%colormap_kain_armor3% >> %N%
+echo kain4sw=oriented,%PS%,%colormap_kain_armor4% >> %N%
+echo kain4spl=flat,%PS%,%colormap_kain_armor4% >> %N%
+echo kain5sw=oriented,%PS%,%colormap_kain_armor5% >> %N%
+echo kain5spl=flat,%PS%,%colormap_kain_armor5% >> %N%
+echo kaingain=flat,%PS%,%colormap_null% >> %N%
+echo kaincure=flat,%PS%,%colormap_null% >> %N%
+echo kainreds=flat,%PS%,%colormap_null% >> %N%
+echo kaingrns=flat,%PS%,%colormap_null% >> %N%
+echo kaintele=flat,%PS%,%colormap_null% >> %N%
+echo kainmlit=flat,%PS%,%colormap_null% >> %N%
+echo flayed=decal,%BS%,%colormap_flayed_skeleton% >> %N%
+echo skel0wr=oriented,%MS%,%colormap_green_skeleton% >> %N%
+echo skel0wrD=decal,%MDS%,%colormap_green_skeleton% >> %N%
+echo grvdigr=oriented,%MS%,%colormap_gravedigger% >> %N%
+echo grvdigrA=flat,%MS%,%colormap_gravedigger% >> %N%
+echo grvdigrD=decal,%MDS%,%colormap_gravedigger% >> %N%
+echo ghoul=oriented,%MS%,%colormap_ghoul% >> %N%
+echo ghoulD=decal,%MDS%,%colormap_ghoul% >> %N%
+echo ghast=oriented,%MS%,%colormap_ghast% >> %N%
+echo ghastD=decal,%MDS%,%colormap_ghast% >> %N%
+echo brigand=oriented,%MS%,%colormap_brigand% >> %N%
+echo brigandA=flat,%MS%,%colormap_brigand% >> %N%
+echo brigandD=decal,%MDS%,%colormap_brigand% >> %N%
+echo brgmerc=oriented,%MS%,%colormap_brigandmerc% >> %N%
+echo brgmercA=flat,%MS%,%colormap_brigandmerc% >> %N%
+echo brgmercD=decal,%MDS%,%colormap_brigandmerc% >> %N%
+echo brgmace=oriented,%MS%,%colormap_brigandmace% >> %N%
+echo brgmaceA=flat,%MS%,%colormap_brigandmace% >> %N%
+echo brgmaceD=decal,%MDS%,%colormap_brigandmace% >> %N%
+echo macemrc=oriented,%MS%,%colormap_macemerc% >> %N%
+echo macemrcA=flat,%MS%,%colormap_macemerc% >> %N%
+echo macemrcD=decal,%MDS%,%colormap_macemerc% >> %N%
+
 echo [colormaps]index={colormap} >> %CM%
 echo # colormaps 0-31 are system ones >> %CM%
-echo 1='28 0 0''37 0 0''42 0 0''56 0 0''69 0 0''74 0 0''79 0 0''84 0 0' >> %CM%
-echo 2='40 90 38''42 90 31''42 72 28''28 44 12''20 33 7' >> %CM%
-echo 3='7 7 7''8 7 8''12 12 12''13 12 13''15 15 15''17 15 17''20 20 20''23 20 23''24 24 24''27 24 27' >> %CM%
-echo 4='20 19 90''21 16 90''21 17 72''14 6 44''10 4 33' >> %CM%
+echo %colormap_blood_red%='28 0 0''37 0 0''42 0 0''56 0 0''69 0 0''74 0 0''79 0 0''84 0 0' >> %CM%
+echo %colormap_blood_green%='40 90 38''42 90 31''42 72 28''28 44 12''20 33 7' >> %CM%
+echo %colormap_blood_black%='7 7 7''8 7 8''12 12 12''13 12 13''15 15 15''17 15 17''20 20 20''23 20 23''24 24 24''27 24 27' >> %CM%
+echo %colormap_blood_blue%='20 19 90''21 16 90''21 17 72''14 6 44''10 4 33' >> %CM%
+echo %colormap_gray%='16 16 16''48 48 48''64 64 64''96 96 96''128 128 128''160 160 160' >> %CM%
 echo # misc colormaps >> %CM%
 
 REM --- CHARACTERS ----
 echo Character models...
 set D=testinstallation/models/legacy
 
+REM GOTO FAST
+
 REM --- kain alive ----
 echo  kain (alive)
-%B% 5728197C %D%/kain0al0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-31 -ofs -40 45 %BE% -colormap2nsx 1 14 32 %CM%
+%B% 5728197C %D%/kain0al0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-31 -ofs -40 45 %BE% -colormap2nsx 1 14 %colormap_kain_alive% %CM%
 %B% 5728197C %D%/kain0al1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 32-63 -ofs -63 50 %BE%
 %B% 5728197C %D%/kain0al2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 64-95 -ofs -69 44 %BE%
 %B% 5728197C %D%/kain0al3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 96-127 -ofs -71 36 %BE%
@@ -86,7 +122,7 @@ echo  kain (alive)
 
 REM --- kain iron armor + sword ---
 echo  kain (iron armor + sword)
-%B% 080C020C %D%/kain1sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52 %BE% -colormap2nsx 1 14 33 %CM%
+%B% 080C020C %D%/kain1sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52 %BE% -colormap2nsx 1 14 %colormap_kain_armor1% %CM%
 %B% 080C020C %D%/kain1sw1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -73 59 %BE%
 %B% 080C020C %D%/kain1sw2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -81 55 %BE%
 %B% 080C020C %D%/kain1sw3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 204-271 -ofs -80 45 %BE%
@@ -116,7 +152,7 @@ REM --- kain iron armor + sword - build single model ---
 
 REM --- kain bone armor + sword ---
 echo  kain (bone armor + sword)
-%B% 0D0F020C %D%/kain2sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52 %BE% -colormap2nsx 1 14 33 %CM%
+%B% 0D0F020C %D%/kain2sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52 %BE% -colormap2nsx 1 14 %colormap_kain_armor2% %CM%
 %B% 0D0F020C %D%/kain2sw1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -73 59 %BE%
 %B% 0D0F020C %D%/kain2sw2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -81 55 %BE%
 %B% 0D0F020C %D%/kain2sw3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 204-271 -ofs -80 45 %BE%
@@ -146,7 +182,7 @@ REM --- kain bone armor + sword - build single model ---
 
 REM --- kain chaos armor + sword ---
 echo  kain (chaos armor + sword)
-%B% 0208030C %D%/kain3sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52 %BE% -colormap2nsx 1 14 33 %CM%
+%B% 0208030C %D%/kain3sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52 %BE% -colormap2nsx 1 14 %colormap_kain_armor3% %CM%
 %B% 0208030C %D%/kain3sw1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -73 59 %BE%
 %B% 0208030C %D%/kain3sw2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -81 55 %BE%
 %B% 0208030C %D%/kain3sw3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 204-271 -ofs -80 45 %BE%
@@ -176,7 +212,7 @@ REM --- kain chaos armor + sword - build single model ---
 
 REM --- kain flesh armor + sword ---
 echo  kain (flesh armor + sword)
-%B% 0D0B130C %D%/kain4sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52 %BE% -colormap2nsx 1 14 33 %CM%
+%B% 0D0B130C %D%/kain4sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52 %BE% -colormap2nsx 1 14 %colormap_kain_armor4% %CM%
 %B% 0D0B130C %D%/kain4sw1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -73 59 %BE%
 %B% 0D0B130C %D%/kain4sw2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -81 55 %BE%
 %B% 0D0B130C %D%/kain4sw3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 204-271 -ofs -80 45 %BE%
@@ -217,7 +253,7 @@ echo  kain spell effects
 
 REM --- green skeleton ---
 echo  Green skeleton
-%B% 79671C58 %D%/skel0wr0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -26 31 %BE% -colormap2nsx 1 14 40 %CM%
+%B% 79671C58 %D%/skel0wr0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -26 31 %BE% -colormap2nsx 1 14 %colormap_green_skeleton% %CM%
 %B% 79671C58 %D%/skel0wr1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -30 31 %BE%
 %B% 79671C58 %D%/skel0wr2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -33 22 %BE%
 %B% 79671C58 %D%/skel0wr3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -33 26 %BE%
@@ -229,7 +265,7 @@ echo  Green skeleton
 
 REM --- gravedigger ---
 echo  Gravedigger
-%B% 74671C5C %D%/grvdigr0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-25 -ofs -44 67 %BE% -colormap2nsx 1 14 41 %CM%
+%B% 74671C5C %D%/grvdigr0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-25 -ofs -44 67 %BE% -colormap2nsx 1 14 %colormap_gravedigger% %CM%
 %B% 74671C5C %D%/grvdigr1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 26-51 -ofs -52 61 %BE%
 %B% 74671C5C %D%/grvdigr2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 52-77 -ofs -83 52 %BE%
 %B% 74671C5C %D%/grvdigr3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 78-103 -ofs -68 53 %BE%
@@ -242,7 +278,7 @@ echo  Gravedigger
 
 REM --- ghoul ---
 echo  Ghoul
-%B% 7C661C57 %D%/ghoul0.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-39 -ofs -24 48 %BE% -colormap2nsx 1 14 42 %CM%
+%B% 7C661C57 %D%/ghoul0.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-39 -ofs -24 48 %BE% -colormap2nsx 1 14 %colormap_ghoul% %CM%
 %B% 7C661C57 %D%/ghoul1.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -35 45 %BE%
 %B% 7C661C57 %D%/ghoul2.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 80-119 -ofs -42 31 %BE%
 %B% 7C661C57 %D%/ghoul3.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 120-159 -ofs -50 36 %BE%
@@ -252,9 +288,9 @@ echo  Ghoul
 %B% 7C661C57 %D%/ghoul7.%EXT% -replacecolormap ghoul_palette.tga -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -21 43 -flip %BE%
 %B% 7C661C57 %D%/ghoulD.%EXT% -replacecolormap ghoul_palette.tga -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 199-207 -ofs -25 29 %BE%
 
-REM --- ghoul (strong) ---
+REM --- ghast ---
 echo  Ghast
-%B% 7A661C5D %D%/ghast0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-39 -ofs -24 48 %BE% -colormap2nsx 1 14 43 %CM%
+%B% 7A661C5D %D%/ghast0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-39 -ofs -24 48 %BE% -colormap2nsx 1 14 %colormap_ghast% %CM%
 %B% 7A661C5D %D%/ghast1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 40-79 -ofs -35 45 %BE%
 %B% 7A661C5D %D%/ghast2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 80-119 -ofs -42 31 %BE%
 %B% 7A661C5D %D%/ghast3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 120-159 -ofs -50 36 %BE%
@@ -266,7 +302,7 @@ echo  Ghast
 
 REM --- brigand ---
 echo  Brigand
-%B% 7C661C5D %D%/brigand0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-33 -ofs -33 43 %BE% -colormap2nsx 1 14 43 %CM%
+%B% 7C661C5D %D%/brigand0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-33 -ofs -33 43 %BE% -colormap2nsx 1 14 %colormap_brigand% %CM%
 %B% 7C661C5D %D%/brigand1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 34-67 -ofs -51 48 %BE%
 %B% 7C661C5D %D%/brigand2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-101 -ofs -54 44 %BE%
 %B% 7C661C5D %D%/brigand3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 102-135 -ofs -46 49 %BE%
@@ -277,22 +313,48 @@ echo  Brigand
 %B% 7C661C5D %D%/brigandA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 170-178 -ofs -15 19 %BE%
 %B% 7C661C5D %D%/brigandD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 179-200 -ofs -31 28 %BE%
 
+REM --- brigand merc ---
+echo  Brigand mercenary
+%B% 7F661C59 %D%/brgmerc0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-33 -ofs -33 43 %BE% -colormap2nsx 1 14 %colormap_brigandmerc% %CM%
+%B% 7F661C59 %D%/brgmerc1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 34-67 -ofs -51 48 %BE%
+%B% 7F661C59 %D%/brgmerc2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-101 -ofs -54 44 %BE%
+%B% 7F661C59 %D%/brgmerc3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 102-135 -ofs -46 49 %BE%
+%B% 7F661C59 %D%/brgmerc4.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-169 -ofs -36 42 %BE%
+%B% 7F661C59 %D%/brgmerc5.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 102-135 -ofs -28 49 -flip %BE%
+%B% 7F661C59 %D%/brgmerc6.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-101 -ofs -41 44 -flip %BE%
+%B% 7F661C59 %D%/brgmerc7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 34-67 -ofs -38 48 -flip %BE%
+%B% 7F661C59 %D%/brgmercA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 170-178 -ofs -15 19 %BE%
+%B% 7F661C59 %D%/brgmercD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 179-200 -ofs -31 28 %BE%
+
+:FAST
+
+REM --- brigand with mace ---
+echo  Brigand with mace
+%B% 7C661C5E %D%/brgmace0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-33 -ofs -30 41 %BE% -colormap2nsx 1 14 %colormap_brigandmace% %CM%
+%B% 7C661C5E %D%/brgmace1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 34-67 -ofs -44 45 %BE%
+%B% 7C661C5E %D%/brgmace2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-101 -ofs -50 43 %BE%
+%B% 7C661C5E %D%/brgmace3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 102-135 -ofs -46 45 %BE%
+%B% 7C661C5E %D%/brgmace4.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-169 -ofs -35 39 %BE%
+%B% 7C661C5E %D%/brgmace5.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 102-135 -ofs -24 45 -flip %BE%
+%B% 7C661C5E %D%/brgmace6.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-101 -ofs -37 43 -flip %BE%
+%B% 7C661C5E %D%/brgmace7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 34-67 -ofs -33 45 -flip %BE%
+%B% 7C661C5E %D%/brgmaceA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 170-177 -ofs -19 19 %BE%
+%B% 7C661C5E %D%/brgmaceD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 178-200 -ofs -101 68 %BE%
+
+REM --- brigand with mace ---
+echo  Mercenary with mace
+%B% 7E661C5A %D%/macemrc0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-33 -ofs -30 41 %BE% -colormap2nsx 1 14 %colormap_brigandmace% %CM%
+%B% 7E661C5A %D%/macemrc1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 34-67 -ofs -44 45 %BE%
+%B% 7E661C5A %D%/macemrc2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-101 -ofs -50 43 %BE%
+%B% 7E661C5A %D%/macemrc3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 102-135 -ofs -46 45 %BE%
+%B% 7E661C5A %D%/macemrc4.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-169 -ofs -35 39 %BE%
+%B% 7E661C5A %D%/macemrc5.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 102-135 -ofs -24 45 -flip %BE%
+%B% 7E661C5A %D%/macemrc6.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-101 -ofs -37 43 -flip %BE%
+%B% 7E661C5A %D%/macemrc7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 34-67 -ofs -33 45 -flip %BE%
+%B% 7E661C5A %D%/macemrcA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 170-177 -ofs -19 19 %BE%
+%B% 7E661C5A %D%/macemrcD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 178-192 -ofs -51 48 %BE%
+
 GOTO EXIT
-
-REM --- rogue swordsman ---
-REM 7C661C5D
-
-REM --- rogue commander ---
-REM 75671C56
-
-REM --- rogue (knifethrower) ---
-REM 79671C5D
-
-REM --- ariel ---
-REM 79661C56
-
-REM --- gog ---
-REM 79671C5A
 
 REM --- SOUNDS ---
 echo Sounds...
