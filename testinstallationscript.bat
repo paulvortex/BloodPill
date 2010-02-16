@@ -33,6 +33,7 @@ set colormap_blood_green=2
 set colormap_blood_black=3
 set colormap_blood_blue=4
 set colormap_gray=5
+set colormap_waterpuff=6
 set colormap_kain_alive=32
 set colormap_kain_armor1=33
 set colormap_kain_armor2=34
@@ -100,6 +101,7 @@ echo %colormap_blood_green%='40 90 38''42 90 31''42 72 28''28 44 12''20 33 7' >>
 echo %colormap_blood_black%='7 7 7''8 7 8''12 12 12''13 12 13''15 15 15''17 15 17''20 20 20''23 20 23''24 24 24''27 24 27' >> %CM%
 echo %colormap_blood_blue%='20 19 90''21 16 90''21 17 72''14 6 44''10 4 33' >> %CM%
 echo %colormap_gray%='16 16 16''48 48 48''64 64 64''96 96 96''128 128 128''160 160 160' >> %CM%
+echo %colormap_waterpuff%='16 16 21''48 48 53''64 64 70''96 96 102''128 128 138''160 160 173' >> %CM%
 echo # misc colormaps >> %CM%
 
 REM --- CHARACTERS ----
@@ -350,7 +352,7 @@ echo  Mercenary with mace
 %B% 7E661C5A %D%/macemrc6.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-101 -ofs -37 43 -flip %BE%
 %B% 7E661C5A %D%/macemrc7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 34-67 -ofs -33 45 -flip %BE%
 %B% 7E661C5A %D%/macemrcA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 170-177 -ofs -19 19 %BE%
-%B% 7E661C5A %D%/macemrcD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 178-192 -ofs -51 48 %BE%
+%B% 7E661C5A %D%/macemrcD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 178-192 -ofs -101 68 %BE%
 
 REM GOTO EXIT
 
