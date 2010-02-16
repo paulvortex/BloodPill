@@ -248,20 +248,8 @@ echo  kain spell effects
 %B% 0D1F7A28 %D%/kaingrns.%EXT% -overhead -i 0-15 -ofs -39 41 %BE%
 %B% 1F146B3E %D%/kaintele.%EXT% -overhead -i 0-20 -ofs -20 36 %BE%
 %B% 512A0B71 %D%/kainmlit.%EXT% -overhead -i 0-13 -ofs -42 47 %BE%
-%B% 1D1B653E %D%/flayed.%EXT% -oriented -i 30-48 -ofs -21 20 -replacecolormap flayed_palette.tga %BE%
+%B% 1D1B653E %D%/flayed.%EXT% -oriented -i 30-48 -ofs -21 20 -replacecolormap flayed_palette.tga %BE% -colormap2nsx 1 14 %colormap_flayed_skeleton% %CM%
 %B% 1D1B653E %D%/repel.%EXT% -overhead -i 49-49 -ofs -49 49 %BE%
-
-REM --- green skeleton ---
-echo  Green skeleton
-%B% 79671C58 %D%/skel0wr0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -26 31 %BE% -colormap2nsx 1 14 %colormap_green_skeleton% %CM%
-%B% 79671C58 %D%/skel0wr1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -30 31 %BE%
-%B% 79671C58 %D%/skel0wr2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -33 22 %BE%
-%B% 79671C58 %D%/skel0wr3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -33 26 %BE%
-%B% 79671C58 %D%/skel0wr4.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 48-59 -ofs -24 35 %BE%
-%B% 79671C58 %D%/skel0wr5.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -27 26 -flip %BE%
-%B% 79671C58 %D%/skel0wr6.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -31 22 -flip %BE%
-%B% 79671C58 %D%/skel0wr7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -28 32 -flip %BE%
-%B% 79671C58 %D%/skel0wrD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 60-78 -ofs -58 41 %BE%
 
 REM --- gravedigger ---
 echo  Gravedigger
@@ -275,6 +263,18 @@ echo  Gravedigger
 %B% 74671C5C %D%/grvdigr7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 26-51 -ofs -48 63 -flip %BE%
 %B% 74671C5C %D%/grvdigrA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 144-151 -i 130-143 -ofs -17 31 %BE%
 %B% 74671C5C %D%/grvdigrD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 152-165 -ofs -75 61 %BE%
+
+REM --- green skeleton ---
+echo  Green skeleton
+%B% 79671C58 %D%/skel0wr0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -26 31 %BE% -colormap2nsx 1 14 %colormap_green_skeleton% %CM%
+%B% 79671C58 %D%/skel0wr1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -30 31 %BE%
+%B% 79671C58 %D%/skel0wr2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -33 22 %BE%
+%B% 79671C58 %D%/skel0wr3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -33 26 %BE%
+%B% 79671C58 %D%/skel0wr4.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 48-59 -ofs -24 35 %BE%
+%B% 79671C58 %D%/skel0wr5.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -27 26 -flip %BE%
+%B% 79671C58 %D%/skel0wr6.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -31 22 -flip %BE%
+%B% 79671C58 %D%/skel0wr7.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -28 32 -flip %BE%
+%B% 79671C58 %D%/skel0wrD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 60-78 -ofs -58 41 %BE%
 
 REM --- ghoul ---
 echo  Ghoul
@@ -326,8 +326,6 @@ echo  Brigand mercenary
 %B% 7F661C59 %D%/brgmercA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 170-178 -ofs -15 19 %BE%
 %B% 7F661C59 %D%/brgmercD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 179-200 -ofs -31 28 %BE%
 
-:FAST
-
 REM --- brigand with mace ---
 echo  Brigand with mace
 %B% 7C661C5E %D%/brgmace0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-33 -ofs -30 41 %BE% -colormap2nsx 1 14 %colormap_brigandmace% %CM%
@@ -343,7 +341,7 @@ echo  Brigand with mace
 
 REM --- brigand with mace ---
 echo  Mercenary with mace
-%B% 7E661C5A %D%/macemrc0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-33 -ofs -30 41 %BE% -colormap2nsx 1 14 %colormap_brigandmace% %CM%
+%B% 7E661C5A %D%/macemrc0.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-33 -ofs -30 41 %BE% -colormap2nsx 1 14 %colormap_macemerc% %CM%
 %B% 7E661C5A %D%/macemrc1.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 34-67 -ofs -44 45 %BE%
 %B% 7E661C5A %D%/macemrc2.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-101 -ofs -50 43 %BE%
 %B% 7E661C5A %D%/macemrc3.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 102-135 -ofs -46 45 %BE%
@@ -354,7 +352,7 @@ echo  Mercenary with mace
 %B% 7E661C5A %D%/macemrcA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 170-177 -ofs -19 19 %BE%
 %B% 7E661C5A %D%/macemrcD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 178-192 -ofs -51 48 %BE%
 
-GOTO EXIT
+REM GOTO EXIT
 
 REM --- SOUNDS ---
 echo Sounds...
@@ -394,8 +392,8 @@ set D=testinstallation/sound/legacy
 %B% 24716379 %D%/beast1.wav
 %B% 474E3C71 %D%/beast2.wav
 %B% 75000E12 %D%/beast3.wav
-%B% 475A227F %D%/ambient1.wav
-%B% 7D060411 %D%/ambient2.wav
+%B% 475A227F %D%/stoneblock.wav
+%B% 7D060411 %D%/raise.wav -speed 0.5
 %B% 485E3B7F %D%/transform.wav
 %B% 495E2B68 %D%/beastdeath1.wav
 %B% 7D17131B %D%/beastdeath2.wav
