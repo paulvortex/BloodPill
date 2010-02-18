@@ -128,7 +128,7 @@ echo  kain (iron armor + sword)
 %B% 080C020C %D%/kain1sw1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -73 59 %BE%
 %B% 080C020C %D%/kain1sw2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -81 55 %BE%
 %B% 080C020C %D%/kain1sw3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 204-271 -ofs -80 45 %BE%
-%B% 080C020C %D%/kain1sw4.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 272-339 -ofs -64 45 %BE%
+%B% 080C020C %D%/kain1sw4.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 272-339 -ofs -66 45 %BE%
 %B% 080C020C %D%/kain1sw5.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 204-271 -ofs -29 45 -flip %BE%
 %B% 080C020C %D%/kain1sw6.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -24 55 -flip %BE%
 %B% 080C020C %D%/kain1sw7.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -36 58 -flip %BE%
@@ -141,7 +141,7 @@ REM --- kain iron armor + sword spelling ---
 %B% 6E017348 %D%/kain1ss5.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -16 35 -flip %BE%
 %B% 6E017348 %D%/kain1ss6.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -25 34 -flip %BE%
 %B% 6E017348 %D%/kain1ss7.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -31 34 -flip %BE%
-%B% 6E016248 %D%/kain1spl.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-16 -ofs -39 41 %BE%
+%B% 6E016248 %D%/kain1spl.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-16 -ofs -40 41 %BE%
 REM --- kain iron armor + sword - build single model ---
 %S% %D%/kain1sw0.%EXT% -merge %D%/kain1ss0.%EXT%
 %S% %D%/kain1sw1.%EXT% -merge %D%/kain1ss1.%EXT%
@@ -244,12 +244,12 @@ REM --- kain flesh armor + sword - build single model ---
 
 REM --- kain spell effects ---
 echo  kain spell effects
-%B% 011E0F07 %D%/kaingain.%EXT% -overhead -i 0-20 -ofs -44 48 %BE%
-%B% 0303683A %D%/kaincure.%EXT% -overhead -i 0-16 -ofs -45 44 %BE%
-%B% 17056235 %D%/kainreds.%EXT% -overhead -i 0-20 -ofs -39 41 %BE%
-%B% 0D1F7A28 %D%/kaingrns.%EXT% -overhead -i 0-15 -ofs -39 41 %BE%
-%B% 1F146B3E %D%/kaintele.%EXT% -overhead -i 0-20 -ofs -20 36 %BE%
-%B% 512A0B71 %D%/kainmlit.%EXT% -overhead -i 0-13 -ofs -42 47 %BE%
+%B% 011E0F07 %D%/kaingain.%EXT% -overhead -i 0-20 -ofs -45 48 %BE%
+%B% 0303683A %D%/kaincure.%EXT% -overhead -i 0-16 -ofs -46 44 %BE%
+%B% 17056235 %D%/kainreds.%EXT% -overhead -i 0-20 -ofs -40 41 %BE%
+%B% 0D1F7A28 %D%/kaingrns.%EXT% -overhead -i 0-15 -ofs -40 41 %BE%
+%B% 1F146B3E %D%/kaintele.%EXT% -overhead -i 0-20 -ofs -21 36 %BE%
+%B% 512A0B71 %D%/kainmlit.%EXT% -overhead -i 0-13 -ofs -43 47 %BE%
 %B% 1D1B653E %D%/flayed.%EXT% -oriented -i 30-48 -ofs -21 20 -replacecolormap flayed_palette.tga %BE% -colormap2nsx 1 14 %colormap_flayed_skeleton% %CM%
 %B% 1D1B653E %D%/repel.%EXT% -overhead -i 49-49 -ofs -49 49 %BE%
 
