@@ -154,24 +154,24 @@ REM --- kain iron armor + sword - build single model ---
 
 REM --- kain bone armor + sword ---
 echo  kain (bone armor + sword)
-%B% 0D0F020C %D%/kain2sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 52 %BE% -colormap2nsx 1 14 %colormap_kain_armor2% %CM%
-%B% 0D0F020C %D%/kain2sw1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -73 59 %BE%
-%B% 0D0F020C %D%/kain2sw2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -81 55 %BE%
-%B% 0D0F020C %D%/kain2sw3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 204-271 -ofs -80 45 %BE%
-%B% 0D0F020C %D%/kain2sw4.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 272-339 -ofs -64 45 %BE%
-%B% 0D0F020C %D%/kain2sw5.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 204-271 -ofs -29 45 -flip %BE%
-%B% 0D0F020C %D%/kain2sw6.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -24 55 -flip %BE%
-%B% 0D0F020C %D%/kain2sw7.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -36 58 -flip %BE%
+%B% 0D0F020C %D%/kain2sw0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-67 -ofs -52 56 %BE% -colormap2nsx 1 14 %colormap_kain_armor2% %CM%
+%B% 0D0F020C %D%/kain2sw1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -73 63 %BE%
+%B% 0D0F020C %D%/kain2sw2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -81 59 %BE%
+%B% 0D0F020C %D%/kain2sw3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 204-271 -ofs -80 49 %BE%
+%B% 0D0F020C %D%/kain2sw4.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 272-339 -ofs -64 49 %BE%
+%B% 0D0F020C %D%/kain2sw5.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 204-271 -ofs -29 49 -flip %BE%
+%B% 0D0F020C %D%/kain2sw6.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 136-203 -ofs -24 59 -flip %BE%
+%B% 0D0F020C %D%/kain2sw7.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -36 62 -flip %BE%
 REM --- kain bone armor + sword spelling ---
-%B% 6C01734D %D%/kain2ss0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -27 37 %BE%
-%B% 6C01734D %D%/kain2ss1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -36 34 %BE%
-%B% 6C01734D %D%/kain2ss2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -41 34 %BE%
-%B% 6C01734D %D%/kain2ss3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -39 35 %BE%
-%B% 6C01734D %D%/kain2ss4.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 48-59 -ofs -24 37 %BE%
-%B% 6C01734D %D%/kain2ss5.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -16 35 -flip %BE%
-%B% 6C01734D %D%/kain2ss6.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -25 34 -flip %BE%
-%B% 6C01734D %D%/kain2ss7.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -31 34 -flip %BE%
-%B% 6D01734D %D%/kain2spl.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-16 -ofs -39 41 %BE%
+%B% 6C01734D %D%/kain2ss0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -27 41 %BE%
+%B% 6C01734D %D%/kain2ss1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -36 38 %BE%
+%B% 6C01734D %D%/kain2ss2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -41 38 %BE%
+%B% 6C01734D %D%/kain2ss3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -39 39 %BE%
+%B% 6C01734D %D%/kain2ss4.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 48-59 -ofs -24 41 %BE%
+%B% 6C01734D %D%/kain2ss5.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -16 39 -flip %BE%
+%B% 6C01734D %D%/kain2ss6.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -25 38 -flip %BE%
+%B% 6C01734D %D%/kain2ss7.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -31 38 -flip %BE%
+%B% 6C01624D %D%/kain2spl.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-16 -ofs -39 41 %BE%
 REM --- kain bone armor + sword - build single model ---
 %S% %D%/kain2sw0.%EXT% -merge %D%/kain2ss0.%EXT%
 %S% %D%/kain2sw1.%EXT% -merge %D%/kain2ss1.%EXT%
