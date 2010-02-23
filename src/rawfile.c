@@ -394,7 +394,7 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 				for (r = 0; r < rawblock->chunk[i].height; r++)
 				{
 					ind = rawblock->chunk[i].pixels[r*rawblock->chunk[i].width + cropx[0]];
-					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+					if (ind != 0)
 						break;
 				}
 				if (r < rawblock->chunk[i].height)
@@ -407,7 +407,7 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 				for (r = 0; r < rawblock->chunk[i].height; r++)
 				{
 					ind = rawblock->chunk[i].pixels[r*rawblock->chunk[i].width + (rawblock->chunk[i].width - cropx[1] - 1)];
-					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+					if (ind != 0)
 						break;
 				}
 				if (r < rawblock->chunk[i].height)
@@ -420,7 +420,7 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 				for (r = 0; r < rawblock->chunk[i].width; r++)
 				{
 					ind = rawblock->chunk[i].pixels[cropy[0]*rawblock->chunk[i].width + r];
-					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+					if (ind != 0)
 						break;
 				}
 				if (r < rawblock->chunk[i].width)
@@ -432,8 +432,8 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 			{
 				for (r = 0; r < rawblock->chunk[i].width; r++)
 				{
-					ind = rawblock->chunk[i].pixels[(rawblock->chunk[i].height - cropy[0] - 1)*rawblock->chunk[i].width + r];
-					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+					ind = rawblock->chunk[i].pixels[(rawblock->chunk[i].height - cropy[1] - 1)*rawblock->chunk[i].width + r];
+					if (ind != 0)
 						break;
 				}
 				if (r < rawblock->chunk[i].width)
@@ -471,7 +471,7 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 				for (r = 0; r < rawblock->chunk[i].height; r++)
 				{
 					ind = rawblock->chunk[i].pixels[r*rawblock->chunk[i].width + cropx[0]];
-					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+					if (ind != 0)
 						break;
 				}
 				if (r < rawblock->chunk[i].height)
@@ -484,7 +484,7 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 				for (r = 0; r < rawblock->chunk[i].height; r++)
 				{
 					ind = rawblock->chunk[i].pixels[r*rawblock->chunk[i].width + (rawblock->chunk[i].width - cropx[1] - 1)];
-					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+					if (ind != 0)
 						break;
 				}
 				if (r < rawblock->chunk[i].height)
@@ -497,7 +497,7 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 				for (r = 0; r < rawblock->chunk[i].width; r++)
 				{
 					ind = rawblock->chunk[i].pixels[cropy[0]*rawblock->chunk[i].width + r];
-					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+					if (ind != 0)
 						break;
 				}
 				if (r < rawblock->chunk[i].width)
@@ -510,7 +510,7 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 				for (r = 0; r < rawblock->chunk[i].width; r++)
 				{
 					ind = rawblock->chunk[i].pixels[(rawblock->chunk[i].height - cropy[0] - 1)*rawblock->chunk[i].width + r];
-					if (ind != 0 && ind != 16 && ind != 32 && ind != 48 && ind != 64 && ind != 80 && ind != 96 && ind != 112 && ind != 128 && ind != 144 && ind != 160 && ind != 176 && ind != 192 && ind != 208 && ind != 224 && ind != 240)
+					if (ind != 0)
 						break;
 				}
 				if (r < rawblock->chunk[i].width)

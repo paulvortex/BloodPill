@@ -65,12 +65,13 @@ echo kain4sw=oriented,%PS%,%colormap_kain_armor4% >> %N%
 echo kain4spl=flat,%PS%,%colormap_kain_armor4% >> %N%
 echo kain5sw=oriented,%PS%,%colormap_kain_armor5% >> %N%
 echo kain5spl=flat,%PS%,%colormap_kain_armor5% >> %N%
-echo kaingain=flat,%PS%,%colormap_null% >> %N%
-echo kaincure=flat,%PS%,%colormap_null% >> %N%
-echo kainreds=flat,%PS%,%colormap_null% >> %N%
-echo kaingrns=flat,%PS%,%colormap_null% >> %N%
-echo kaintele=flat,%PS%,%colormap_null% >> %N%
-echo kainmlit=flat,%PS%,%colormap_null% >> %N%
+echo kaingain=flat,1,%colormap_null% >> %N%
+echo kaincure=flat,1,%colormap_null% >> %N%
+echo kainreds=flat,1,%colormap_null% >> %N%
+echo kaingrns=flat,1,%colormap_null% >> %N%
+echo kaintele=flat,1,%colormap_null% >> %N%
+echo kainmlit=flat,1,%colormap_null% >> %N%
+echo kainblt=oriented,%PS%,%colormap_null% >> %N%
 echo flayed=decal,%BS%,%colormap_flayed_skeleton% >> %N%
 echo skel0wr=oriented,%MS%,%colormap_green_skeleton% >> %N%
 echo skel0wrD=decal,%MDS%,%colormap_green_skeleton% >> %N%
@@ -134,13 +135,13 @@ echo  kain (iron armor + sword)
 %B% 080C020C %D%/kain1sw7.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 68-135 -ofs -36 58 -flip %BE%
 REM --- kain iron armor + sword spelling ---
 %B% 6E017348 %D%/kain1ss0.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-11 -ofs -27 37 %BE%
-%B% 6E017348 %D%/kain1ss1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -36 34 %BE%
+%B% 6E017348 %D%/kain1ss1.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -36 36 %BE%
 %B% 6E017348 %D%/kain1ss2.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -41 34 %BE%
-%B% 6E017348 %D%/kain1ss3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -39 35 %BE%
+%B% 6E017348 %D%/kain1ss3.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -39 32 %BE%
 %B% 6E017348 %D%/kain1ss4.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 48-59 -ofs -24 37 %BE%
-%B% 6E017348 %D%/kain1ss5.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -16 35 -flip %BE%
+%B% 6E017348 %D%/kain1ss5.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 36-47 -ofs -16 32 -flip %BE%
 %B% 6E017348 %D%/kain1ss6.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 24-35 -ofs -25 34 -flip %BE%
-%B% 6E017348 %D%/kain1ss7.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -31 34 -flip %BE%
+%B% 6E017348 %D%/kain1ss7.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 12-23 -ofs -31 38 -flip %BE%
 %B% 6E016248 %D%/kain1spl.%EXT% -overhead -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 0-16 -ofs -40 41 %BE%
 REM --- kain iron armor + sword - build single model ---
 %S% %D%/kain1sw0.%EXT% -merge %D%/kain1ss0.%EXT%
@@ -244,6 +245,14 @@ REM --- kain flesh armor + sword - build single model ---
 
 REM --- kain spell effects ---
 echo  kain spell effects
+%B% 081F6829 %D%/kainblt0.%EXT% -overhead -i 0-7 -ofs 6 68 %BE%
+%B% 081F6829 %D%/kainblt1.%EXT% -overhead -i 8-15 -ofs -29 58 %BE%
+%B% 081F6829 %D%/kainblt2.%EXT% -overhead -i 16-23 -ofs -63 43 %BE%
+%B% 081F6829 %D%/kainblt3.%EXT% -overhead -i 24-31 -ofs -56 40 %BE%
+%B% 081F6829 %D%/kainblt4.%EXT% -overhead -i 32-39 -ofs -30 40 %BE%
+%B% 081F6829 %D%/kainblt5.%EXT% -overhead -i 24-31 -ofs -2 40 -flip %BE%
+%B% 081F6829 %D%/kainblt6.%EXT% -overhead -i 16-23 -ofs -27 43 -flip %BE%
+%B% 081F6829 %D%/kainblt7.%EXT% -overhead -i 8-15 -ofs -36 59 -flip %BE%
 %B% 011E0F07 %D%/kaingain.%EXT% -overhead -i 0-20 -ofs -45 48 %BE%
 %B% 0303683A %D%/kaincure.%EXT% -overhead -i 0-16 -ofs -46 44 %BE%
 %B% 17056235 %D%/kainreds.%EXT% -overhead -i 0-20 -ofs -40 41 %BE%
@@ -354,7 +363,7 @@ echo  Mercenary with mace
 %B% 7E661C5A %D%/macemrcA.%EXT% -overhead -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 170-177 -ofs -19 19 %BE%
 %B% 7E661C5A %D%/macemrcD.%EXT% -oriented -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -i 178-192 -ofs -101 68 %BE%
 
-REM GOTO EXIT
+GOTO EXIT
 
 REM --- SOUNDS ---
 echo Sounds...
