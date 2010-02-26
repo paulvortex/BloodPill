@@ -325,6 +325,8 @@ XMODEL	7E661C5A	macemrcD	-oriented -i 178-192 -ofs -101 68
 
 FINISH	MODELS
 
+rkEND
+
 #
 # SOUNDS
 #

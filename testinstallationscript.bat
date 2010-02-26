@@ -122,6 +122,10 @@ for /F "tokens=1,2,3,4,5,6 delims=	 eol=#" %%a in (testinstallationscript.txt) d
 		@echo  %%c
 		%extract% %%b %path_music%%%c	%%d
 	)
+	REM -- stop --
+	IF "%%a"=="END" (
+		GOTO EXIT
+	)
 )
 del %install_path%\colormaps.temp /Q
 

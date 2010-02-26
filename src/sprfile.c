@@ -94,8 +94,9 @@ void SPR_WriteFrameHeader(FILE *f, sprframetype_t frametype, int width, int heig
 
 void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, byte shadowpixel, byte shadowalpha, int flags)
 {
-	int i, p, d, r, maxwidth, maxheight, cropx[2], cropy[2], cropwidth, cropheight;
+	int i, d, r, w, h, maxwidth, maxheight, cropx[2], cropy[2], cropwidth, cropheight;
 	byte *colormap, *buf, color[4];
+	double cdiv, cd[3];
 	rawchunk_t *chunk;
 	FILE *f;
 	
@@ -123,28 +124,67 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			// in Blood Omen, black pixels (0) were transparent
 			// also we optionally threating shadow pixel as transparent
 			buf = qmalloc(chunk->size * 4);
-			for (p = 0; p < chunk->size; p++)
+			for (h = 0; h < chunk->height; h++)
+			for (w = 0; w < chunk->width; w++)
 			{
-				d = chunk->pixels[p];
+				d = chunk->pixels[h*chunk->width + w];
 				color[0] = colormap[d*3];
 				color[1] = colormap[d*3 + 1];
 				color[2] = colormap[d*3 + 2];
-				//if (shadowpixel >= 0 && !memcmp(colormap + shadowpixel*3, color, 3))
 				if (shadowpixel >= 0 && d == shadowpixel)
 					color[3] = shadowalpha;
 				else if (d == 0) // null pixel always transparent
 					color[3] = 0;
 				else
 					color[3] = 255;
-				color[0] = colormap[d*3];
-				color[1] = colormap[d*3 + 1];
-				color[2] = colormap[d*3 + 2];
-				// todo: fix for texture filtering - fill transparent pixels from neighbours 
-				// so we don't see a black outlines on objects
+				// fill transparent pixels from neighbours so sprites will have correct outlines
+				#define fill(ox,oy,weight) { r = chunk->pixels[(h+oy)*chunk->width + w + ox] * 3; if (r != 0) { cd[0] += colormap[r]*weight; cd[1] += colormap[r + 1]*weight; cd[2] += colormap[r + 2]*weight; cdiv++; } }
+				if (d == 0)
+				{
+					cd[0] = 0; cd[1] = 0; cd[2] = 0; cdiv = 0; 
+					// sample:
+					// up left, up center, up right
+					// left, right
+					// down left, down center, down right
+					if (h > 0)
+					{
+						if (w > 0)                fill(-1, -1, 0.25)
+						                          fill( 0, -1, 1.00)
+						if ((w+1) < chunk->width) fill( 1, -1, 0.25)
+					}
+					if (w > 0)                    fill(-1,  0, 1.00)
+					if ((w+1) < chunk->width)     fill( 1,  0, 1.00)
+					if ((h+1) < chunk->height)
+					{
+						if (w > 0)                fill(-1,  1, 0.25)
+						                          fill( 0,  1, 1.00)
+						if ((w+1) < chunk->width) fill( 1,  1, 0.25)
+					}
+					// average
+					if (cdiv != 0)
+					{
+						color[0] = (byte)(cd[0] / cdiv) * 0.75 + colormap[d*3] * 0.2;
+						color[1] = (byte)(cd[1] / cdiv) * 0.75 + colormap[d*3 + 1] * 0.2;
+						color[2] = (byte)(cd[2] / cdiv) * 0.75 +colormap[d*3 + 2] * 0.2;
+					}
+					else
+					{
+						color[0] = colormap[d*3];
+						color[1] = colormap[d*3 + 1];
+						color[2] = colormap[d*3 + 2];
+					}
+				}
+				else // normal colors
+				{
+					color[0] = colormap[d*3];
+					color[1] = colormap[d*3 + 1];
+					color[2] = colormap[d*3 + 2];
+				}
 				*buf++ = color[0];
 				*buf++ = color[1];
 				*buf++ = color[2];
 				*buf++ = color[3];
+				#undef fill
 			}
 			buf -= chunk->size * 4;
 
