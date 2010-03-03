@@ -38,7 +38,7 @@ set path_sounds=%install_path%\sound\legacy\
 set path_music=%install_path%\sound\cdtracks\
 
 REM --- parse install script ---
-for /F "tokens=1,2,3,4,5,6 delims=	 eol=#" %%a in (testinstallationscript.txt) do (
+for /F "tokens=1,2,3,4,5,6,7 delims=	 eol=#" %%a in (testinstallationscript.txt) do (
 	REM -- begin state --
 	IF "%%a"=="BEGIN" (
 		IF "%%b"=="MODELCONFIG" (
@@ -101,7 +101,7 @@ for /F "tokens=1,2,3,4,5,6 delims=	 eol=#" %%a in (testinstallationscript.txt) d
 			for /F "tokens=1,2 delims=;" %%m in (%install_path%\colormaps.temp) do (
 				if "%%m"=="%%f" (
 					REM - with colormap exporting -
-					%extract% %%b %path_models%%%c.%sprext%	%%d -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 %scale_parms% -colormap2nsx %%g %%n
+					%extract% %%b %path_models%%%c.%sprext%	%%d -colormapscale 0.8 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 %scale_parms% -colormap2nsx %%g %%n %colormaps_nsx% 
 				)
 			)
 		) ELSE (

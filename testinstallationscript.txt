@@ -94,7 +94,7 @@ FINISH	COLORMAPCONFIG
 BEGIN	MODELS	Extract models
 
 MODEL	kain (alive)
-XMODEL	5728197C	kain0alW0	-overhead -i 0-31 -ofs -40 45	 XCOLORMAP	kain_alive	1 14
+XMODEL	5728197C	kain0alW0	-overhead -i 0-31 -ofs -40 45	XCOLORMAP	kain_alive	1 14
 XMODEL	5728197C	kain0alW1	-overhead -i 32-63 -ofs -63 50 
 XMODEL	5728197C	kain0alW2	-overhead -i 64-95 -ofs -69 44 
 XMODEL	5728197C	kain0alW3	-overhead -i 96-127 -ofs -71 36 
@@ -105,7 +105,7 @@ XMODEL	5728197C	kain0alW7	-overhead -i 32-63 -ofs -25 50 -flip
 XMODEL	5728197C	kain0alD	-overhead -i 160-183 -ofs -31 62 -flip 
 
 MODEL	kain (iron armor + sword)
-XMODEL	080C020C	kain1swd0	-overhead -i 0-67 -ofs -52 52	 XCOLORMAP	kain_armor1	1 14
+XMODEL	080C020C	kain1swd0	-overhead -i 0-67 -ofs -52 52	XCOLORMAP	kain_armor1	1 14
 XMODEL	080C020C	kain1swd1	-overhead -i 68-135 -ofs -73 59 
 XMODEL	080C020C	kain1swd2	-overhead -i 136-203 -ofs -81 55 
 XMODEL	080C020C	kain1swd3	-overhead -i 204-271 -ofs -80 45 
@@ -132,7 +132,7 @@ XMERGE	kain1swd6	kain1ss6
 XMERGE	kain1swd7	kain1ss7
 
 MODEL	kain (bone armor + sword)
-XMODEL	0D0F020C	kain2swd0	-overhead -i 0-67 -ofs -52 56	 XCOLORMAP	kain_armor2	1 14
+XMODEL	0D0F020C	kain2swd0	-overhead -i 0-67 -ofs -52 56	XCOLORMAP	kain_armor2	1 14
 XMODEL	0D0F020C	kain2swd1	-overhead -i 68-135 -ofs -73 63 
 XMODEL	0D0F020C	kain2swd2	-overhead -i 136-203 -ofs -81 59 
 XMODEL	0D0F020C	kain2swd3	-overhead -i 204-271 -ofs -80 49 
@@ -159,7 +159,7 @@ XMERGE	kain2swd6	kain2ss6
 XMERGE	kain2swd7	kain2ss7
 
 MODEL	kain (chaos armor + sword)
-XMODEL	0208030C	kain3swd0	-overhead -i 0-67 -ofs -52 52	 XCOLORMAP	kain_armor3	1 14
+XMODEL	0208030C	kain3swd0	-overhead -i 0-67 -ofs -52 52	XCOLORMAP	kain_armor3	1 14
 XMODEL	0208030C	kain3swd1	-overhead -i 68-135 -ofs -73 59 
 XMODEL	0208030C	kain3swd2	-overhead -i 136-203 -ofs -81 55 
 XMODEL	0208030C	kain3swd3	-overhead -i 204-271 -ofs -80 45 
@@ -186,7 +186,7 @@ XMERGE	kain3swd6	kain3ss6
 XMERGE	kain3swd7	kain3ss7
 
 MODEL	kain (flesh armor + sword)
-XMODEL	0D0B130C	kain4swd0	-overhead -i 0-67 -ofs -52 52	 XCOLORMAP	kain_armor4	1 14
+XMODEL	0D0B130C	kain4swd0	-overhead -i 0-67 -ofs -52 52	XCOLORMAP	kain_armor4	1 14
 XMODEL	0D0B130C	kain4swd1	-overhead -i 68-135 -ofs -73 59 
 XMODEL	0D0B130C	kain4swd2	-overhead -i 136-203 -ofs -81 55 
 XMODEL	0D0B130C	kain4swd3	-overhead -i 204-271 -ofs -80 45 
@@ -227,11 +227,11 @@ XMODEL	17056235	kainreds	-overhead -i 0-20 -ofs -40 41
 XMODEL	0D1F7A28	kaingrns	-overhead -i 0-15 -ofs -40 41 
 XMODEL	1F146B3E	kaintele	-overhead -i 0-20 -ofs -21 36 
 XMODEL	512A0B71	kainmlit	-overhead -i 0-13 -ofs -43 47 
-XMODEL	1D1B653E	flayredb	-oriented -i 30-48 -ofs -21 20 -replacecolormap flayed_palette.tga	 XCOLORMAP	flayed_skeleton	1 14
+XMODEL	1D1B653E	flayredb	-oriented -i 30-48 -ofs -21 20 -replacecolormap flayed_palette.tga	XCOLORMAP	flayed_skeleton	1 14
 XMODEL	1D1B653E	repelspl	-overhead -i 49-49 -ofs -49 49 
 
 MODEL	gravedigger
-XMODEL	74671C5C	grvdigrW0	-overhead -i 0-25 -ofs -44 67	 XCOLORMAP	gravedigger	1 14
+XMODEL	74671C5C	grvdigrW0	-overhead -i 0-25 -ofs -44 67	XCOLORMAP	gravedigger	1 14
 XMODEL	74671C5C	grvdigrW1	-overhead -i 26-51 -ofs -52 61 
 XMODEL	74671C5C	grvdigrW2	-overhead -i 52-77 -ofs -83 52 
 XMODEL	74671C5C	grvdigrW3	-overhead -i 78-103 -ofs -68 53 
@@ -243,7 +243,7 @@ XMODEL	74671C5C	grvdigrA	-overhead -i 144-151 -i 130-143 -ofs -17 31
 XMODEL	74671C5C	grvdigrD	-oriented -i 152-165 -ofs -75 61 
 
 MODEL	green skeleton
-XMODEL	79671C58	skl0grnW0	-overhead -i 0-11 -ofs -26 31	 XCOLORMAP	green_skeleton	1 14
+XMODEL	79671C58	skl0grnW0	-overhead -i 0-11 -ofs -26 31	XCOLORMAP	green_skeleton	1 14
 XMODEL	79671C58	skl0grnW1	-overhead -i 12-23 -ofs -30 31 
 XMODEL	79671C58	skl0grnW2	-overhead -i 24-35 -ofs -33 22 
 XMODEL	79671C58	skl0grnW3	-overhead -i 36-47 -ofs -33 26 
@@ -254,7 +254,7 @@ XMODEL	79671C58	skl0grnW7	-overhead -i 12-23 -ofs -28 32 -flip
 XMODEL	79671C58	skl0grnD	-oriented -i 60-78 -ofs -58 41 
 
 MODEL	ghoul
-XMODEL	7C661C57	grghoulW0	-overhead -replacecolormap ghoul_palette.tga -i 0-39 -ofs -24 48	 XCOLORMAP	ghoul	1 14
+XMODEL	7C661C57	grghoulW0	-overhead -replacecolormap ghoul_palette.tga -i 0-39 -ofs -24 48	XCOLORMAP	ghoul	1 14
 XMODEL	7C661C57	grghoulW1	-overhead -replacecolormap ghoul_palette.tga -i 40-79 -ofs -35 45 
 XMODEL	7C661C57	grghoulW2	-overhead -replacecolormap ghoul_palette.tga -i 80-119 -ofs -42 31 
 XMODEL	7C661C57	grghoulW3	-overhead -replacecolormap ghoul_palette.tga -i 120-159 -ofs -50 36 
@@ -265,7 +265,7 @@ XMODEL	7C661C57	grghoulW7	-overhead -replacecolormap ghoul_palette.tga -i 40-79 
 XMODEL	7C661C57	grghoulWD	-oriented -replacecolormap ghoul_palette.tga -i 199-207 -ofs -25 29 
 
 MODEL	ghast
-XMODEL	7A661C5D	grghastW0	-overhead -i 0-39 -ofs -24 48	 XCOLORMAP	ghast	1 14
+XMODEL	7A661C5D	grghastW0	-overhead -i 0-39 -ofs -24 48	XCOLORMAP	ghast	1 14
 XMODEL	7A661C5D	grghastW1	-overhead -i 40-79 -ofs -35 45 
 XMODEL	7A661C5D	grghastW2	-overhead -i 80-119 -ofs -42 31 
 XMODEL	7A661C5D	grghastW3	-overhead -i 120-159 -ofs -50 36 
@@ -276,7 +276,7 @@ XMODEL	7A661C5D	grghastW7	-overhead -i 40-79 -ofs -21 43 -flip
 XMODEL	7A661C5D	grghastD	-oriented -i 199-207 -ofs -25 29 
 
 MODEL	brigand
-XMODEL	7C661C5D	brigandW0	-overhead -i 0-33 -ofs -33 43	 XCOLORMAP	brigand	1 14
+XMODEL	7C661C5D	brigandW0	-overhead -i 0-33 -ofs -33 43	XCOLORMAP	brigand	1 14
 XMODEL	7C661C5D	brigandW1	-overhead -i 34-67 -ofs -51 48 
 XMODEL	7C661C5D	brigandW2	-overhead -i 68-101 -ofs -54 44 
 XMODEL	7C661C5D	brigandW3	-overhead -i 102-135 -ofs -46 49 
@@ -288,7 +288,7 @@ XMODEL	7C661C5D	brigandA	-overhead -i 170-178 -ofs -15 19
 XMODEL	7C661C5D	brigandD	-oriented -i 179-200 -ofs -31 28 
 
 MODEL	brigand mercenary
-XMODEL	7F661C59	brgmercW0	-overhead -i 0-33 -ofs -33 43	 XCOLORMAP	brigandmerc	1 14
+XMODEL	7F661C59	brgmercW0	-overhead -i 0-33 -ofs -33 43	XCOLORMAP	brigandmerc	1 14
 XMODEL	7F661C59	brgmercW1	-overhead -i 34-67 -ofs -51 48 
 XMODEL	7F661C59	brgmercW2	-overhead -i 68-101 -ofs -54 44 
 XMODEL	7F661C59	brgmercW3	-overhead -i 102-135 -ofs -46 49 
@@ -300,7 +300,7 @@ XMODEL	7F661C59	brgmercA	-overhead -i 170-178 -ofs -15 19
 XMODEL	7F661C59	brgmercD	-oriented -i 179-200 -ofs -31 28 
 
 MODEL	brigand with mace
-XMODEL	7C661C5E	brgmaceW0	-overhead -i 0-33 -ofs -30 41	 XCOLORMAP	brigandmace	1 14
+XMODEL	7C661C5E	brgmaceW0	-overhead -i 0-33 -ofs -30 41	XCOLORMAP	brigandmace	1 14
 XMODEL	7C661C5E	brgmaceW1	-overhead -i 34-67 -ofs -44 45 
 XMODEL	7C661C5E	brgmaceW2	-overhead -i 68-101 -ofs -50 43 
 XMODEL	7C661C5E	brgmaceW3	-overhead -i 102-135 -ofs -46 45 
@@ -312,7 +312,7 @@ XMODEL	7C661C5E	brgmaceA	-overhead -i 170-177 -ofs -19 19
 XMODEL	7C661C5E	brgmaceD	-oriented -i 178-200 -ofs -101 68 
 
 MODEL	mercenary with mace
-XMODEL	7E661C5A	macemrcW0	-overhead -i 0-33 -ofs -30 41	 XCOLORMAP	macemerc	1 14
+XMODEL	7E661C5A	macemrcW0	-overhead -i 0-33 -ofs -30 41	XCOLORMAP	macemerc	1 14
 XMODEL	7E661C5A	macemrcW1	-overhead -i 34-67 -ofs -44 45 
 XMODEL	7E661C5A	macemrcW2	-overhead -i 68-101 -ofs -50 43 
 XMODEL	7E661C5A	macemrcW3	-overhead -i 102-135 -ofs -46 45 
