@@ -44,14 +44,27 @@ MDLCFG	player	orient	kain4swd	kain_armor4
 MDLCFG	player	flat	kain4spl	kain_armor4
 MDLCFG	player	orient	kain5swd	kain_armor5
 MDLCFG	player	flat	kain5spl	kain_armor5
-MDLCFG	player	flat	kaingain	null
-MDLCFG	player	flat	kaincure	null
-MDLCFG	player	flat	kainreds	null
-MDLCFG	player	flat	kaingrns	null
-MDLCFG	player	flat	kaintele	null
-MDLCFG	player	flat	kainmlit	null
-MDLCFG	player	orient	kainbolt	null
-MDLCFG	player	flat	repelspl	null
+MDLCFG	effect	orient	kainflay	null
+MDLCFG	effect	orient	kainbolt	null
+MDLCFG	effect	orient	kaingout	null
+MDLCFG	effect	orient	kainwrap	null
+MDLCFG	effect	orient	kainfont	null
+MDLCFG	effect	orient	kainsdth	null
+MDLCFG	effect	orient	kainimpl	null
+MDLCFG	effect	orient	kaininca	null
+MDLCFG	effect	orient	kainstun	null
+MDLCFG	effect	orient	kaingout	null
+MDLCFG	effect	flat	kaingain	null
+MDLCFG	effect	flat	kainslow	null
+MDLCFG	effect	flat	kainreds	null
+MDLCFG	effect	flat	kaingrns	null
+MDLCFG	effect	flat	kaintele	null
+MDLCFG	effect	flat	kainmlit	null
+MDLCFG	effect	flat	kainbank	null
+MDLCFG	effect	flat	kainlght	null
+MDLCFG	effect	flat	kainhate	null
+MDLCFG	player	flat	kaintaro	null
+MDLCFG	effect	flat	repelspl	null
 MDLCFG	bigger	decal	flayredb	flayed_skeleton
 MDLCFG	monster	orient	skl0grnW	green_skeleton
 MDLCFG	death	decal	skl0grnD	green_skeleton
@@ -213,20 +226,95 @@ XMERGE	kain4swd6	kain4ss6
 XMERGE	kain4swd7	kain4ss7
 
 MODEL	kain spell effects
-XMODEL	081F6829	kainbolt0	-overhead -i 0-7 -ofs 6 68 
-XMODEL	081F6829	kainbolt1	-overhead -i 8-15 -ofs -29 58 
-XMODEL	081F6829	kainbolt2	-overhead -i 16-23 -ofs -63 43 
-XMODEL	081F6829	kainbolt3	-overhead -i 24-31 -ofs -56 40 
-XMODEL	081F6829	kainbolt4	-overhead -i 32-39 -ofs -30 40 
-XMODEL	081F6829	kainbolt5	-overhead -i 24-31 -ofs -2 40 -flip 
-XMODEL	081F6829	kainbolt6	-overhead -i 16-23 -ofs -27 43 -flip 
-XMODEL	081F6829	kainbolt7	-overhead -i 8-15 -ofs -36 59 -flip 
+# flay
+XMODEL	40522976	kainflay0	-overhead -i 0-1 -ofs 2 62
+XMODEL	40522976	kainflay1	-overhead -i 2-3 -ofs -39 55 
+XMODEL	40522976	kainflay2	-overhead -i 4-5 -ofs -60 38 
+XMODEL	40522976	kainflay3	-overhead -i 6-7 -ofs -53 14 
+XMODEL	40522976	kainflay4	-overhead -i 8-9 -ofs -13 3 
+XMODEL	40522976	kainflay5	-overhead -i 6-7 -ofs 24 14 -flip 
+XMODEL	40522976	kainflay6	-overhead -i 4-5 -ofs 27 39 -flip 
+XMODEL	40522976	kainflay7	-overhead -i 2-3 -ofs 14 54 -flip 
+# energy bolt / blood gout / spirit wrap
+XMODEL	081F6829	kainbolt0	-overhead -i 0-7 -ofs 2 64 
+XMODEL	081F6829	kainbolt1	-overhead -i 8-15 -ofs -37 53 
+XMODEL	081F6829	kainbolt2	-overhead -i 16-23 -ofs -63 39 
+XMODEL	081F6829	kainbolt3	-overhead -i 24-31 -ofs -54 34 
+XMODEL	081F6829	kainbolt4	-overhead -i 32-39 -ofs -27 37 
+XMODEL	081F6829	kainbolt5	-overhead -i 24-31 -ofs -2 34 -flip 
+XMODEL	081F6829	kainbolt6	-overhead -i 16-23 -ofs -26 39 -flip 
+XMODEL	081F6829	kainbolt7	-overhead -i 8-15 -ofs -29 55 -flip 
+XMODEL	07101F14	kaingout0	-overhead -i 0-7 -ofs 1 54
+XMODEL	07101F14	kaingout1	-overhead -i 8-15 -ofs -31 46 
+XMODEL	07101F14	kaingout2	-overhead -i 16-23 -ofs -56 36 
+XMODEL	07101F14	kaingout3	-overhead -i 24-31 -ofs -51 36 
+XMODEL	07101F14	kaingout4	-overhead -i 32-39 -ofs -24 39 
+XMODEL	07101F14	kaingout5	-overhead -i 24-31 -ofs -5 35 -flip 
+XMODEL	07101F14	kaingout6	-overhead -i 16-23 -ofs -26 36 -flip 
+XMODEL	07101F14	kaingout7	-overhead -i 8-15 -ofs -28 47 -flip 
+XMODEL	15090307	kainwrap0	-overhead -i 0-7 -ofs 1 54
+XMODEL	15090307	kainwrap1	-overhead -i 8-15 -ofs -31 46 
+XMODEL	15090307	kainwrap2	-overhead -i 16-23 -ofs -56 36 
+XMODEL	15090307	kainwrap3	-overhead -i 24-31 -ofs -51 36 
+XMODEL	15090307	kainwrap4	-overhead -i 32-39 -ofs -24 39 
+XMODEL	15090307	kainwrap5	-overhead -i 24-31 -ofs -5 35 -flip 
+XMODEL	15090307	kainwrap6	-overhead -i 16-23 -ofs -26 36 -flip 
+XMODEL	15090307	kainwrap7	-overhead -i 8-15 -ofs -28 47 -flip 
+#  font / spirit death / implode
+XMODEL	16187A38	kainfont0	-overhead -i 0-4 -ofs 3 50
+XMODEL	16187A38	kainfont1	-overhead -i 5-9 -ofs -29 42
+XMODEL	16187A38	kainfont2	-overhead -i 10-14 -ofs -49 37
+XMODEL	16187A38	kainfont3	-overhead -i 15-19 -ofs -46 33 
+XMODEL	16187A38	kainfont4	-overhead -i 20-24 -ofs -24 42
+XMODEL	16187A38	kainfont5	-overhead -i 15-19 -ofs -7 34 -flip 
+XMODEL	16187A38	kainfont6	-overhead -i 10-14 -ofs -27 37 -flip 
+XMODEL	16187A38	kainfont7	-overhead -i 5-9 -ofs -30 44 -flip 
+XMODEL	0B1A0001	kainsdth0	-overhead -i 0-4 -ofs 3 61 
+XMODEL	0B1A0001	kainsdth1	-overhead -i 5-9 -ofs -33 49
+XMODEL	0B1A0001	kainsdth2	-overhead -i 10-14 -ofs -56 40
+XMODEL	0B1A0001	kainsdth3	-overhead -i 15-19 -ofs -54 34 
+XMODEL	0B1A0001	kainsdth4	-overhead -i 20-24 -ofs -24 42
+XMODEL	0B1A0001	kainsdth5	-overhead -i 15-19 -ofs -7 34 -flip 
+XMODEL	0B1A0001	kainsdth6	-overhead -i 10-14 -ofs -27 40 -flip 
+XMODEL	0B1A0001	kainsdth7	-overhead -i 5-9 -ofs -30 51 -flip 
+XMODEL	0200141F	kainimpl0	-overhead -i 0-4 -ofs 3 61 
+XMODEL	0200141F	kainimpl1	-overhead -i 5-9 -ofs -33 49
+XMODEL	0200141F	kainimpl2	-overhead -i 10-14 -ofs -56 40
+XMODEL	0200141F	kainimpl3	-overhead -i 15-19 -ofs -54 34 
+XMODEL	0200141F	kainimpl4	-overhead -i 20-24 -ofs -24 42
+XMODEL	0200141F	kainimpl5	-overhead -i 15-19 -ofs -7 34 -flip 
+XMODEL	0200141F	kainimpl6	-overhead -i 10-14 -ofs -27 40 -flip 
+XMODEL	0200141F	kainimpl7	-overhead -i 5-9 -ofs -30 51 -flip 
+# incapacitate
+XMODEL	0F1A7F2A	kaininca0	-overhead -i 0-3 -ofs -4 61 
+XMODEL	0F1A7F2A	kaininca1	-overhead -i 4-7 -ofs -37 51 
+XMODEL	0F1A7F2A	kaininca2	-overhead -i 8-11 -ofs -64 39 
+XMODEL	0F1A7F2A	kaininca3	-overhead -i 12-15 -ofs -54 17 
+XMODEL	0F1A7F2A	kaininca4	-overhead -i 16-19 -ofs -10 14 
+XMODEL	0F1A7F2A	kaininca5	-overhead -i 12-15 -ofs 21 16 -flip 
+XMODEL	0F1A7F2A	kaininca6	-overhead -i 8-11 -ofs 23 39 -flip 
+XMODEL	0F1A7F2A	kaininca7	-overhead -i 4-7 -ofs 13 53 -flip 
+# stun
+XMODEL	544A3C61	kainstun0	-overhead -i 0-6 -i 6-6 -ofs 3 55 
+XMODEL	544A3C61	kainstun1	-overhead -i 7-13 -i 13-13 -ofs -29 48 
+XMODEL	544A3C61	kainstun2	-overhead -i 14-20 -i 20-20 -ofs -53 36
+XMODEL	544A3C61	kainstun3	-overhead -i 21-27 -i 27-27 -ofs -50 35 
+XMODEL	544A3C61	kainstun4	-overhead -i 28-34 -i 34-34 -ofs -24 39 
+XMODEL	544A3C61	kainstun5	-overhead -i 21-27 -i 27-27 -ofs -7 35 -flip 
+XMODEL	544A3C61	kainstun6	-overhead -i 14-20 -i 20-20 -ofs -25 36 -flip 
+XMODEL	544A3C61	kainstun7	-overhead -i 7-13 -i 13-13 -ofs -34 50 -flip 
+# passive - heart, slowtime, blood shower, antitoxin, sanctuary, light, energybank, lightning, inspire hate
 XMODEL	011E0F07	kaingain	-overhead -i 0-20 -ofs -45 48 
-XMODEL	0303683A	kaincure	-overhead -i 0-16 -ofs -46 44 
-XMODEL	17056235	kainreds	-overhead -i 0-20 -ofs -40 41 
-XMODEL	0D1F7A28	kaingrns	-overhead -i 0-15 -ofs -40 41 
+XMODEL	0303683A	kainslow	-overhead -i 0-16 -ofs -46 45
+XMODEL	17056235	kainreds	-overhead -i 0-15 -i 15 -ofs -46 73
+XMODEL	0D1F7A28	kaingrns	-overhead -i 0-15 -i 15 -ofs -46 73 
 XMODEL	1F146B3E	kaintele	-overhead -i 0-20 -ofs -21 36 
 XMODEL	512A0B71	kainmlit	-overhead -i 0-13 -ofs -43 47 
+XMODEL	0A116836	kainbank	-overhead -i 0-13 -ofs -43 52 
+XMODEL	1B1E6D2D	kainlght	-overhead -i 0-23 -ofs -50 52
+XMODEL	555F276A	kainhate	-overhead -i 0-25 -ofs -41 46
+XMODEL	09166323	kaintaro	-overhead -i 0-23 -ofs -40 60 
+# flayed skeleton / repel shield
 XMODEL	1D1B653E	flayredb	-oriented -i 30-48 -ofs -21 20 -replacecolormap flayed_palette.tga	XCOLORMAP	flayed_skeleton	1 14
 XMODEL	1D1B653E	repelspl	-overhead -i 49-49 -ofs -49 49 
 
@@ -262,7 +350,7 @@ XMODEL	7C661C57	grghoulW4	-overhead -replacecolormap ghoul_palette.tga -i 160-19
 XMODEL	7C661C57	grghoulW5	-overhead -replacecolormap ghoul_palette.tga -i 120-159 -ofs -23 35 -flip 
 XMODEL	7C661C57	grghoulW6	-overhead -replacecolormap ghoul_palette.tga -i 80-119 -ofs -27 31 -flip 
 XMODEL	7C661C57	grghoulW7	-overhead -replacecolormap ghoul_palette.tga -i 40-79 -ofs -21 43 -flip 
-XMODEL	7C661C57	grghoulWD	-oriented -replacecolormap ghoul_palette.tga -i 199-207 -ofs -25 29 
+XMODEL	7C661C57	grghoulD	-oriented -replacecolormap ghoul_palette.tga -i 199-207 -ofs -25 29 
 
 MODEL	ghast
 XMODEL	7A661C5D	grghastW0	-overhead -i 0-39 -ofs -24 48	XCOLORMAP	ghast	1 14
@@ -325,7 +413,7 @@ XMODEL	7E661C5A	macemrcD	-oriented -i 178-192 -ofs -101 68
 
 FINISH	MODELS
 
-rkEND
+END
 
 #
 # SOUNDS

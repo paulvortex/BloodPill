@@ -80,6 +80,9 @@ for /F "tokens=1,2,3,4,5,6,7 delims=	 eol=#" %%a in (testinstallationscript.txt)
 				IF "%%b"=="death" (
 					@echo %%d=%%c,%scale_death%,%%n >> %legacy_nsx%
 				)
+				IF "%%b"=="effect" (
+					@echo %%d=%%c,1,%%n >> %legacy_nsx%
+				)
 			)
 		)
 	)
