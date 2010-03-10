@@ -60,6 +60,6 @@ typedef struct
 } spr_t;
 
 // functions
-void SPR_WriteFromRawblock(void *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, byte shadowpixel, byte shadowalpha, int flags);
+void SPR_WriteFromRawblock(void *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, byte shadowpixel, byte shadowalpha, int flags);
 
 

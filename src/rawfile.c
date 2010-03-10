@@ -336,16 +336,20 @@ void FreeRawBlock(rawblock_t *block)
 }
 
 // flip all chunks in rawblock, do not return new rawblock but update current
-void RawblockFlip(rawblock_t *rawblock)
+void RawblockFlip(rawblock_t *rawblock, qboolean flipoffset)
 {
 	rawchunk_t *chunk;
 	int i, start, end, p, w;
 	byte pixel;
 
 	// all chunks..
+	if (flipoffset)
+		rawblock->posx = 0 - rawblock->posx;
 	for (i = 0; i < rawblock->chunks; i++)
 	{
 		chunk = &rawblock->chunk[i];
+		if (flipoffset)
+			chunk->x = (0 - chunk->x - chunk->width);
 		// all lines
 		w = (int)chunk->width/2;
 		for (start = 0; start < chunk->size; start += chunk->width)
@@ -374,6 +378,8 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 	cropblock = EmptyRawBlock(rawblock->chunks);
 	cropblock->colormap = rawblock->colormap;
 	cropblock->colormapExternal = true;
+	cropblock->posx = rawblock->posx;
+	cropblock->posy = rawblock->posy;
 
 	// if not cropping each chunk - find minimal/maximal crops
 	if (!cropeachchunk)
@@ -632,6 +638,8 @@ rawblock_t *RawblockPerturbate(rawblock_t *rawblock, list_t *includelist)
 	newblock = EmptyRawBlock(numchunks);
 	newblock->colormap = rawblock->colormap;
 	newblock->colormapExternal = true;
+	newblock->posx = rawblock->posx;
+	newblock->posy = rawblock->posy;
 	for (i = 0, c = 0; i < includelist->items && c < numchunks; i++)
 	{
 		buf = includelist->item[i];
@@ -686,6 +694,9 @@ rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock)
 	newrawblock = EmptyRawBlock(rawblock->chunks);
 	newrawblock->colormap = rawblock->colormap;
 	newrawblock->colormapExternal = true;
+	newrawblock->posx = rawblock->posx * 2;
+	newrawblock->posy = rawblock->posy * 2;
+
 	for (i = 0; i < rawblock->chunks; i++)
 	{
 		chunk = &rawblock->chunk[i];
@@ -1349,8 +1360,12 @@ rawblock_t *RawExtract_Type2(unsigned char *buffer, int filelen, rawinfo_t *rawi
 	// unknown info (mystic bytes and 768 bytes of colormap)
 	if (filelen < 776)
 		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
+
+	// global position
+	rawblock->posx = buffer[4] + buffer[5]*256;
+	rawblock->posy = buffer[6] + buffer[7]*256;
 	if (verbose == true)
-		Print("mystic: %03i %03i %03i %03i\n", buffer[4], buffer[5], buffer[6], buffer[7]);
+		Print("picture position: %03ix%03i\n", rawblock->posx, rawblock->posy);
 
 	// print objects
 	for (i = 0; i < (int)numobjects; i++)
@@ -1501,9 +1516,13 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
 
-	// mystic bytes
+	// global position
+	rawblock->posx = buffer[776] + buffer[777]*256;
+	rawblock->posy = buffer[778] + buffer[779]*256;
 	if (verbose == true)
-		Print("mystic bytes: %03i %03i %03i %03i\n", buffer[776],  buffer[777],  buffer[778],  buffer[779]);
+		Print("picture position: %03ix%03i\n", rawblock->posx, rawblock->posy);
+
+	// check filelen again
 	if (filelen < (780 + 8*numobjects + 2))
 		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
@@ -1650,9 +1669,13 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
 
-	// mystic bytes, check filelen again
+	// global position
+	rawblock->posx = buffer[776 + objbitssize] + buffer[777 + objbitssize]*256;
+	rawblock->posy = buffer[778 + objbitssize] + buffer[779 + objbitssize]*256;
 	if (verbose == true)
-		Print("mystic bytes: %03i %03i %03i %03i\n", buffer[776 + objbitssize], buffer[777 + objbitssize], buffer[778 + objbitssize], buffer[779 + objbitssize]);
+		Print("picture position: %03ix%03i\n", rawblock->posx, rawblock->posy);
+
+	// check filelen again
 	if (filelen < (780 + objbitssize + 8*numobjects + 2))
 		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
@@ -1869,12 +1892,13 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 
 	if (!testonly && verbose)
 		Print("extracting type7\n");
+
 	
 	// as this format is unfinished, don't find if scanning, only direct request
 	//if (testonly)
 	//	return RawErrorBlock(NULL, -1);
 
-	if (filelen < (26 + 512 + 32))
+//	if (filelen < (26 + 512 + 32))
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
 	// set of magic numbers

@@ -1391,7 +1391,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	qboolean noalign, nocrop, flip, scale;
 	byte pix, shadowpix, shadowalpha;
 	byte c[3];
-	double colorscale;
+	double colorscale, alphascale;
 	list_t *includelist;
 	FILE *f;
 
@@ -1406,6 +1406,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	spritey = 0;
 	spriteflags = 0;
 	shadowpix = 15;
+	alphascale = 1.0f;
 	scale = false;
 	for (i = 2; i < argc; i++)
 	{
@@ -1525,6 +1526,17 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			}
 			continue;
 		}
+		if (!strcmp(argv[i], "-alpha"))
+		{
+		
+			i++;
+			if (i < argc)
+			{
+				alphascale = atof(argv[i]);
+				Verbose("Option: alpha scaled by %f\n", alphascale);
+			}
+			continue;
+		}
 		if (!strcmp(argv[i], "-replacecolormap"))
 		{
 			i++;
@@ -1636,21 +1648,30 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 		Print("Perturbating...\n");
 		rawblock = tb1 = RawblockPerturbate(rawblock, includelist);
 	}
+	// aligning/cropping/flipping (alternate offsetting) or just flipping (original offsetting)
 	if (!noalign)
 	{
 		Print("Aligning...\n");
 		rawblock = tb2 = RawblockAlign(rawblock, margin);
+		// go crop unused
+		if (!nocrop)
+		{
+			Print("Cropping...\n");
+			rawblock = tb3 = RawblockCrop(rawblock, false, margin);
+		}
+		// go flip
+		if (flip)
+		{
+			Print("Flipping...\n");
+			RawblockFlip(rawblock, false);
+		}
 	}
-	if (!nocrop)
-	{
-		Print("Cropping...\n");
-		rawblock = tb3 = RawblockCrop(rawblock, false, margin);
-	}
-	if (flip)
+	else if (flip)
 	{
 		Print("Flipping...\n");
-		RawblockFlip(rawblock);
+		RawblockFlip(rawblock, true);
 	}
+	// scaling
 	if (scale)
 	{
 		Print("Scaling...\n");
@@ -1664,7 +1685,17 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	if (!stricmp(format, "spr"))
 		Error("Quake sprites format is not supported!\n");
 	else if (!stricmp(format, "spr32"))
-		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, shadowpix, shadowalpha, spriteflags);
+	{
+		if (noalign)
+		{
+			for (i = 0; i < rawblock->chunks; i++)
+			{
+				rawblock->chunk[i].x = (0 - rawblock->chunk[i].width) - rawblock->chunk[i].x;
+				rawblock->chunk[i].y = 0 - rawblock->chunk[i].y;
+			}
+		}
+		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, (float)alphascale, shadowpix, shadowalpha, spriteflags);
+	}
 	else if (!stricmp(format, "tga"))
 		TGAfromRAW(rawblock, entry->rawinfo, outfile, true, true, false);
 	else

@@ -66,13 +66,15 @@ typedef struct rawchunk_s
 typedef struct rawblock_s
 {
 	rawextractresult_t errorcode;
+	// global position
+	int posx;
+	int posy; 
 	// shared colormap
 	byte *colormap;
 	qboolean colormapExternal; // set externally, don't free
 	// chunks data
 	int chunks;
 	rawchunk_t chunk[MAX_RAW_CHUNKS];
-		
 	// set when chunk is readed, but it's not a end of file
 	qboolean notEOF;
 }rawblock_t;
@@ -93,7 +95,7 @@ typedef struct rawinfo_s
 	int bytes;	// how many bytes per color (1, 2 or 3), 4 is 2 bits
 	int colormapoffset; // - 1 - no colormal
 	int colormapbytes; // 2 or 3
-
+	
 	// common
 	int chunknum; // if set, only extract this chunk number
 	rawswitch_t	doubleres;	// double the width & height
@@ -114,7 +116,7 @@ char *RawStringForResult(int rescode);
 char *PathForRawType(rawtype_t rawtype);
 
 // rawblock tools
-void RawblockFlip(rawblock_t *rawblock);
+void RawblockFlip(rawblock_t *rawblock, qboolean flipoffset);
 rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margin);
 rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin);
 rawblock_t *RawblockPerturbate(rawblock_t *rawblock, list_t *includelist);

@@ -92,15 +92,19 @@ void SPR_WriteFrameHeader(FILE *f, sprframetype_t frametype, int width, int heig
 	fput_littleint(height, f);
 }
 
-void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, byte shadowpixel, byte shadowalpha, int flags)
+void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, byte shadowpixel, byte shadowalpha, int flags)
 {
-	int i, d, r, w, h, maxwidth, maxheight, cropx[2], cropy[2], cropwidth, cropheight;
-	byte *colormap, *buf, color[4];
+	int i, d, r, w, h, maxwidth, maxheight, cropx[2], cropy[2], addx[2], addy[2], cropwidth, cropheight, realwidth, realheight;
+	byte *colormap, *buf, normalalpha, color[4];
 	double cdiv, cd[3];
 	rawchunk_t *chunk;
 	FILE *f;
 	
 	f = SafeOpenWrite(outfile);
+
+	// calc whole alpha
+	normalalpha = (byte)(255 * alpha);
+	shadowalpha = (byte)(shadowalpha * alpha);
 
 	// calc max width/height, write header
 	maxwidth = maxheight = 0;
@@ -136,7 +140,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 				else if (d == 0) // null pixel always transparent
 					color[3] = 0;
 				else
-					color[3] = 255;
+					color[3] = normalalpha;
 				// fill transparent pixels from neighbours so sprites will have correct outlines
 				#define fill(ox,oy,weight) { r = chunk->pixels[(h+oy)*chunk->width + w + ox] * 3; if (r != 0) { cd[0] += colormap[r]*weight; cd[1] += colormap[r + 1]*weight; cd[2] += colormap[r + 2]*weight; cdiv++; } }
 				if (d == 0)
@@ -163,9 +167,9 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 					// average
 					if (cdiv != 0)
 					{
-						color[0] = (byte)(cd[0] / cdiv) * 0.75 + colormap[d*3] * 0.2;
-						color[1] = (byte)(cd[1] / cdiv) * 0.75 + colormap[d*3 + 1] * 0.2;
-						color[2] = (byte)(cd[2] / cdiv) * 0.75 +colormap[d*3 + 2] * 0.2;
+						color[0] = (byte)((cd[0] / cdiv) * 0.75 + colormap[d*3] * 0.2);
+						color[1] = (byte)((cd[1] / cdiv) * 0.75 + colormap[d*3 + 1] * 0.2);
+						color[2] = (byte)((cd[2] / cdiv) * 0.75 +colormap[d*3 + 2] * 0.2);
 					}
 					else
 					{
@@ -239,12 +243,18 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			cropx[1] = max(0, cropx[1] - 1);
 			cropy[0] = max(0, cropy[0] - 1);
 			cropy[1] = max(0, cropy[1] - 1);
+			addx[0] = abs(min(0, cropx[0] - 1));
+			addx[1] = abs(min(0, cropx[1] - 1));
+			addy[0] = abs(min(0, cropy[0] - 1));
+			addy[1] = abs(min(0, cropy[1] - 1));
 
 			// write header
 			cropwidth = chunk->width - cropx[0] - cropx[1];
 			cropheight = chunk->height - cropy[0] - cropy[1];
-			//printf(" frame %i cropped from %ix%i to %ix%i (saving %.2f kb)\n", i, chunk->width, chunk->height, cropwidth, cropheight, (float)(chunk->width*chunk->height - cropwidth*cropheight)/256);
-			SPR_WriteFrameHeader(f, SPR_FRAME_SINGLE, cropwidth, cropheight, chunk->x + cx + cropx[1], chunk->y + cy - cropy[0]);
+			realwidth = cropwidth + addx[0] + addx[1];
+			realheight = cropheight + addy[0] + addy[1];
+			// printf(" frame %i cropped from %ix%i to %ix%i (saving %.2f kb)\n", i, chunk->width, chunk->height, cropwidth, cropheight, (float)(chunk->width*chunk->height - cropwidth*cropheight)/256);
+			SPR_WriteFrameHeader(f, SPR_FRAME_SINGLE, realwidth, realheight, chunk->x + rawblock->posx + cx + cropx[1] - addx[1], chunk->y + rawblock->posy + cy - cropy[0] - addy[0]);
 			
 			/*
 			// test TGA output
@@ -263,9 +273,34 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			qfree(out);
 			*/
 
-			// write cropped pic
-			for (r = 0; r < cropheight; r++)
-				fwrite(buf + (cropy[0] + r)*chunk->width*4 + cropx[0]*4, cropwidth * 4, 1, f);
+			// write added/cropped pic
+			if (addx[0] > 0 || addx[1] > 0 || addy[0] > 0 || addy[1] > 0)
+			{
+				// VorteX: dumb code!
+				byte *e;
+				int es;
+				es = max( (addx[0] + addx[1]) * 4 , realwidth * max(addy[0], addy[1]) * 4);
+				e = qmalloc(es);
+				memset(e, 0, es);
+				if (addy[0] > 0)
+					fwrite(e, realwidth * addy[0] * 4, 1, f);
+				for (r = 0; r < cropheight; r++)
+				{	
+					if (addx[0] > 0)
+						fwrite(e, addx[0] * 4, 1, f);
+					fwrite(buf + (cropy[0] + r)*chunk->width*4 + cropx[0]*4, cropwidth * 4, 1, f);
+					if (addx[1] > 0)
+						fwrite(e, addx[1] * 4, 1, f);
+				}
+				if (addy[1] > 0)
+					fwrite(e, realwidth * addy[1] * 4, 1, f);
+				qfree(e);
+			}
+			else 
+			{
+				for (r = 0; r < cropheight; r++)
+					fwrite(buf + (cropy[0] + r)*chunk->width*4 + cropx[0]*4, cropwidth * 4, 1, f);
+			}
 			qfree(buf);
 		}
 		else
