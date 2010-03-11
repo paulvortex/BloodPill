@@ -56,6 +56,8 @@ typedef struct rawchunk_s
 
 	byte *colormap;
 	qboolean colormapExternal; // set externally, don't free
+	byte *alphamap; // alpha component of colormap
+	qboolean alphamapExternal; 
 	byte *pixels;
 	qboolean pixelsExternal; // set externally, don't free
 }rawchunk_t;
@@ -72,6 +74,8 @@ typedef struct rawblock_s
 	// shared colormap
 	byte *colormap;
 	qboolean colormapExternal; // set externally, don't free
+	byte *alphamap; // alpha component of colormap
+	qboolean alphamapExternal; 
 	// chunks data
 	int chunks;
 	rawchunk_t chunk[MAX_RAW_CHUNKS];

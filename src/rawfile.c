@@ -266,6 +266,8 @@ rawblock_t *EmptyRawBlock(int numchunks)
 	block->chunks = numchunks;
 	block->colormap = NULL;
 	block->colormapExternal = false;
+	block->alphamap = NULL;
+	block->alphamapExternal = false;
 	if (numchunks > MAX_RAW_CHUNKS)
 		Error("MAX_RAW_CHUNKS exceeded\n");
 	if (numchunks > 0)
@@ -299,6 +301,7 @@ void RawBlockAllocateChunkSimple(rawblock_t *block, int chunknum, qboolean pixel
 		memset(block->chunk[chunknum].pixels, 0, block->chunk[chunknum].width*block->chunk[chunknum].height);
 	}
 	block->chunk[chunknum].colormap = NULL;
+	block->chunk[chunknum].alphamap = NULL;
 	block->chunk[chunknum].pixelsExternal = pixelsExternal;
 }
 
@@ -316,8 +319,13 @@ void RawBlockFreeChunk(rawblock_t *block, int chunknum)
 {
 	if (block->chunk[chunknum].colormap != NULL && block->chunk[chunknum].colormapExternal == false)
 		qfree(block->chunk[chunknum].colormap);
+	if (block->chunk[chunknum].alphamap != NULL && block->chunk[chunknum].alphamapExternal == false)
+		qfree(block->chunk[chunknum].alphamap);
+
 	block->chunk[chunknum].colormap = NULL;
 	block->chunk[chunknum].colormapExternal = false;
+	block->chunk[chunknum].alphamap = NULL;
+	block->chunk[chunknum].alphamapExternal = false;
 	if (block->chunk[chunknum].pixelsExternal == false)
 		qfree(block->chunk[chunknum].pixels);
 	block->chunk[chunknum].pixels = NULL;
@@ -330,6 +338,8 @@ void FreeRawBlock(rawblock_t *block)
 
 	if (block->colormap != NULL && block->colormapExternal == false)
 		qfree(block->colormap);
+	if (block->alphamap != NULL && block->alphamapExternal == false)
+		qfree(block->alphamap);
 	for (i = 0; i < block->chunks; i++)
 		RawBlockFreeChunk(block, i);
 	qfree(block);
@@ -378,6 +388,8 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 	cropblock = EmptyRawBlock(rawblock->chunks);
 	cropblock->colormap = rawblock->colormap;
 	cropblock->colormapExternal = true;
+	cropblock->alphamap = rawblock->alphamap;
+	cropblock->alphamapExternal = true;
 	cropblock->posx = rawblock->posx;
 	cropblock->posy = rawblock->posy;
 
@@ -533,6 +545,8 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 		RawBlockAllocateChunk(cropblock, i, rawblock->chunk[i].width - cropx[0] - cropx[1], rawblock->chunk[i].height - cropy[0] - cropy[1], 0, 0, false);
 		cropblock->colormap = rawblock->colormap;
 		cropblock->colormapExternal = true;
+		cropblock->alphamap = rawblock->alphamap;
+		cropblock->alphamapExternal = true;
 		for (r = 0; r < cropblock->chunk[i].height; r++)
 		{
 			buf = cropblock->chunk[i].pixels + r*cropblock->chunk[i].width;
@@ -566,6 +580,9 @@ rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin)
 	newblock = EmptyRawBlock(rawblock->chunks);
 	newblock->colormap = rawblock->colormap;
 	newblock->colormapExternal = true;
+	newblock->alphamap = rawblock->alphamap;
+	newblock->alphamapExternal = true;
+
 
 	// align chunks
 	for (i = 0; i < rawblock->chunks; i++)
@@ -577,6 +594,8 @@ rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin)
 		RawBlockAllocateChunk(newblock, i, maxwidth, maxheight, 0, 0, false);
 		newblock->colormap = rawblock->colormap;
 		newblock->colormapExternal = true;
+		newblock->alphamap = rawblock->alphamap;
+		newblock->alphamapExternal = true;
 		// write before-lines
 		buf = newblock->chunk[i].pixels;
 		c = by*maxwidth;
@@ -638,6 +657,8 @@ rawblock_t *RawblockPerturbate(rawblock_t *rawblock, list_t *includelist)
 	newblock = EmptyRawBlock(numchunks);
 	newblock->colormap = rawblock->colormap;
 	newblock->colormapExternal = true;
+	newblock->alphamap = rawblock->alphamap;
+	newblock->alphamapExternal = true;
 	newblock->posx = rawblock->posx;
 	newblock->posy = rawblock->posy;
 	for (i = 0, c = 0; i < includelist->items && c < numchunks; i++)
@@ -664,6 +685,8 @@ rawblock_t *RawblockPerturbate(rawblock_t *rawblock, list_t *includelist)
 			// copy chunk
 			newblock->chunk[c].colormap = rawblock->chunk[start].colormap;
 			newblock->chunk[c].colormapExternal = true;
+			newblock->chunk[c].alphamap = rawblock->chunk[start].alphamap;
+			newblock->chunk[c].alphamapExternal = true;
 			newblock->chunk[c].flagbit = rawblock->chunk[start].flagbit;
 			newblock->chunk[c].width = rawblock->chunk[start].width;
 			newblock->chunk[c].height = rawblock->chunk[start].height;
@@ -694,6 +717,8 @@ rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock)
 	newrawblock = EmptyRawBlock(rawblock->chunks);
 	newrawblock->colormap = rawblock->colormap;
 	newrawblock->colormapExternal = true;
+	newrawblock->alphamap = rawblock->alphamap;
+	newrawblock->alphamapExternal = true;
 	newrawblock->posx = rawblock->posx * 2;
 	newrawblock->posy = rawblock->posy * 2;
 
