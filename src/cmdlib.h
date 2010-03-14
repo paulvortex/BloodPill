@@ -91,14 +91,6 @@ extern qboolean FileExists(char *filename);
 extern int ParseNum (char *str);
 int ParseHex(char *hex);
 
-extern short BigShort (short l);
-extern short LittleShort (short l);
-extern int BigLong (int l);
-extern int LittleLong (int l);
-extern float BigFloat (float l);
-extern float LittleFloat (float l);
-
-
 extern char *COM_Parse (char *data);
 
 extern char com_token[MAXTOKEN];

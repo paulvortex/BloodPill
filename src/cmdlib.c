@@ -903,11 +903,6 @@ float	BigFloat (float l)
   return out.f;
 }
 
-float	LittleFloat (float l)
-{
-  return l;
-}
-
 
 #endif
 

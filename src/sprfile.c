@@ -54,6 +54,18 @@ int LittleInt(byte *buffer)
 	return buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
 }
 
+float LittleFloat (byte *buffer)
+{
+  union {byte b[4]; float f;} in;
+
+  in.b[0] = buffer[0];
+  in.b[1] = buffer[1];
+  in.b[2] = buffer[2];
+  in.b[3] = buffer[3];
+  return in.f;
+}
+
+
 /*
 ==========================================================================================
 
@@ -81,6 +93,22 @@ void SPR_WriteHeader(FILE *f, sprversion_t version, sprtype_t type, int maxwidth
 	fput_littlefloat(0.0f, f); 
 	// synctype
 	fput_littleint(0, f);
+}
+
+void SPR_ReadHeader(byte *buf, int bufsize, spr_t *sprheader) 
+{
+	if (buf[0] != 'I' && buf[1] != 'D' && buf[2] != 'S' && buf[3] != 'P')
+		Error("Not IDSP file");
+	if (bufsize < sizeof(spr_t))
+		Error("file damaged");
+	sprheader->ver1 = LittleInt(buf + 4);
+	sprheader->type = LittleInt(buf + 8);
+	sprheader->radius = LittleFloat(buf + 12);
+	sprheader->maxwidth = LittleInt(buf + 16);
+	sprheader->maxheight = LittleInt(buf + 20);
+	sprheader->nframes = LittleInt(buf + 24);
+	sprheader->beamlength = LittleFloat(buf + 28);
+	sprheader->synchtype = LittleInt(buf + 32);
 }
 
 void SPR_WriteFrameHeader(FILE *f, sprframetype_t frametype, int width, int height, int cx, int cy)
@@ -392,18 +420,104 @@ void SPR32_MergeSprites(list_t *mergelist, char *outfile, qboolean delmerged)
 	fclose(f);
 }
 
+void SPR32_CompileSprite(char *scriptfile, char *outfile)
+{
+}
+
+// todo: add proper framegroups
+void SPR32_DecompileSprite(char *file)
+{
+	int bufsize, i, framehead[5], y;
+	char scriptfile[MAX_BLOODPATH], framepic[MAX_BLOODPATH], outfolder[MAX_BLOODPATH];
+	byte *b, *buf, *buffer, *out, *in, *end;
+	spr_t sprheader;
+	FILE *f, *f2;
+
+	// open scriptfile
+	ExtractFilePath(file, outfolder);
+	if (outfolder[0])
+		sprintf(scriptfile, "%s/sprinfo.txt", outfolder);
+	else
+		sprintf(scriptfile, "sprinfo.txt", outfolder);
+	printf("open %s...\n", scriptfile);
+	f = SafeOpenWrite(scriptfile);
+
+	// load spr header
+	bufsize = LoadFile(file, &b);
+	buf = b;
+	SPR_ReadHeader(buf, bufsize, &sprheader);
+	if (sprheader.ver1 != SPR_DARKPLACES)
+		Error("%s: not SPR32 sprite\n", file);
+	fprintf(f, "TYPE %i\n", sprheader.type);
+	fprintf(f, "SYNCTYPE %i\n", sprheader.synchtype);
+	// write frames
+	buf+=sizeof(spr_t);
+	bufsize-=sizeof(spr_t);
+	for (i = 0; i < sprheader.nframes; i++)
+	{
+		if (bufsize < 20)
+			Error("unexpected EOF");
+		// read frame header
+		framehead[0] = LittleInt(buf);
+		framehead[1] = LittleInt(buf + 4);
+		framehead[2] = LittleInt(buf + 8);
+		framehead[3] = LittleInt(buf + 12);
+		framehead[4] = LittleInt(buf + 16);
+		buf+=20;
+		bufsize-=20;
+		// write frame
+		fprintf(f, "FRAME %i %i %i\n", framehead[0], framehead[1], framehead[2]);
+		if (bufsize < framehead[3]*framehead[4]*4)
+			Error("unexpected EOF");
+		if (framehead[3]*framehead[4] <= 0)
+			Error("bad frame width/height");
+		// write tga image
+		sprintf(framepic, "frame%04i.tga", i);
+		Verbose("writing frame %s\n", framepic);
+		f2 = SafeOpenWrite(framepic);
+		buffer = qmalloc(framehead[3]*framehead[4]*4 + 18);
+		memset(buffer, 0, 18);
+		buffer[2] = 2; // uncompressed
+		buffer[12] = (framehead[3] >> 0) & 0xFF;
+		buffer[13] = (framehead[3] >> 8) & 0xFF;
+		buffer[14] = (framehead[4] >> 0) & 0xFF;
+		buffer[15] = (framehead[4] >> 8) & 0xFF;
+		buffer[16] = 32;
+		out = buffer + 18;
+		for (y = framehead[4] - 1;y >= 0;y--)
+		{
+			in = buf + y * framehead[3] * 4;
+			end = in + framehead[3] * 4;
+			for (;in < end;in += 4)
+			{
+				*out++ = in[2];
+				*out++ = in[1];
+				*out++ = in[0];
+				*out++ = in[3];
+			}
+		}
+		fwrite(buffer, framehead[3]*framehead[4]*4 + 18, 1, f2);
+		qfree(buffer);
+		fclose(f2);
+		// advance
+		buf+=framehead[3]*framehead[4]*4;
+		bufsize-=framehead[3]*framehead[4]*4;
+	}
+	fclose(f);
+	qfree(b);
+}
+
 int Spr32_Main(int argc, char **argv)
 {
 	char infile[MAX_BLOODPATH];
-	list_t *mergelist;
 	qboolean delmerged;
+	list_t *mergelist;
 	int i;
 
 	// in file
-	if (argc < 2)
+	if (argc < 3)
 		Error("not enough parms");
-	strcpy(infile, argv[1]);
-	Verbose("Base: '%s'\n", infile);
+	Verbose("File: %s\n", argv[1]);
 
 	// commandline actions
 	delmerged = true;
@@ -411,12 +525,15 @@ int Spr32_Main(int argc, char **argv)
 	ListAdd(mergelist, infile, false);
 	for(i = 2; i < argc; i++)
 	{
+		if (!strcmp(argv[i], "-decompile"))
+			continue;
+		if (!strcmp(argv[i], "-compile"))
+			continue;
 		if (!strcmp(argv[i], "-merge"))
 		{
 			i++; 
 			while (i < argc && argv[i][0] != '-')
 			{
-				Verbose("Option: merging file '%s'\n", argv[i]);
 				ListAdd(mergelist, argv[i], false);
 				i++; 
 			}
@@ -432,10 +549,11 @@ int Spr32_Main(int argc, char **argv)
 			Warning("unknown parameter '%s'",  argv[i]);
 	}
 
-	// merge sprites
-	if (mergelist->items > 1)
+	// do action
+	if (!strcmp(argv[2], "-merge"))
 		SPR32_MergeSprites(mergelist, infile, delmerged);
-
+	else if (!strcmp(argv[2], "-decompile"))
+		SPR32_DecompileSprite(argv[1]);
 	Verbose("Done.\n");
 	return 0;
 }
