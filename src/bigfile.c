@@ -1391,7 +1391,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	qboolean noalign, nocrop, flip, scale;
 	byte pix, shadowpix, shadowalpha;
 	byte c[3];
-	double colorscale, alphascale;
+	double colorscale, cscale, alphascale;
 	list_t *includelist;
 	FILE *f;
 
@@ -1605,18 +1605,19 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 		if (!strcmp(argv[i], "-colormap2nsx"))
 		{
 			i++;
-			if ((i + 3) < argc)
+			if ((i + 4) < argc)
 			{
-				f = fopen(argv[i+3], "a");
+				f = fopen(argv[i+4], "a");
 				if (!f)
-					Warning("Option: cannot open %s for input\n", argv[i+2]);
+					Warning("Option: cannot open %s for input\n", argv[i+3]);
 				else
 				{
-					fputs(argv[i+2], f);
+					fputs(argv[i+3], f);
 					fputs("=", f);
 					// write colormap
 					minp = min(255, max(0, atoi(argv[i])));
 					maxp = min(255, max(0, atoi(argv[i+1])));
+					cscale = atof(argv[i+2]);
 					for (num = minp; num < maxp; num++)
 					{
 						memcpy(c, rawblock->colormap + num*3, 3);
@@ -1625,13 +1626,13 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 						// reject any color thats too gray
 						if (!diff || aver/diff > 0.8)
 							continue;
-						fprintf(f, "'%i %i %i'", c[0], c[1], c[2]);
+						fprintf(f, "'%i %i %i'", (int)(c[0]*cscale), (int)(c[1]*cscale), (int)(c[2]*cscale));
 					}
 					fputs("\n", f);
 					fclose(f);
-					Verbose("Option: Export palette indexes %s-%s as #%s to %s\n", argv[i], argv[i+1], argv[i+2], argv[i+3]);
+					Verbose("Option: Export palette indexes %s-%s scale %s as #%s to %s\n", argv[i], argv[i+1], argv[i+2], argv[i+3], argv[i+4]);
 				}
-				i += 3;
+				i += 4;
 			}
 			continue;
 		}
