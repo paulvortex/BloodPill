@@ -420,7 +420,7 @@ void SPR32_MergeSprites(list_t *mergelist, char *outfile, qboolean delmerged)
 	fclose(f);
 }
 
-void SPR32_CompileSprite(char *scriptfile, char *outfile)
+void SPR32_CompileSprite(char *file)
 {
 }
 
