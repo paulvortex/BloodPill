@@ -517,6 +517,7 @@ int Spr32_Main(int argc, char **argv)
 	// in file
 	if (argc < 3)
 		Error("not enough parms");
+	strcpy(infile, argv[1]);
 	Verbose("File: %s\n", argv[1]);
 
 	// commandline actions

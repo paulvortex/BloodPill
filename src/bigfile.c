@@ -1713,17 +1713,14 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *entry, char *infileformat, char *format)
 {
 	char informat[1024], effects[1024], temp[1024];
-	double trim, speed;
 	int i, ir;
 
 	if (!soxfound)
 		Error("SoX not found!");
 
 	// additional parms
-	trim = 0.0;
-	speed = 0.0;
-	strcpy(effects, "");
 	ir = 0;
+	strcpy(effects, "");
 	for (i = 2; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-trimstart"))
@@ -1731,20 +1728,92 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 			i++;
 			if (i < argc)
 			{
-				trim = atof(argv[i]);
-				Verbose("Option: trim start by %f seconds\n", trim);
+				strcpy(temp, effects);
+				sprintf(effects, "%s trim %s", temp, argv[i]);
+				Verbose("Option: trim start by %s seconds\n", argv[i]);
 			}
 			continue;
 		}
 		if (!strcmp(argv[i], "-speed"))
 		{
-
 			i++;
 			if (i < argc)
 			{
-				speed = atof(argv[i]);
-				Verbose("Option: sound speed %fx\n", speed);
+				strcpy(temp, effects);
+				sprintf(effects, "%s speed %s", temp, argv[i]);
+				Verbose("Option: sound speed %sx\n", argv[i]);
 			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-tempo"))
+		{
+			i++;
+			if ((i+1) < argc)
+			{
+				strcpy(temp, effects);
+				sprintf(effects, "%s tempo %s %s", temp, argv[i], argv[i+1]);
+				Verbose("Option: tempo %s %s\n", argv[i], argv[i+1]);
+				i++;
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-pitch"))
+		{
+			i++;
+			if ((i+1) < argc)
+			{
+				strcpy(temp, effects);
+				sprintf(effects, "%s pitch %s %s", temp, argv[i], argv[i+1]);
+				Verbose("Option: pitch %s %s\n", argv[i], argv[i+1]);
+				i++;
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-gain"))
+		{
+			i++;
+			if (i < argc)
+			{
+				strcpy(temp, effects);
+				sprintf(effects, "%s gain %s", temp, argv[i]);
+				Verbose("Option: volume gain %sDb\n", argv[i]);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-bass"))
+		{
+			i++;
+			if (i < argc)
+			{
+				strcpy(temp, effects);
+				sprintf(effects, "%s bass %s", temp, argv[i]);
+				Verbose("Option: bass gain %sDb\n", argv[i]);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-treble"))
+		{
+			i++;
+			if (i < argc)
+			{
+				strcpy(temp, effects);
+				sprintf(effects, "%s bass %s", temp, argv[i]);
+				Verbose("Option: treble gain %sDb\n", argv[i]);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-normalize"))
+		{
+			strcpy(temp, effects);
+			sprintf(effects, "%s gain -n", temp);
+			Verbose("Option: normalize volume\n");
+			continue;
+		}
+		if (!strcmp(argv[i], "-reverb"))
+		{
+			strcpy(temp, effects);
+			sprintf(effects, "%s reverb", temp);
+			Verbose("Option: reverbance\n");
 			continue;
 		}
 		if (!strcmp(argv[i], "-ir"))
@@ -1757,7 +1826,8 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 			}
 			continue;
 		}
-		Warning("unknown parameter '%s'",  argv[i]);
+		// add to effect
+		sprintf(effects, "%s %s", temp, argv[i]);
 	}
 
 	// get format
@@ -1774,18 +1844,6 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 	{
 		strcpy(temp, informat);
 		sprintf(informat, "%s -r %i", temp, ir);
-	}
-
-	// effects
-	if (trim)
-	{
-		strcpy(temp, effects);
-		sprintf(effects, "trim %f %s", trim, temp);
-	}
-	if (speed)
-	{
-		strcpy(temp, effects);
-		sprintf(effects, "speed %f %s", speed, temp);
 	}
 
 	// run SoX
