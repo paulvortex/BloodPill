@@ -799,6 +799,11 @@ type=adpcm
 rate=11025
 path=sound/people
 
+[5B6F720B]
+type=adpcm
+rate=11025
+path=sound/people
+
 #
 # разное
 #
@@ -870,6 +875,16 @@ path=sound/vorador
 #
 # каин
 #
+
+[5B6F700A]
+type=adpcm
+rate=11025
+path=sound/kain
+
+[5B6C710A]
+type=adpcm
+rate=11025
+path=sound/kain
 
 [5B697108]
 type=adpcm
@@ -1838,6 +1853,11 @@ path=sound/kain
 #
 # каин инвентарь
 #
+
+[452D7F0D]
+type=adpcm
+rate=11025
+path=sound/inventory
 
 [452D7A0C]
 type=adpcm
