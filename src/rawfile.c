@@ -1510,7 +1510,7 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 {
 	int numobjects, filesize, i, chunkpos, last;
 	unsigned char *chunk;
-	qboolean detect255, halfres;
+	qboolean decompress255, halfres;
 	rawchunk_t *rawchunk;
 	rawblock_t *rawblock;
 
@@ -1577,30 +1577,63 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	// test all variants and select one which fit
 	// yes, i know this is mess
 	halfres = true;
-	detect255 = true;
+	decompress255 = true;
 	#define detect()	for (i = 0; i < numobjects; i++) \
 						{ \
 							rawchunk = &rawblock->chunk[i]; \
-							chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, detect255, halfres, false); \
+							chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, decompress255, halfres, false); \
 							last = ((i+1) < numobjects) ? rawblock->chunk[i+1].offset : filelen; \
 							if (chunkpos != last) \
-								break; \
+							{ \
+								chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256) * rawchunk->height , decompress255, halfres, false); \
+								if (chunkpos == last) \
+								{ \
+									Verbose(" fix width of chunk %i to %i...\n", i, rawchunk->width + 256);  \
+									rawchunk->width = rawchunk->width + 256; \
+									rawchunk->size = rawchunk->width*rawchunk->height; \
+								} \
+								else \
+								{ \
+									chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->width * (rawchunk->height + 256), decompress255, halfres, false); \
+									if (chunkpos == last) \
+									{ \
+										Verbose(" fix height of chunk %i to %i...\n", i, rawchunk->height + 256); \
+										rawchunk->height = rawchunk->height + 256; \
+										rawchunk->size = rawchunk->width*rawchunk->height; \
+									} \
+									else \
+									{ \
+										chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256 ) * (rawchunk->height + 256), decompress255, halfres, false); \
+										if (chunkpos == last) \
+										{ \
+											Verbose(" fix width and height of chunk %i to %i...\n", i, rawchunk->width + 256, rawchunk->height + 256); \
+											rawchunk->width = rawchunk->width + 256; \
+											rawchunk->height = rawchunk->height + 256; \
+											rawchunk->size = rawchunk->width*rawchunk->height; \
+										} \
+										else \
+										{ \
+											break; \
+										} \
+									} \
+								} \
+							} \
 						}
 	detect()
 	if (i < numobjects)
 	{
 		halfres = true;
-		detect255 = false;
+		decompress255 = false;
 		detect()
 		if (i < numobjects)
 		{
 			halfres = false;
-			detect255 = true;
+			decompress255 = true;
 			detect()
 			if (i < numobjects)
 			{
 				halfres = false;
-				detect255 = false;
+				decompress255 = false;
 			}
 		}
 	}
@@ -1611,7 +1644,7 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	{
 		rawchunk = &rawblock->chunk[i];
 		RawBlockAllocateChunkSimple(rawblock, i, false);
-		chunkpos = ReadRLCompressedStream(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, detect255, halfres, forced);
+		chunkpos = ReadRLCompressedStream(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, decompress255, halfres, forced);
 		if (chunkpos < 0)
 			return RawErrorBlock(rawblock, chunkpos);
 	}
@@ -1659,7 +1692,7 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	int numobjects, filesize, i, objbitssize, chunkpos, last;
 	rawchunk_t *rawchunk;
 	rawblock_t *rawblock;
-	qboolean halfres;
+	qboolean halfres, decompress255;
 	byte *chunk;
 
 	if (!testonly && verbose)
@@ -1709,12 +1742,11 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	for (i = 0; i < numobjects; i++)
 	{
 		chunk = buffer + 780 + objbitssize + i*8;
-
 		rawchunk = &rawblock->chunk[i];
 		rawchunk->offset = 780 + objbitssize + numobjects*8 + ReadInt(chunk);
 		rawchunk->width = chunk[4];
 		rawchunk->height = chunk[5];
-		rawchunk->size = chunk[4]*chunk[5];
+		rawchunk->size = rawchunk->width*rawchunk->height;
 		rawchunk->x = chunk[6];
 		rawchunk->y = chunk[7];
 		if (rawchunk->width < 0 || rawchunk->height < 0)
@@ -1727,26 +1759,62 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	}
 
 	// VorteX: detect half-width compression
+	// VorteX: hack! some widths and heights need to add +256, so check for that cases
 	halfres = true;
+	decompress255 = true;
 	#define detect()	for (i = 0; i < numobjects; i++) \
 						{ \
 							rawchunk = &rawblock->chunk[i]; \
-							chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, true, halfres, false); \
+							chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, decompress255, halfres, false); \
 							last = ((i+1) < numobjects) ? rawblock->chunk[i+1].offset : filelen; \
 							if (chunkpos != last) \
-								break; \
+							{ \
+								chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256) * rawchunk->height , decompress255, halfres, false); \
+								if (chunkpos == last) \
+								{ \
+									Verbose(" fix width of chunk %i to %i...\n", i, rawchunk->width + 256);  \
+									rawchunk->width = rawchunk->width + 256; \
+									rawchunk->size = rawchunk->width*rawchunk->height; \
+								} \
+								else \
+								{ \
+									chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->width * (rawchunk->height + 256), decompress255, halfres, false); \
+									if (chunkpos == last) \
+									{ \
+										Verbose(" fix height of chunk %i to %i...\n", i, rawchunk->height + 256); \
+										rawchunk->height = rawchunk->height + 256; \
+										rawchunk->size = rawchunk->width*rawchunk->height; \
+									} \
+									else \
+									{ \
+										chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256 ) * (rawchunk->height + 256), decompress255, halfres, false); \
+										if (chunkpos == last) \
+										{ \
+											Verbose(" fix width and height of chunk %i to %i...\n", i, rawchunk->width + 256, rawchunk->height + 256); \
+											rawchunk->width = rawchunk->width + 256; \
+											rawchunk->height = rawchunk->height + 256; \
+											rawchunk->size = rawchunk->width*rawchunk->height; \
+										} \
+										else \
+										{ \
+											break; \
+										} \
+									} \
+								} \
+							} \
 						}
 	detect()
 	if (i < numobjects)
 		halfres = false;
 	#undef detect
-
+	
 	// read pixels
 	for (i = 0; i < numobjects; i++)
 	{
+	//	Verbose(" reading chunk %i...\n", i); 
 		rawchunk = &rawblock->chunk[i];
 		RawBlockAllocateChunkSimple(rawblock, i, false);
-		chunkpos = ReadRLCompressedStream(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, true, halfres, forced);
+		chunkpos = ReadRLCompressedStream(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, decompress255, halfres, forced);
 		if (chunkpos < 0)
 			return RawErrorBlock(rawblock, chunkpos);
 	}
@@ -1790,7 +1858,7 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	int numobjects, filesize, i, chunkpos, last;
-	qboolean detect255;
+	qboolean decompress255, halfres;
 	rawchunk_t *rawchunk;
 	rawblock_t *rawblock;
 	byte *chunk;
@@ -1827,18 +1895,52 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
 	// VorteX: detect compression of 255 index
-	detect255 = true;
+	decompress255 = true;
+	halfres = false;
 	#define detect()	for (i = 0; i < numobjects; i++) \
 						{ \
 							rawchunk = &rawblock->chunk[i]; \
-							chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, detect255, false, false); \
+							chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, decompress255, halfres, false); \
 							last = ((i+1) < numobjects) ? rawblock->chunk[i+1].offset : filelen; \
 							if (chunkpos != last) \
-								break; \
+							{ \
+								chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256) * rawchunk->height , decompress255, halfres, false); \
+								if (chunkpos == last) \
+								{ \
+									Verbose(" fix width of chunk %i to %i...\n", i, rawchunk->width + 256);  \
+									rawchunk->width = rawchunk->width + 256; \
+									rawchunk->size = rawchunk->width*rawchunk->height; \
+								} \
+								else \
+								{ \
+									chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->width * (rawchunk->height + 256), decompress255, halfres, false); \
+									if (chunkpos == last) \
+									{ \
+										Verbose(" fix height of chunk %i to %i...\n", i, rawchunk->height + 256); \
+										rawchunk->height = rawchunk->height + 256; \
+										rawchunk->size = rawchunk->width*rawchunk->height; \
+									} \
+									else \
+									{ \
+										chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256 ) * (rawchunk->height + 256), decompress255, halfres, false); \
+										if (chunkpos == last) \
+										{ \
+											Verbose(" fix width and height of chunk %i to %i...\n", i, rawchunk->width + 256, rawchunk->height + 256); \
+											rawchunk->width = rawchunk->width + 256; \
+											rawchunk->height = rawchunk->height + 256; \
+											rawchunk->size = rawchunk->width*rawchunk->height; \
+										} \
+										else \
+										{ \
+											break; \
+										} \
+									} \
+								} \
+							} \
 						}
 	detect()
 	if (i < numobjects)
-		detect255 = false;
+		decompress255 = false;
 	#undef detect
 
 	// read object headers, test them
@@ -1869,7 +1971,7 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	{
 		rawchunk = &rawblock->chunk[i];
 		RawBlockAllocateChunkSimple(rawblock, i, false);
-		chunkpos = ReadRLCompressedStream(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, detect255, false, forced);
+		chunkpos = ReadRLCompressedStream(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->size, decompress255, halfres, forced);
 		if (chunkpos < 0)
 			return RawErrorBlock(rawblock, chunkpos);
 	}
