@@ -1001,6 +1001,12 @@ int ReadInt(byte *buffer)
 	return buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
 }
 
+// read short from buffer stream
+int ReadShort(byte *buffer)
+{
+	return buffer[1]*256 + buffer[0];
+}
+
 // read colormap out of stream
 byte *ReadColormap(unsigned char *buffer, int filelen, int offset, int palbytes)
 {
@@ -2012,7 +2018,7 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	unsigned int datasize;
-	unsigned short data1, data2, data3, data4, data5;
+	unsigned int data1, data2, data3, data4, data5;
 	int chunkpos, i;
 	byte *colormapdata;
 	byte *in, *out;
@@ -2020,12 +2026,11 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	if (!testonly && verbose)
 		Print("extracting type7\n");
 
-	
 	// as this format is unfinished, don't find if scanning, only direct request
-	//if (testonly)
-	//	return RawErrorBlock(NULL, -1);
+	if (testonly)
+		return RawErrorBlock(NULL, -1);
 
-//	if (filelen < (26 + 512 + 32))
+	if (filelen < (26 + 512 + 32))
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
 	// set of magic numbers
@@ -2038,7 +2043,7 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	if (verbose == true)
 	{
 		Print("datasize: %i\n", datasize);
-		Print("filesize: %i\n", filelen);
+	//	Print("filesize: %i\n", filelen);
 		Print("data1: %i\n", data1);
 		Print("data2: %i\n", data2);
 		Print("data3: %i\n", data3);
@@ -2063,25 +2068,34 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 			*out++ = ((in[1] & 0x7C) >> 2) * 8;
 			in += 2;
 		}
-		if (in[0] != 255) // palette is ended
-			break;
+	//	if (in[0] != 255) // palette is ended
+	//		break;
 		in++;
 	}
+//	in++;
 	Print("numpalettes: %i\n", (int)(chunkpos / 4));
+	Print("stoppedpos: %i\n", (int)(in - buffer));
+	for (i = 0; i < 4; i++)
+	{
+		Print("%03i %03i %03i %03i %03i %03i %03i %03i %03i\n", in[i*9+0], in[i*9+1], in[i*9+2], in[i*9+3], in[i*9+4], in[i*9+5], in[i*9+6], in[i*9+7], in[i*9+8]);
+	}
 
 	// write colormap
 	RawTGAColormap("palette.tga", colormapdata, 24, 4, 64);
 
 	// write rest of image
+	if (0)
+	{
 	for (i = 0; i < 64*320; i++)
 	{
 		if (in[i] == 255)
 		{
 			i++;
-		//	printf("i: %i\n", (in[i] & 0x3f));
+			printf("afteri: %i\n", in[i] - (in[i] & 192)); 
 		}
 		else
 			in[i] = 0;
+	}
 	}
 	RawTGA("file.tga", 64, 320, 0, 0, 0, 0, NULL, in, 8, rawinfo);
 
