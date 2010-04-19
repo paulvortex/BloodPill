@@ -950,7 +950,7 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 		{
 			c = vagconvert;
 			// unpack vag
-		//	VAG_Unpack(entry->data, 64, entry->size, &data, &size);
+			VAG_Unpack(entry->data, 64, entry->size, &data, &size);
 			sprintf(inputcmd, "-t s16 -r %i -c 1", entry->adpcmrate);
 		}
 

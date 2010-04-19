@@ -1841,7 +1841,7 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 
   RAW FILE TYPE 5
 
-  DERIVATIVE FROM TYPE 3 BUT NO MYSTIC BYTES
+  DERIVATIVE FROM TYPE 3 BUT NO POSITION BYTES
 
 ==========================================================================================
 */
@@ -2068,11 +2068,12 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 			*out++ = ((in[1] & 0x7C) >> 2) * 8;
 			in += 2;
 		}
-	//	if (in[0] != 255) // palette is ended
-	//		break;
+		if (in[0] != 255) // palette is ended
+			break;
 		in++;
 	}
-//	in++;
+	in++;
+	// print some dev info
 	Print("numpalettes: %i\n", (int)(chunkpos / 4));
 	Print("stoppedpos: %i\n", (int)(in - buffer));
 	for (i = 0; i < 4; i++)

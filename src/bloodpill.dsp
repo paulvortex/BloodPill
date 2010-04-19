@@ -86,6 +86,10 @@ SOURCE=.\sprfile.c
 
 SOURCE=.\timfile.c
 # End Source File
+# Begin Source File
+
+SOURCE=.\vagfile.c
+# End Source File
 # End Group
 # Begin Group "Header Files"
 
@@ -121,6 +125,10 @@ SOURCE=.\sprfile.h
 # Begin Source File
 
 SOURCE=.\timfile.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\vagfile.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"

@@ -1,4 +1,4 @@
-Blood Pill version 0.3rc1
+Blood Pill version 0.6a
 coded by Paul [VorteX] Timofeyev (paul.vortex@gmail.com)
 thanks to:
   Mean Person : figuring out Blood Omen's VAG internals
