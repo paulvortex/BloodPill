@@ -1963,9 +1963,9 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 
 		rawchunk = &rawblock->chunk[i];
 		rawchunk->offset = 776 + numobjects*8 + ReadInt(chunk);
-		rawchunk->width = chunk[4];
-		rawchunk->height = chunk[5];
-		rawchunk->size = chunk[4]*chunk[5];
+		rawchunk->width = chunk[4] * ((rawinfo->doubleres = true) ? 2 : 1);
+		rawchunk->height = chunk[5] * ((rawinfo->doubleres = true) ? 2 : 1);
+		rawchunk->size = rawchunk->width * rawchunk->height;
 		rawchunk->x = chunk[6];
 		rawchunk->y = chunk[7];
 		if (rawchunk->width < 0 || rawchunk->height < 0)

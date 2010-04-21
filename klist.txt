@@ -2431,8 +2431,21 @@ type=raw
 raw.type=2
 raw.doubleres=true
 
+[0E031007]
+type=raw
+raw.type=2
+raw.doubleres=true
+
 [1E177028]
 type=raw
 raw.type=2
 raw.doubleres=false
+
+[0E031007]
+type=raw
+raw.type=5
+raw.doubleres=true
+
+
+
 

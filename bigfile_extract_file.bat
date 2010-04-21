@@ -1,1 +1,1 @@
-bpill -w -mem -bigfile pill.big -extract 1D126921 1D126921.tga -nearest2x
+bpill -w -mem -bigfile pill.big -extract 0E031007 0E031007.tga

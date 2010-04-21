@@ -74,6 +74,7 @@ typedef struct
 {
 		bigfileentry_t *entries;
 		unsigned int	numentries;
+		qboolean namesfromcsv;
 }
 bigfileheader_t;
 

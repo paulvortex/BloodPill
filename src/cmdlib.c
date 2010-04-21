@@ -460,13 +460,31 @@ byte unixtowin(byte c)
 	return c;
 
 }
-char *ConvSlash (char *start)
+byte wintounix(byte c)
+{
+	if (c == '\\')
+		return '/';
+	return c;
+
+}
+char *ConvSlashU2W (char *start)
 {
   char	*in;
   in = start;
   while (*in)
     {
       *in = unixtowin(*in);
+      in++;
+    }
+  return start;
+}
+char *ConvSlashW2U (char *start)
+{
+  char	*in;
+  in = start;
+  while (*in)
+    {
+      *in = wintounix(*in);
       in++;
     }
   return start;

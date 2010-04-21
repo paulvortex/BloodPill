@@ -201,7 +201,7 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 	bigklist_t *klist;
 	bigkentry_t *entry;
 	int linenum = 0;
-	char line[256], temp[256], ext[15];
+	char line[1024], temp[256], ext[15];
 	unsigned int hash;
 	qboolean options;
 	int val, i;
@@ -328,7 +328,6 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 	}
 
 	Verbose("%s: %i entries\n", filename, klist->numentries);
-
 	return klist;
 }
 
@@ -462,8 +461,11 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 {	
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
+	FILE *csvf;
+	char line[512], temp[256];
 	unsigned int read[3];
-	int i;
+	unsigned int hash;
+	int i, linenum, namesloaded;
 
 	data = qmalloc(sizeof(bigfileheader_t));
 
@@ -496,6 +498,38 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 	}
 	PacifierEnd();
 
+	// load CSV list for filenames
+	data->namesfromcsv = false;
+	if (FileExists("BO1.csv"))
+	{
+		csvf = SafeOpen("BO1.csv", "r");
+		linenum = 0;
+		namesloaded = 0;
+		while(!feof(csvf))
+		{
+			linenum++;
+			fgets(line, 512, csvf);
+			if (!sscanf(line, "%i;%s", &hash, temp))
+			{
+				Verbose("Warning: corrupted line %i in BO1.csv: '%s'!\n", linenum, line);
+				continue;
+			}
+			// find hash
+			for (i = 0; i < (int)data->numentries; i++)
+			{
+				if (data->entries[i].hash != hash)
+					continue;
+				ConvSlashW2U(temp);
+				strcpy(data->entries[i].name, temp);
+				namesloaded++;
+				break;
+			}
+		}
+		data->namesfromcsv = true;
+		Verbose("BO1.csv: loaded %i names\n", namesloaded);
+		fclose(csvf);
+	}
+	
 	// load contents
 	if (loadfilecontents)
 	{
@@ -1144,7 +1178,7 @@ bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry, qboolean sc
 	return BIGENTRY_UNKNOWN;
 }
 
-void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawtype_t forcerawtype)
+void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawtype_t forcerawtype, qboolean allow_auto_naming)
 {
 	bigentrytype_t autotype;
 	bigkentry_t *kentry;
@@ -1156,12 +1190,15 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 	{
 		entry->type = autotype;
 		// automatic path
-		autopath = NULL;
-		if (autotype == BIGENTRY_RAW_IMAGE)
-			autopath = PathForRawType(entry->rawinfo->type);
-		if (autopath == NULL)
-			autopath = bigentryautopaths[autotype];
-		sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
+		if (allow_auto_naming)
+		{
+			autopath = NULL;
+			if (autotype == BIGENTRY_RAW_IMAGE)
+				autopath = PathForRawType(entry->rawinfo->type);
+			if (autopath == NULL)
+				autopath = bigentryautopaths[autotype];
+			sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
+		}
 	}
 	// check listfile
 	else
@@ -1174,17 +1211,20 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 			if (entry->type == BIGENTRY_RAW_IMAGE)
 				entry->rawinfo = kentry->rawinfo;
 			// check custom path
-			if (kentry->path[0])
-				sprintf(entry->name, "%s", kentry->path);
-			else
+			if (allow_auto_naming)
 			{
-				// automatic path
-				autopath = NULL;
-				if (entry->type == BIGENTRY_RAW_IMAGE)
-					autopath = PathForRawType(entry->rawinfo->type);
-				if (autopath == NULL)
-					autopath = bigentryautopaths[autotype];
-				sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
+				if (kentry->path[0])
+					sprintf(entry->name, "%s", kentry->path);
+				else
+				{
+					// automatic path
+					autopath = NULL;
+					if (entry->type == BIGENTRY_RAW_IMAGE)
+						autopath = PathForRawType(entry->rawinfo->type);
+					if (autopath == NULL)
+						autopath = bigentryautopaths[autotype];
+					sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
+				}
 			}
 		}
 	}
@@ -1212,7 +1252,7 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list
 			continue;
 
 		Pacifier("scanning type for entry %i of %i...", i + 1, data->numentries);
-		BigfileScanFiletype(f, entry, scanraw, forcerawtype);
+		BigfileScanFiletype(f, entry, scanraw, forcerawtype, data->namesfromcsv ? false : true);
 	}
 	fsetpos(f, &fpos);
 	
@@ -1269,13 +1309,13 @@ int BigFile_List(int argc, char **argv)
 	FILE *f, *f2;
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
-	char name[MAX_BLOODPATH], listfile[MAX_BLOODPATH], csvfile[MAX_BLOODPATH], typestr[128], extrainfo[128];
+	char name[MAX_BLOODPATH], listfile[MAX_BLOODPATH], exportcsv[MAX_BLOODPATH], typestr[128], extrainfo[128];
 	qboolean scanraw;
 	int i;
 
 	// check parms
 	scanraw = false;
-	strcpy(csvfile, "-");
+	strcpy(exportcsv, "-");
 	strcpy(listfile, "-");
 	if (argc > 0) 
 	{
@@ -1288,12 +1328,12 @@ int BigFile_List(int argc, char **argv)
 				Verbose("Option: scan for RAW filetypes\n", argv[i]);
 				continue;
 			}
-			if (!strcmp(argv[i], "-csv"))
+			if (!strcmp(argv[i], "-exportcsv"))
 			{
 				i++; 
 				if (i < argc)
 				{
-					strlcpy(csvfile, argv[i], sizeof(csvfile));
+					strlcpy(exportcsv, argv[i], sizeof(exportcsv));
 					Verbose("Option: export CSV file '%s'\n", argv[i]);
 				}
 				continue;
@@ -1320,10 +1360,10 @@ int BigFile_List(int argc, char **argv)
 	}
 
 	// export CSV file
-	if (csvfile[0] != '-')
+	if (exportcsv[0] != '-')
 	{
-		Print("Exporting %s...\n", csvfile);
-		f2 = SafeOpenWrite(csvfile);
+		Print("Exporting %s...\n", exportcsv);
+		f2 = SafeOpenWrite(exportcsv);
 		for (i = 0; i < (int)data->numentries; i++)
 		{
 			entry = &data->entries[i];
@@ -1345,7 +1385,7 @@ int BigFile_List(int argc, char **argv)
 			else sprintf(extrainfo, "");
 			// print
 			strcpy(name, entry->name);
-			ConvSlash(name);
+			ConvSlashU2W(name);
 			fprintf(f2, "%i;%s;%s;%s;\n", entry->hash, name, typestr, extrainfo);
 		}
 		fclose(f2);
@@ -1892,7 +1932,7 @@ int BigFile_Extract(int argc, char **argv)
 	entry = ReadBigfileHeaderOneEntry(f, hash);
 	if (entry == NULL)
 		Error("Failed to find entry %.8X\n", hash);
-	BigfileScanFiletype(f, entry, true, RAW_TYPE_UNKNOWN);
+	BigfileScanFiletype(f, entry, true, RAW_TYPE_UNKNOWN, true);
 
 	// cannot extract empty files
 	if (entry->size == 0)
