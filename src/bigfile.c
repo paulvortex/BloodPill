@@ -1199,6 +1199,14 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 				autopath = bigentryautopaths[autotype];
 			sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
 		}
+		// check klist and pick rawinfo anyway
+		kentry = BigfileSearchKList(entry->hash);
+		if (kentry != NULL)
+		{
+			entry->adpcmrate = (int)kentry->adpcmrate;
+			if (entry->type == BIGENTRY_RAW_IMAGE)
+				entry->rawinfo = kentry->rawinfo;
+		}
 	}
 	// check listfile
 	else
