@@ -149,7 +149,7 @@ void WriteRawInfo(FILE *f, rawinfo_t *rawinfo)
 	if (rawinfo->bytes > 1)
 		fprintf(f, "raw.bytes=%i\n", rawinfo->bytes);
 	if (rawinfo->doubleres > 0)
-		fprintf(f, "raw.doubleres=%i\n", UnparseRawSwitch(rawinfo->doubleres));
+		fprintf(f, "raw.doubleres=%s\n", UnparseRawSwitch(rawinfo->doubleres));
 	if (rawinfo->chunknum >= 0)
 		fprintf(f, "raw.chunknum=%i\n", rawinfo->chunknum);
 	if (rawinfo->colormapoffset > 0)
@@ -543,10 +543,10 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 		}
 		// create cropped image, copy lines
 		RawBlockAllocateChunk(cropblock, i, rawblock->chunk[i].width - cropx[0] - cropx[1], rawblock->chunk[i].height - cropy[0] - cropy[1], 0, 0, false);
-		cropblock->colormap = rawblock->colormap;
-		cropblock->colormapExternal = true;
-		cropblock->alphamap = rawblock->alphamap;
-		cropblock->alphamapExternal = true;
+		cropblock->chunk[i].colormap = rawblock->chunk[i].colormap;
+		cropblock->chunk[i].colormapExternal = true;
+		cropblock->chunk[i].alphamap = rawblock->chunk[i].alphamap;
+		cropblock->chunk[i].alphamapExternal = true;
 		for (r = 0; r < cropblock->chunk[i].height; r++)
 		{
 			buf = cropblock->chunk[i].pixels + r*cropblock->chunk[i].width;
@@ -583,7 +583,6 @@ rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin)
 	newblock->alphamap = rawblock->alphamap;
 	newblock->alphamapExternal = true;
 
-
 	// align chunks
 	for (i = 0; i < rawblock->chunks; i++)
 	{
@@ -592,10 +591,10 @@ rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin)
 		ax = max(0, maxwidth - rawblock->chunk[i].width - bx);
 		ay = max(0, maxheight - rawblock->chunk[i].height - by);
 		RawBlockAllocateChunk(newblock, i, maxwidth, maxheight, 0, 0, false);
-		newblock->colormap = rawblock->colormap;
-		newblock->colormapExternal = true;
-		newblock->alphamap = rawblock->alphamap;
-		newblock->alphamapExternal = true;
+		newblock->chunk[i].colormap = rawblock->chunk[i].colormap;
+		newblock->chunk[i].colormapExternal = true;
+		newblock->chunk[i].alphamap = rawblock->chunk[i].alphamap;
+		newblock->chunk[i].alphamapExternal = true;
 		// write before-lines
 		buf = newblock->chunk[i].pixels;
 		c = by*maxwidth;
@@ -726,6 +725,10 @@ rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock)
 	{
 		chunk = &rawblock->chunk[i];
 		RawBlockAllocateChunk(newrawblock, i, chunk->width*2, chunk->height*2, chunk->x*2, chunk->y*2, false);
+		newrawblock->chunk[i].colormap = rawblock->chunk[i].colormap;
+		newrawblock->chunk[i].colormapExternal = true;
+		newrawblock->chunk[i].alphamap = rawblock->chunk[i].alphamap;
+		newrawblock->chunk[i].alphamapExternal = true;
 		newchunk = &newrawblock->chunk[i];
 		// simple 2x nearest scale
 		// fixme: optimize
@@ -1307,7 +1310,7 @@ rawblock_t *RawExtract_Type0(unsigned char *buffer, int filelen, rawinfo_t *rawi
 */
 
 // RAW FILE TYPE 1
-// Description: item card, single-object file
+// Description: item card, single-object file, really a type 3 but easier to parse
 // Spec:
 //  000: 4 bytes - always 001 000 000 000
 //  004: 4 bytes - filesize
@@ -1502,8 +1505,9 @@ rawblock_t *RawExtract_Type2(unsigned char *buffer, int filelen, rawinfo_t *rawi
 // Notes: also some files have 255 indexrun-length-compressed as well, this pixels are usually blue (shadow)
 //   4 bytes - number of objects
 //   4 bytes - filesize
-//   768 bytes - colormap data (24-bit RGB), could be perturbated
-//   4 mystic bytes
+//   768 bytes - colormap data (24-bit RGB)
+//   2 bytes - x position
+//   2 bytes - y position
 // <object headers>
 //    4 bytes - offset after headers
 //    1 byte - width
@@ -1682,10 +1686,11 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 // Notes: also some files have 255 index run-length-compressed as well, this pixels are usually blue (shad
 //   4 bytes - number of objects
 //   4 bytes - filesize
-// structure: ? bytes - 1 byte for each object
+//   <mystic object headers> - 1 byte for each object
 //   768 bytes - colormap data (24-bit RGB)
-//   4 mystic bytes
-// structure: <object headers>
+//   2 bytes - x position
+//   2 bytes - y position
+// <object headers>
 //    4 bytes - offset after headers
 //    1 byte - width
 //    1 byte - height
@@ -1847,13 +1852,14 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 */
 
 // RAW FILE TYPE 5
-// Description: multiobject file with shared palette, with zero-length compression
+// Description: multiobject file with shared palette, with zero-length compression, no position info
 // Notes: some files have 255 indexrun-length-compressed as well, this pixels could be blue or red
+// Notes: some chunks may have broken width/height because they width is above 255 and it uses 1 byte to encode it, 255 + [width] should be used to correct this
 // Spec:
 //   4 bytes - number of objects
 //   4 bytes - filesize
 //   768 bytes - colormap data (24-bit RGB)
-// structure: <object headers>
+// <object headers>
 //    4 bytes - offset after headers
 //    1 byte - width
 //    1 byte - height

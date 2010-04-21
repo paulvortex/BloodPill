@@ -1,1 +1,1 @@
-bpill -w -mem -bigfile pill.big -extract 080C020C test.tga -i 0-67 -bgcolor 080808 -shadowcolor 000000 -shadowalpha 220 -ofs -53 43
+bpill -w -mem -bigfile pill.big -extract 1D126921 1D126921.tga -nearest2x
