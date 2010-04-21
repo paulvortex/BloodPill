@@ -29,6 +29,7 @@ void VAG_Unpack(byte *data, int offset, int datasize, byte **bufferptr, int *out
 	// determine amount if data that should be written
 	// fixme: OPTIMIZE
 	in = data + offset; // skip VAG header
+	datasize = datasize - offset;
 	size = 0;
 	while(datasize > 0)
 	{

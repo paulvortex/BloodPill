@@ -1683,7 +1683,8 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 // RAW FILE TYPE 4
 // Description: multiobject file with shared palette, with zero-length compression, with additional objects header
 // Notes: could be half-width compressed (1 byte codes 2 pixels) hence colormap should be perturbated
-// Notes: also some files have 255 index run-length-compressed as well, this pixels are usually blue (shad
+// Notes: also some files have 255 index run-length-compressed as well, this pixels are usually blue (shadows)
+// Notes: some files has <mystic object headers> rounded to structure size, some not
 //   4 bytes - number of objects
 //   4 bytes - filesize
 //   <mystic object headers> - 1 byte for each object
@@ -1761,12 +1762,60 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		rawchunk->x = chunk[6];
 		rawchunk->y = chunk[7];
 		if (rawchunk->width < 0 || rawchunk->height < 0)
-			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_HEADER);
+		{
+			if (verbose == true)
+				Print("%03i: bad width/height!\n", i);
+			break;
+		}
 		if (rawchunk->offset <= last && !forced)
-			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_OFFSET);
+		{
+			if (verbose == true)
+				Print("%03i: bad offset!\n", i);
+			break;
+		}
 		if (verbose == true)
 			Print("%03i: %8i %03ix%03i %03i %03i - %03i\n", i, rawblock->chunk[i].offset, rawblock->chunk[i].width, rawblock->chunk[i].height, rawblock->chunk[i].x, rawblock->chunk[i].y, rawblock->chunk[i].flagbit);    
 		last = rawchunk->offset;
+	}
+
+	// VorteX: hackland
+	// if failed - try with not-rounded objbitssize
+	if (i < numobjects)
+	{
+		objbitssize = numobjects;
+
+		// re-read colormap
+		qfree(rawblock->colormap);
+		rawblock->colormap = ReadColormap(buffer, filelen, 8 + objbitssize, 3);
+		if (rawblock->colormap == NULL)
+			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
+
+		// re-read global position
+		rawblock->posx = buffer[776 + objbitssize] + buffer[777 + objbitssize]*256;
+		rawblock->posy = buffer[778 + objbitssize] + buffer[779 + objbitssize]*256;
+		if (verbose == true)
+			Print("picture position: %03ix%03i\n", rawblock->posx, rawblock->posy);
+
+		last = -1;
+		for (i = 0; i < numobjects; i++)
+		{
+			chunk = buffer + 780 + objbitssize + i*8;
+			rawchunk = &rawblock->chunk[i];
+			rawchunk->offset = 780 + objbitssize + numobjects*8 + ReadInt(chunk);
+			rawchunk->width = chunk[4];
+			rawchunk->height = chunk[5];
+			rawchunk->size = rawchunk->width*rawchunk->height;
+			rawchunk->x = chunk[6];
+			rawchunk->y = chunk[7];
+			// error?
+			if (rawchunk->width < 0 || rawchunk->height < 0)
+				return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_HEADER);
+			if (rawchunk->offset <= last && !forced)
+				return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_OFFSET);
+			if (verbose == true)
+				Print("%03i: %8i %03ix%03i %03i %03i - %03i\n", i, rawblock->chunk[i].offset, rawblock->chunk[i].width, rawblock->chunk[i].height, rawblock->chunk[i].x, rawblock->chunk[i].y, rawblock->chunk[i].flagbit);    
+			last = rawchunk->offset;
+		}
 	}
 
 	// VorteX: detect half-width compression

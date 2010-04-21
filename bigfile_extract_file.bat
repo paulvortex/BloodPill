@@ -1,1 +1,2 @@
-bpill -w -mem -bigfile pill.big -extract 0E031007 0E031007.tga
+bpill -w -mem -bigfile pill.big -extract 14050761 14050761.tga
+REM 

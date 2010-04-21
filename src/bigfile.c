@@ -1152,6 +1152,9 @@ qboolean BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
 	rawblock = RawExtract(filedata, entry->size, rawinfo, true, false, forcerawtype);
 	if (rawblock->errorcode >= 0)
 	{
+		if (rawblock->errorcode > 0)
+			if (rawblock->errorcode < (int)entry->size)
+				printf("%.8x: file read pos %i of %i\n", entry->hash, rawblock->errorcode, (int)entry->size);
 		FreeRawBlock(rawblock);
 		entry->rawinfo = rawinfo;
 		qfree(filedata);
@@ -1185,6 +1188,7 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 	char *autopath;
 
 	// detect filetype automatically
+	allow_auto_naming = true;
 	autotype = BigfileDetectFiletype(f, entry, scanraw, forcerawtype);
 	if (autotype != BIGENTRY_UNKNOWN) 
 	{
@@ -1908,6 +1912,8 @@ int BigFile_Extract(int argc, char **argv)
 	rawblock_t *rawblock;
 	FILE *f;
 	int i;
+	char *data;
+	int size;
 
 	// read source hash and out file
 	if (argc < 2)
@@ -1980,6 +1986,13 @@ int BigFile_Extract(int argc, char **argv)
 	switch(entry->type)
 	{
 		case BIGENTRY_UNKNOWN:
+		//	printf("f: %s\n", entry->name);
+		//	if(!strcmp(entry->name, "unknown/5b687708.dat"))
+		//	{
+		//		printf("unpacking shit!\n");
+		//		VAG_Unpack(entry->data, 16, entry->size, &data, &size);
+		//		SaveFile("shit.adpcm", data, size);
+		//	}
 			Error("unknown entry type, bad format '%s'\n", format);
 			break;
 		case BIGENTRY_TIM:
