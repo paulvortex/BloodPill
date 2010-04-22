@@ -1092,6 +1092,7 @@ int ReadRLCompressedStream(byte *outbuf, byte *inbuf, int startpos, int buflen, 
 		startpos++;
 		return startpos;
 	}
+
 	// read stream
 	nullpixels = 0;
 	for(pixelpos = 0; pixelpos < readpixels; )
@@ -1310,7 +1311,8 @@ rawblock_t *RawExtract_Type0(unsigned char *buffer, int filelen, rawinfo_t *rawi
 */
 
 // RAW FILE TYPE 1
-// Description: item card, single-object file, really a type 3 but easier to parse
+// Platform: PC 
+// Desc: item card, single-object file, really a raw type 3 but easier to parse
 // Spec:
 //  000: 4 bytes - always 001 000 000 000
 //  004: 4 bytes - filesize
@@ -1321,6 +1323,7 @@ rawblock_t *RawExtract_Type0(unsigned char *buffer, int filelen, rawinfo_t *rawi
 //  786: 1 byte x
 //  787: 1 byte y
 //  788: pixels width*height
+
 rawblock_t *RawExtract_Type1(unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	rawblock_t *rawblock;
@@ -1358,8 +1361,9 @@ rawblock_t *RawExtract_Type1(unsigned char *buffer, int filelen, rawinfo_t *rawi
 */
 
 // RAW FILE TYPE 2
-// Description: multiobject file with per-object palette
-// Notes: real width/height may be double than written in headers
+// Platform: PC 
+// Desc: multiobject file with per-object palette
+// Note: real width/height may be double of what written in headers
 // Spec:
 //   4 bytes - number of objects
 //   4 bytes - size of file
@@ -1500,9 +1504,9 @@ rawblock_t *RawExtract_Type2(unsigned char *buffer, int filelen, rawinfo_t *rawi
 */
 
 // RAW FILE TYPE 3
-// Description: multiobject file with shared palette, with zero-length compression
-// Notes: could be half-width compressed (1 byte codes 2 pixels) hence colormap should be perturbated
-// Notes: also some files have 255 indexrun-length-compressed as well, this pixels are usually blue (shadow)
+// Desc: multiobject file with shared palette, with zero-length compression
+// Note: could be half-width compressed (1 byte codes 2 pixels) hence colormap should be perturbated
+// Note: also some files have 255 indexrun-length-compressed as well, this pixels are usually blue (shadow)
 //   4 bytes - number of objects
 //   4 bytes - filesize
 //   768 bytes - colormap data (24-bit RGB)
@@ -1681,10 +1685,10 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 */
 
 // RAW FILE TYPE 4
-// Description: multiobject file with shared palette, with zero-length compression, with additional objects header
-// Notes: could be half-width compressed (1 byte codes 2 pixels) hence colormap should be perturbated
-// Notes: also some files have 255 index run-length-compressed as well, this pixels are usually blue (shadows)
-// Notes: some files has <mystic object headers> rounded to structure size, some not
+// Desc: multiobject file with shared palette, with zero-length compression, with additional objects header
+// Note: could be half-width compressed (1 byte codes 2 pixels) hence colormap should be perturbated
+// Note: also some files have 255 index run-length-compressed as well, this pixels are usually blue (shadows)
+// Note: some files has <mystic object headers> rounded to structure size, some not
 //   4 bytes - number of objects
 //   4 bytes - filesize
 //   <mystic object headers> - 1 byte for each object
@@ -1901,9 +1905,10 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 */
 
 // RAW FILE TYPE 5
-// Description: multiobject file with shared palette, with zero-length compression, no position info
-// Notes: some files have 255 indexrun-length-compressed as well, this pixels could be blue or red
-// Notes: some chunks may have broken width/height because they width is above 255 and it uses 1 byte to encode it, 255 + [width] should be used to correct this
+// Desc: multiobject file with shared palette, with zero-length compression, no position info
+// Note: some files have 255 indexrun-length-compressed as well, this pixels could be blue or red
+// Note: some chunks may have broken width/height because they width is above 255 and it uses 1 byte 
+//       to encode it, 255 + [width] should be used to correct this
 // Spec:
 //   4 bytes - number of objects
 //   4 bytes - filesize
