@@ -89,7 +89,7 @@ It is unfinished, so will be extended in future
  RAW FILE TYPE 1
 --
  Platform: PC, PSX 
- Desc: item card, single-object file, really a raw type 3 but easy to load
+ Desc: item card, single-object file, really a raw type 3 but easy to load because of 1 object and no compression used
  Spec:
   4 bytes - always 001 000 000 000
   4 bytes - filesize
