@@ -2325,7 +2325,8 @@ int Raw_Main(int argc, char **argv)
 				Verbose("Color bytes: %i\n", rawinfo.bytes);
 			}
 		}
-		else if(!strcmp(argv[i], "-colormapoffset"))
+		else if(!strcmp(argv[i], "-
+			"))
 		{
 			i++;
 			if (i < argc)
