@@ -81,6 +81,121 @@ tim_image_t *TimError(tim_image_t *tim, char *error, ...)
 	return tim;
 }
 
+tim_image_t *TIM_LoadFromBuffer(byte *buf, int buflen)
+{
+	tim_image_t *tim;
+	long nextobjlen;
+	unsigned char *out;
+	int filepos = 0, y;
+
+	tim = EmptyTIM(0);
+
+	// 0x10 should be at beginning of standart TIM
+	if (buflen < 4)
+		return TimError(tim, "unexpected EOF at tag");
+	tim->tag = ReadUInt(buf);
+	if (tim->tag != TIM_TAG)
+		return TimError(tim, "funky tag %.8X", tim->tag);
+	buf += 4;
+	buflen -= 4;
+
+	// second uint is type
+	if (buflen < 4)
+		return TimError(tim, "unexpected EOF at type");
+	tim->type = ReadUInt(buf);
+	buf += 4;
+	buflen -= 4;
+	
+	// set bpp
+	if (tim->type == TIM_4Bit)
+		tim->bpp = 4;
+	else if (tim->type == TIM_8Bit)
+		tim->bpp = 8;
+	else if (tim->type == TIM_16Bit)
+		tim->bpp = 16;
+	else if (tim->type == TIM_24Bit)
+		tim->bpp = 24;
+	else
+		return TimError(tim, "unsupported type %.8X", tim->type);
+
+	// third uint is size of CLUT/image data
+	if (buflen < 4)
+		return TimError(tim, "unexpected EOF at CLUT/image");
+	nextobjlen = ReadUInt(buf);
+	buf += 4;
+	buflen -= 4;
+
+	// load CLUT if presented
+	if (tim->type == TIM_4Bit || tim->type == TIM_8Bit)
+	{
+		tim->CLUT = qmalloc(sizeof(tim_clutinfo_t));
+		memcpy(tim->CLUT, buf, nextobjlen-4);
+		buf += nextobjlen-4;
+		buflen -= nextobjlen-4;
+		nextobjlen = ReadUInt(buf);
+		buf += 4;
+		buflen -= 4;
+	}	
+
+	// read dimension info
+	if (buflen < sizeof(tim_diminfo_t))
+		return TimError(tim, "unexpected EOF at dimension info");
+	memcpy(&tim->dim, buf, sizeof(tim_diminfo_t));
+	buf += sizeof(tim_diminfo_t);
+	buflen -= sizeof(tim_diminfo_t);
+
+	// get actual width/height
+	if (tim->type == TIM_4Bit)
+	{
+		tim->dim.xsize = tim->dim.xsize * 4;
+		tim->pixelbytes = (int)(tim->dim.xsize*tim->dim.ysize/2);
+		tim->filelen = 20 + sizeof(tim_clutinfo_t) + 4 + tim->pixelbytes;
+	}
+	else if (tim->type == TIM_8Bit)
+	{
+		tim->dim.xsize = tim->dim.xsize * 2;
+		tim->pixelbytes = tim->dim.xsize*tim->dim.ysize;
+		tim->filelen = 20 + sizeof(tim_clutinfo_t) + 4 + tim->pixelbytes;
+	}
+	else if (tim->type == TIM_16Bit)
+	{
+		tim->pixelbytes = tim->dim.xsize*tim->dim.ysize*2;
+		tim->filelen = 20 + tim->pixelbytes;
+	}
+	else if (tim->type == TIM_24Bit)
+	{
+		tim->dim.xsize = (short)(tim->dim.xsize / 1.5);
+		tim->pixelbytes = tim->dim.xsize*tim->dim.ysize*3;
+		tim->filelen = 20 + tim->pixelbytes;
+	}
+
+	// read pixels
+	if (buflen < tim->pixelbytes)
+		return TimError(tim, "unexpected EOF at pixel data (%i bytes)", tim->pixelbytes);
+	tim->pixels = qmalloc(tim->pixelbytes);
+	memcpy(tim->pixels, buf, tim->pixelbytes);
+	buf += tim->pixelbytes;
+	buflen -= tim->pixelbytes;
+
+	// extract pixel mask for 16-bit TIM
+	if (tim->type == TIM_16Bit)
+	{
+		tim->pixelmask = qmalloc(tim->dim.xsize*tim->dim.ysize);
+		out = tim->pixelmask;
+		for (y = 0; y < tim->dim.xsize*tim->dim.ysize; y++)
+		{
+			if ((tim->pixels[y*2 + 1]) & 0x80)
+			{
+				tim->pixels[y*2 + 1] -= 0x80;
+				*out++ = 255;
+			}
+			else
+				*out++ = 0;
+		}
+	}
+	return tim;
+}
+
 tim_image_t *TIM_LoadFromStream(FILE *f)
 {
 	tim_image_t *tim;

@@ -1021,7 +1021,7 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 		{
 			StripFileExtension(entry->name, basename);
 			sprintf(outfile, "%s/%s.tga", dstdir, basename);
-			TGAfromRAW(rawblock, entry->rawinfo, outfile, rawnoalign, false, true); 
+			TGAfromRAW(rawblock, entry->rawinfo, outfile, rawnoalign, false, (rawblock->chunks > 5) ? true : false); 
 		}
 		FreeRawBlock(rawblock);
 	}
@@ -1912,8 +1912,6 @@ int BigFile_Extract(int argc, char **argv)
 	rawblock_t *rawblock;
 	FILE *f;
 	int i;
-	char *data;
-	int size;
 
 	// read source hash and out file
 	if (argc < 2)

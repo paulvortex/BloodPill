@@ -2,6 +2,7 @@
 //
 // Blood Omen RAW files loader
 // coded by Pavel [VorteX] Timofeyev and placed to public domain
+// LZ77 compression algorithms on CMP/CTM spec by Ben Lincoln
 //
 //
 // This program is free software; you can redistribute it and/or
@@ -998,18 +999,6 @@ int RoundStruct(int size)
 	return i;
 }
 
-// read integer from buffer stream
-int ReadInt(byte *buffer)
-{
-	return buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
-}
-
-// read short from buffer stream
-int ReadShort(byte *buffer)
-{
-	return buffer[1]*256 + buffer[0];
-}
-
 // read colormap out of stream
 byte *ReadColormap(unsigned char *buffer, int filelen, int offset, int palbytes)
 {
@@ -1167,6 +1156,111 @@ int ReadRLCompressedStreamTest(byte *outbuf, byte *inbuf, int startpos, int bufl
 	#undef writepixel
 }
 
+// read 
+#define DecompressLZ77_MaxIterations 4096000
+//#define DecompressLZ77_MaxOutputSize 67108864 // BO never reach this
+#define DecompressLZ77_MaxOutputSize 2097152
+
+byte DecompressLZ77Out[8388608];
+void *DecompressLZ77Stream(int *outbufsize, byte *inbuf, int startpos, int buflen)
+{
+	byte *outdata;
+	int filesize;
+	qboolean doneDecompressing = false;
+	int numIterations, bytesWritten;
+	unsigned short tempIndex, command;
+	short offset;
+	byte length, currentByte, currentByte1, currentByte2;
+	byte tempBuffer[4114];
+	int i;
+
+	// compare file size
+	if (buflen < 8)
+		return NULL;
+	filesize = ReadUInt(inbuf) + 4;
+	startpos = 4;
+	if (filesize != buflen)
+		return NULL;
+
+	// initialize decompressor
+	tempIndex = 4078;
+	numIterations = 0;
+	bytesWritten = 0;
+    command = 0;
+    for (i = 0; i < 4078; i++)
+		tempBuffer[i] = 0x20;
+
+	// decompress
+	while(!doneDecompressing)
+    {
+		// decompression errors
+		if (numIterations > DecompressLZ77_MaxIterations)
+			return NULL;
+		if (bytesWritten > DecompressLZ77_MaxOutputSize)
+			return NULL;
+		if (startpos > buflen)
+			return NULL;
+		// read command and process it
+		command = (unsigned short)(command >> 1);
+		if ((command & 0x0100) == 0)
+		{
+			command = (unsigned short)((unsigned short)(inbuf[startpos]) | 0xFF00);
+			startpos++;
+		}
+		if ((command & 0x01) == 0x01)
+		{
+			currentByte = inbuf[startpos];
+			startpos++;
+			DecompressLZ77Out[bytesWritten] = currentByte;
+			bytesWritten++;
+			tempBuffer[tempIndex] = currentByte;
+			tempIndex++;
+			tempIndex = (unsigned short)(tempIndex % 4096);
+			if (startpos > buflen)
+				break;
+		}
+		else
+		{
+			currentByte1 = inbuf[startpos];
+			startpos++;
+			currentByte2 = inbuf[startpos];
+			startpos++;
+			offset = (unsigned short)(currentByte1 | (currentByte2 & 0xF0) << 4);
+			length = (byte)((currentByte2 & 0x0F) + 3);
+			for (i = 0; i < length; i++)
+			{
+				DecompressLZ77Out[bytesWritten] = tempBuffer[(offset + i) % 4096];
+				bytesWritten++;
+				//counter--;
+				//if (counter == 0)
+				//{
+				//    doneDecompressing = true;
+				//    break;
+				//}
+				if (startpos > buflen)
+				{
+					doneDecompressing = true;
+					break;
+				}
+				tempBuffer[tempIndex] = tempBuffer[(offset + i) % 4096];
+				tempIndex++;
+				tempIndex = (unsigned short)(tempIndex % 4096);
+			}
+		}
+		numIterations++;
+	}
+
+	// Playstation files apparently need to be multiples of 1024 bytes in size
+	if ((bytesWritten % 1024) > 0)
+		bytesWritten = bytesWritten + 1024 - (bytesWritten % 1024);
+
+	// allocate and return
+	outdata = qmalloc(bytesWritten);
+	memcpy(outdata, DecompressLZ77Out, bytesWritten); 
+	*outbufsize = bytesWritten;
+	return outdata;
+}
+ 
 /*
 ==========================================================================================
 
@@ -1533,7 +1627,7 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	// check headers
 	if (filelen < 780)
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
-	numobjects = ReadInt(buffer);
+	numobjects = ReadUInt(buffer);
 	if (numobjects <= 0 || numobjects > 1000)
 		return RawErrorBlock(NULL, RAWX_ERROR_IMPLICIT_OBJECTS_COUNT);
 	if (verbose == true)
@@ -1542,7 +1636,7 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
 	// file size
-	filesize = ReadInt(buffer + 4);
+	filesize = ReadUInt(buffer + 4);
 	if (verbose == true)
 	{
 		Print("filesize: %i\n", filesize);
@@ -1572,7 +1666,7 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		chunk = buffer + 780 + i*8;
 
 		rawchunk = &rawblock->chunk[i];
-		rawchunk->offset = 780 + numobjects*8 + ReadInt(chunk);
+		rawchunk->offset = 780 + numobjects*8 + ReadUInt(chunk);
 		rawchunk->width = chunk[4];
 		rawchunk->height = chunk[5];
 		rawchunk->size = chunk[4]*chunk[5];
@@ -1716,7 +1810,7 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	// check header
 	if (filelen < 782)
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
-	numobjects = ReadInt(buffer);
+	numobjects = ReadUInt(buffer);
 	if (numobjects <= 0 || numobjects > 1000)
 		return RawErrorBlock(NULL, RAWX_ERROR_IMPLICIT_OBJECTS_COUNT);
 	if (verbose == true)
@@ -1725,7 +1819,7 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
 	// file size
-	filesize = ReadInt(buffer + 4);
+	filesize = ReadUInt(buffer + 4);
 	if (verbose == true)
 	{
 		Print("filesize: %i\n", filesize);
@@ -1759,7 +1853,7 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	{
 		chunk = buffer + 780 + objbitssize + i*8;
 		rawchunk = &rawblock->chunk[i];
-		rawchunk->offset = 780 + objbitssize + numobjects*8 + ReadInt(chunk);
+		rawchunk->offset = 780 + objbitssize + numobjects*8 + ReadUInt(chunk);
 		rawchunk->width = chunk[4];
 		rawchunk->height = chunk[5];
 		rawchunk->size = rawchunk->width*rawchunk->height;
@@ -1805,7 +1899,7 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		{
 			chunk = buffer + 780 + objbitssize + i*8;
 			rawchunk = &rawblock->chunk[i];
-			rawchunk->offset = 780 + objbitssize + numobjects*8 + ReadInt(chunk);
+			rawchunk->offset = 780 + objbitssize + numobjects*8 + ReadUInt(chunk);
 			rawchunk->width = chunk[4];
 			rawchunk->height = chunk[5];
 			rawchunk->size = rawchunk->width*rawchunk->height;
@@ -1934,7 +2028,7 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	// check header
 	if (filelen < 776)
 		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
-	numobjects = ReadInt(buffer);
+	numobjects = ReadUInt(buffer);
 	if (numobjects <= 0 || numobjects > 1000)
 		return RawErrorBlock(NULL, RAWX_ERROR_IMPLICIT_OBJECTS_COUNT);
 	if (verbose == true)
@@ -2016,7 +2110,7 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		chunk = buffer + 776 + i*8;
 
 		rawchunk = &rawblock->chunk[i];
-		rawchunk->offset = 776 + numobjects*8 + ReadInt(chunk);
+		rawchunk->offset = 776 + numobjects*8 + ReadUInt(chunk);
 		rawchunk->width = chunk[4] * ((rawinfo->doubleres == true) ? 2 : 1);
 		rawchunk->height = chunk[5] * ((rawinfo->doubleres == true) ? 2 : 1);
 		rawchunk->size = rawchunk->width * rawchunk->height;
@@ -2062,105 +2156,55 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 */
 
 // RAW FILE TYPE 7
-// Description: tile?
-// Notes: unfinished
-// Spec:
-// 0: 4 bytes - data size
-// 4: 4 bytes - ?
-// 8: 4 bytes - ?
-// 12: 4 bytes - ?
-// 16: 4 bytes - ?
-// 20: 4 bytes - ?
-// 24: 2 bytes - ?
-// 26: colormap chunks
-//     8 bytes - coding 4 16-bit colors
-//     1 byte - unknown 'separator byte', 255 if there is nother chunk, otherwize break
+// Description: compressed TIM image
 rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
-	unsigned int datasize;
-	unsigned int data1, data2, data3, data4, data5;
-	int chunkpos, i;
-	byte *colormapdata;
-	byte *in, *out;
+	byte *dec, *in, *out;
+	rawblock_t *rawblock;
+	tim_image_t *tim;
+	int decSize, i;
 
 	if (!testonly && verbose)
 		Print("extracting type7\n");
 
-	// as this format is unfinished, don't find if scanning, only direct request
-	if (testonly)
-		return RawErrorBlock(NULL, -1);
+	// try decompress
+	dec = DecompressLZ77Stream(&decSize, buffer, 0, filelen);
+	if (dec == NULL)
+		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
 
-	if (filelen < (26 + 512 + 32))
-		return RawErrorBlock(NULL, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
+	// read TIM file from that stream
+	tim = TIM_LoadFromBuffer(dec, decSize);
+	if (tim->type != TIM_8Bit)
+	{
+		FreeTIM(tim);
+		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
+	}
 
-	// set of magic numbers
-	datasize = ReadInt(buffer);
-	data1 = ReadInt(buffer + 4);
-	data2 = ReadInt(buffer + 8);
-	data3 = ReadInt(buffer + 12);
-	data4 = ReadInt(buffer + 16);
-	data5 = ReadInt(buffer + 20);
+	// convert TIM to chunk
+	rawblock = EmptyRawBlock(1);
+	rawinfo->width = tim->dim.xsize;
+	rawinfo->height = tim->dim.ysize;
 	if (verbose == true)
+		Print("size: %ix%i\n", rawinfo->width, rawinfo->height);
+	RawBlockAllocateChunk(rawblock, 0, rawinfo->width, rawinfo->height, 0, 0, false);
+	// read colormap, convert to 24-bit
+	rawblock->colormap = qmalloc(768);
+	in = tim->CLUT->data;
+	out = rawblock->colormap;
+	for (i = 0; i < 256; i++)
 	{
-		Print("datasize: %i\n", datasize);
-	//	Print("filesize: %i\n", filelen);
-		Print("data1: %i\n", data1);
-		Print("data2: %i\n", data2);
-		Print("data3: %i\n", data3);
-		Print("data4: %i\n", data4);
-		Print("data5: %i\n", data5);
-		Print("more: %i %i\n", buffer[24], buffer[25]);
+		*out++ = (in[i*2] & 0x1F) * 8; 
+		*out++ = (((in[i*2] & 0xE0) >> 5) + ((in[i*2 + 1] & 0x3) << 3)) * 8;
+		*out++ = ((in[i*2 + 1] & 0x7C) >> 2) * 8;
 	}
+	// read indexes
+	memcpy(rawblock->chunk[0].pixels, tim->pixels, rawblock->chunk[0].size);
 
-	// read palettes
-	// palettes go as 8 bytes (4 16-bit colors) + 1 mystic byte
-	colormapdata = qmalloc(768);
-	memset(colormapdata, 0, 768);
-	in = buffer + 26;
-	out = colormapdata;
-	for (chunkpos = 0; chunkpos < 256; chunkpos += 4)
-	{
-		// read colormaps chunks, 4 colors per colormap
-		for (i = 0; i < 4; i++)
-		{
-			*out++ = (in[0] & 0x1F) * 8; 
-			*out++ = (((in[0] & 0xE0) >> 5) + ((in[1] & 0x3) << 3)) * 8;
-			*out++ = ((in[1] & 0x7C) >> 2) * 8;
-			in += 2;
-		}
-		if (in[0] != 255) // palette is ended
-			break;
-		in++;
-	}
-	in++;
-	// print some dev info
-	Print("numpalettes: %i\n", (int)(chunkpos / 4));
-	Print("stoppedpos: %i\n", (int)(in - buffer));
-	for (i = 0; i < 4; i++)
-	{
-		Print("%03i %03i %03i %03i %03i %03i %03i %03i %03i\n", in[i*9+0], in[i*9+1], in[i*9+2], in[i*9+3], in[i*9+4], in[i*9+5], in[i*9+6], in[i*9+7], in[i*9+8]);
-	}
+	qfree(dec);
+	FreeTIM(tim);
+	rawblock->errorcode = decSize;
 
-	// write colormap
-	RawTGAColormap("palette.tga", colormapdata, 24, 4, 64);
-
-	// write rest of image
-	if (0)
-	{
-	for (i = 0; i < 64*320; i++)
-	{
-		if (in[i] == 255)
-		{
-			i++;
-			printf("afteri: %i\n", in[i] - (in[i] & 192)); 
-		}
-		else
-			in[i] = 0;
-	}
-	}
-	RawTGA("file.tga", 64, 320, 0, 0, 0, 0, NULL, in, 8, rawinfo);
-
-	return RawErrorBlock(NULL, -1);
+	return rawblock;
 }
 
 /*
@@ -2325,8 +2369,7 @@ int Raw_Main(int argc, char **argv)
 				Verbose("Color bytes: %i\n", rawinfo.bytes);
 			}
 		}
-		else if(!strcmp(argv[i], "-
-			"))
+		else if(!strcmp(argv[i], "-colormapoffset"))
 		{
 			i++;
 			if (i < argc)

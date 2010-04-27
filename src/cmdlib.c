@@ -813,6 +813,17 @@ int ParseNum (char *str)
 ============================================================================
 */
 
+unsigned int ReadUInt(byte *buffer)
+{
+	return buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
+}
+
+unsigned int ReadUShort(byte *buffer)
+{
+	return buffer[1]*256 + buffer[0];
+}
+
+
 #ifdef _SGI_SOURCE
 #define	__BIG_ENDIAN__
 #endif

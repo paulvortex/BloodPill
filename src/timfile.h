@@ -61,6 +61,7 @@ typedef struct
 // timfile.c
 void FreeTIM(tim_image_t *tim);
 
+tim_image_t *TIM_LoadFromBuffer(byte *buf, int buflen);
 tim_image_t *TIM_LoadFromStream(FILE *f);
 
 void TIM_WriteToStream(tim_image_t *tim, FILE *f);
