@@ -1696,7 +1696,6 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 								chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256) * rawchunk->height , decompress255, halfres, false); \
 								if (chunkpos == last) \
 								{ \
-									Verbose(" fix width of chunk %i to %i...\n", i, rawchunk->width + 256);  \
 									rawchunk->width = rawchunk->width + 256; \
 									rawchunk->size = rawchunk->width*rawchunk->height; \
 								} \
@@ -1705,7 +1704,6 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 									chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->width * (rawchunk->height + 256), decompress255, halfres, false); \
 									if (chunkpos == last) \
 									{ \
-										Verbose(" fix height of chunk %i to %i...\n", i, rawchunk->height + 256); \
 										rawchunk->height = rawchunk->height + 256; \
 										rawchunk->size = rawchunk->width*rawchunk->height; \
 									} \
@@ -1714,7 +1712,6 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 										chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256 ) * (rawchunk->height + 256), decompress255, halfres, false); \
 										if (chunkpos == last) \
 										{ \
-											Verbose(" fix width and height of chunk %i to %i...\n", i, rawchunk->width + 256, rawchunk->height + 256); \
 											rawchunk->width = rawchunk->width + 256; \
 											rawchunk->height = rawchunk->height + 256; \
 											rawchunk->size = rawchunk->width*rawchunk->height; \
@@ -1930,7 +1927,6 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 								chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256) * rawchunk->height , decompress255, halfres, false); \
 								if (chunkpos == last) \
 								{ \
-									Verbose(" fix width of chunk %i to %i...\n", i, rawchunk->width + 256);  \
 									rawchunk->width = rawchunk->width + 256; \
 									rawchunk->size = rawchunk->width*rawchunk->height; \
 								} \
@@ -1939,7 +1935,6 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 									chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->width * (rawchunk->height + 256), decompress255, halfres, false); \
 									if (chunkpos == last) \
 									{ \
-										Verbose(" fix height of chunk %i to %i...\n", i, rawchunk->height + 256); \
 										rawchunk->height = rawchunk->height + 256; \
 										rawchunk->size = rawchunk->width*rawchunk->height; \
 									} \
@@ -1948,7 +1943,6 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 										chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256 ) * (rawchunk->height + 256), decompress255, halfres, false); \
 										if (chunkpos == last) \
 										{ \
-											Verbose(" fix width and height of chunk %i to %i...\n", i, rawchunk->width + 256, rawchunk->height + 256); \
 											rawchunk->width = rawchunk->width + 256; \
 											rawchunk->height = rawchunk->height + 256; \
 											rawchunk->size = rawchunk->width*rawchunk->height; \
@@ -2067,7 +2061,6 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 								chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256) * rawchunk->height , decompress255, halfres, false); \
 								if (chunkpos == last) \
 								{ \
-									Verbose(" fix width of chunk %i to %i...\n", i, rawchunk->width + 256);  \
 									rawchunk->width = rawchunk->width + 256; \
 									rawchunk->size = rawchunk->width*rawchunk->height; \
 								} \
@@ -2076,7 +2069,6 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 									chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, rawchunk->width * (rawchunk->height + 256), decompress255, halfres, false); \
 									if (chunkpos == last) \
 									{ \
-										Verbose(" fix height of chunk %i to %i...\n", i, rawchunk->height + 256); \
 										rawchunk->height = rawchunk->height + 256; \
 										rawchunk->size = rawchunk->width*rawchunk->height; \
 									} \
@@ -2085,7 +2077,6 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 										chunkpos = ReadRLCompressedStreamTest(rawchunk->pixels, buffer, rawchunk->offset, filelen, (rawchunk->width + 256 ) * (rawchunk->height + 256), decompress255, halfres, false); \
 										if (chunkpos == last) \
 										{ \
-											Verbose(" fix width and height of chunk %i to %i...\n", i, rawchunk->width + 256, rawchunk->height + 256); \
 											rawchunk->width = rawchunk->width + 256; \
 											rawchunk->height = rawchunk->height + 256; \
 											rawchunk->size = rawchunk->width*rawchunk->height; \

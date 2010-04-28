@@ -200,7 +200,7 @@ int Help_Main()
 	" tim - PSX texture file\n"
 	" adpcm - raw IMA ADPCM, voice data\n"
 	" wav - PCM Riff Wave files\n"
-	" raw - raw image files (tiles, sprites etc.)\n"
+	" raw - raw image files (tiles, sprites, maps etc.)\n"
 	" vag - PSX 'Very Audio Good' compressed sound\n"
 	"\n"
 	"=== APPENDIX II: raw image types ===\n"
@@ -211,8 +211,8 @@ int Help_Main()
 	" type3 - view-parallel sprites (multiobjects, shared colormap)\n"
 	" type4 - mostly oriented sprites (monsters)\n"
 	" type5 - misc sprites\n"
-	" type6 - hybrid type4/type5 type (oriented sprites)\n"
-	" type7 - tiles (not yet completed)\n"
+	" type6 - maps, not yet supported\n"
+	" type7 - tiles (compressed TIM's)\n"
 	"\n");
 	return 0;
 }
