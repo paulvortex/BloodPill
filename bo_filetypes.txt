@@ -94,7 +94,8 @@ It is unfinished, so will be extended in future
   4 bytes - always 001 000 000 000
   4 bytes - filesize
   768 bytes - colormap data (24-bit RGB)
-  4 mystic bytes
+  2 bytes (signed short) - x position
+  2 bytes (signed short) - y position
   1 byte width
   1 byte height
   1 byte x
@@ -128,8 +129,8 @@ It is unfinished, so will be extended in future
    4 bytes - number of objects
    4 bytes - filesize
    768 bytes - colormap data (24-bit RGB)
-   2 bytes - x position
-   2 bytes - y position
+   2 bytes (signed short) - x position
+   2 bytes (signed short) - y position
  <object headers>
     4 bytes - offset after headers
     1 byte - width
@@ -152,8 +153,8 @@ It is unfinished, so will be extended in future
    4 bytes - filesize
    <mystic object headers> - 1 byte for each object
    768 bytes - colormap data (24-bit RGB)
-   2 bytes - x position
-   2 bytes - y position
+   2 bytes (signed short) - x position
+   2 bytes (signed short) - y position
  <object headers>
     4 bytes - offset after headers
     1 byte - width

@@ -823,6 +823,13 @@ unsigned int ReadUShort(byte *buffer)
 	return buffer[1]*256 + buffer[0];
 }
 
+int ReadShort(byte *buffer)
+{
+	union {byte b[2]; signed short f;} in;
+	in.b[0] = buffer[0];
+	in.b[1] = buffer[1];
+	return in.f;
+}
 
 #ifdef _SGI_SOURCE
 #define	__BIG_ENDIAN__

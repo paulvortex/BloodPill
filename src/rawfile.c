@@ -1494,8 +1494,8 @@ rawblock_t *RawExtract_Type2(unsigned char *buffer, int filelen, rawinfo_t *rawi
 		return RawErrorBlock(rawblock, RAWX_ERROR_FILE_SMALLER_THAN_REQUIRED);
 
 	// global position
-	rawblock->posx = buffer[4] + buffer[5]*256;
-	rawblock->posy = buffer[6] + buffer[7]*256;
+	rawblock->posx = ReadShort(buffer + 4);
+	rawblock->posy = ReadShort(buffer + 6);
 	if (verbose == true)
 		Print("picture position: %03ix%03i\n", rawblock->posx, rawblock->posy);
 
@@ -1650,8 +1650,8 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
 
 	// global position
-	rawblock->posx = buffer[776] + buffer[777]*256;
-	rawblock->posy = buffer[778] + buffer[779]*256;
+	rawblock->posx = ReadShort(buffer + 776);
+	rawblock->posy = ReadShort(buffer + 778);
 	if (verbose == true)
 		Print("picture position: %03ix%03i\n", rawblock->posx, rawblock->posy);
 
@@ -1835,8 +1835,8 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
 
 	// global position
-	rawblock->posx = buffer[776 + objbitssize] + buffer[777 + objbitssize]*256;
-	rawblock->posy = buffer[778 + objbitssize] + buffer[779 + objbitssize]*256;
+	rawblock->posx = ReadShort(buffer + 776 + objbitssize);
+	rawblock->posy = ReadShort(buffer + 778 + objbitssize);
 	if (verbose == true)
 		Print("picture position: %03ix%03i\n", rawblock->posx, rawblock->posy);
 

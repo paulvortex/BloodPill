@@ -104,6 +104,7 @@ extern int	scriptline;
 
 unsigned int ReadUInt(byte *buffer);
 unsigned int ReadUShort(byte *buffer);
+int ReadShort(byte *buffer);
 
 void StartTokenParsing (char *data);
 qboolean GetToken (qboolean crossline);
