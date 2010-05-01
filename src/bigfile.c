@@ -1910,8 +1910,10 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 	}
 
 	// run SoX
+	Print("writing %s...\n", outfile);
 	if (!SoX_DataToFile(entry->data, entry->size, "--no-dither", informat, outformat, outfile, effects))
 		Error("SoX error\n");
+	Print("done.\n");
 }
 
 // "-bigfile c:/pill.big -extract 0AD312F45 0AD312F45.tga"
@@ -2093,7 +2095,6 @@ int BigFile_Extract(int argc, char **argv)
 			qfree(entry->data);
 			entry->data = NULL;
 			fclose(f);
-			Error("Vag files not supported");
 			break;
 		case BIGENTRY_RAW_IMAGE:
 			// read file contents and convert to rawblock, then pass to extraction func
