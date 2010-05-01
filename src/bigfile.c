@@ -41,6 +41,7 @@ typedef struct
 
 	int adpcmrate; // adpcm rate
 	char path[MAX_BLOODPATH]; // a path to extract
+	qboolean pathonly; // only define path, not filename
 	bigentrytype_t type; // a type of entry
 	rawinfo_t *rawinfo; // raw format info
 }
@@ -257,6 +258,7 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 				entry->adpcmrate = 11025; // default ADPCM sampling rate
 				entry->type = BIGENTRY_UNKNOWN;
 				entry->rawinfo = NULL;
+				entry->pathonly = false;
 				strcpy(entry->path, "");
 				
 				// warn for double defienition
@@ -299,13 +301,10 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 		{
 			ExtractFileExtension(temp, ext);
 			// no extension, so this is a path
-			if (!ext[0]) 
-				sprintf(entry->path, "%s/%.8X.%s", temp, entry->hash, bigentryext[entry->type]);
-			// full name override
-			else
-				strcpy(entry->path, temp);
-
-			// warn for double path defienition
+			if (!ext[0])
+				entry->pathonly = true;
+			strcpy(entry->path, temp);
+			// warn for double path definition
 			for (i = 0; i < (klist->numentries - 1); i++)
 				if (!strcmp(klist->entries[i].path, entry->path))
 					Warning("path redefenition on entry #%.8X on line %i (previously defined for entry #%.8X\n", entry->hash, linenum, klist->entries[i].hash);
@@ -1183,12 +1182,13 @@ bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry, qboolean sc
 
 void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawtype_t forcerawtype, qboolean allow_auto_naming)
 {
+	char base[MAX_BLOODPATH], name[MAX_BLOODPATH];
 	bigentrytype_t autotype;
 	bigkentry_t *kentry;
 	char *autopath;
 
 	// detect filetype automatically
-	allow_auto_naming = true;
+	allow_auto_naming = true; // hack
 	autotype = BigfileDetectFiletype(f, entry, scanraw, forcerawtype);
 	if (autotype != BIGENTRY_UNKNOWN) 
 	{
@@ -1196,12 +1196,14 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 		// automatic path
 		if (allow_auto_naming)
 		{
+			ExtractFileBase(entry->name, base);
+			StripFileExtension(base, name);
 			autopath = NULL;
 			if (autotype == BIGENTRY_RAW_IMAGE)
 				autopath = PathForRawType(entry->rawinfo->type);
 			if (autopath == NULL)
 				autopath = bigentryautopaths[autotype];
-			sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
+			sprintf(entry->name, "%s%s.%s", autopath, name, bigentryext[entry->type]);
 		}
 		// check klist and pick rawinfo anyway
 		kentry = BigfileSearchKList(entry->hash);
@@ -1225,17 +1227,26 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 			// check custom path
 			if (allow_auto_naming)
 			{
+				ExtractFileBase(entry->name, base);
+				StripFileExtension(base, name);
 				if (kentry->path[0])
-					sprintf(entry->name, "%s", kentry->path);
+				{
+					if (kentry->pathonly)
+						sprintf(entry->name, "%s/", kentry->path, name);
+					else
+						sprintf(entry->name, "%s", kentry->path);
+				}
 				else
 				{
+					ExtractFileBase(entry->name, base);
+					StripFileExtension(base, name);
 					// automatic path
 					autopath = NULL;
 					if (entry->type == BIGENTRY_RAW_IMAGE)
 						autopath = PathForRawType(entry->rawinfo->type);
 					if (autopath == NULL)
 						autopath = bigentryautopaths[autotype];
-					sprintf(entry->name, "%s%.8X.%s", autopath, entry->hash, bigentryext[entry->type]);
+					sprintf(entry->name, "%s%s.%s", autopath, name, bigentryext[entry->type]);
 				}
 			}
 		}

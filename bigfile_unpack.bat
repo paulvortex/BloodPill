@@ -1,1 +1,1 @@
-bpill -w -mem -bigfile pill.big -unpack bigfile -scanraw
+bpill -w -bigfile pill.big -unpack -tim2tga -scanraw -raw2tga
