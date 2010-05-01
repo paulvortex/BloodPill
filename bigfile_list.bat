@@ -1,1 +1,1 @@
-bpill -w -mem -bigfile pill.big -list listfile.txt -scanraw
+bpill -w -mem -bigfile pill.big -list listfile.txt

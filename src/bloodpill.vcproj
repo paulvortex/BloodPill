@@ -218,6 +218,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\BO1.h"
+				>
+			</File>
+			<File
 				RelativePath="cmdlib.h"
 				>
 			</File>

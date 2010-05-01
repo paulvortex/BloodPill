@@ -1,1 +1,1 @@
-bpill -w -mem -bigfile pill.big -unpack bigfile -scanraw
+bpill -w -mem -bigfile pill.big -unpack bigfile

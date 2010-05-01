@@ -713,6 +713,24 @@ void ExtractFileBase (char *path, char *dest)
   *dest = 0;
 }
 
+void ExtractFileName (char *path, char *dest)
+{
+  char    *src;
+
+  src = path + strlen(path) - 1;
+
+  //
+  // back up until a \ or the start
+  //
+  while (src != path && *(src-1) != PATHSEPERATOR)
+    src--;
+  while (*src)
+    {
+      *dest++ = *src++;
+    }
+  *dest = 0;
+}
+
 void StripFileExtension (char *path, char *dest)
 {
   while (*path && *path != '.')

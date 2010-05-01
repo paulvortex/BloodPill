@@ -21,7 +21,7 @@ typedef enum
 // filetype extensions
 static char *bigentryext[BIGFILE_NUM_FILETYPES] = 
 { 
-	"dat",
+	"raw",
 	"tim",
 	"adpcm",
 	"wav",
@@ -39,6 +39,9 @@ static char *bigentryautopaths[BIGFILE_NUM_FILETYPES] =
 	"raw/",
 	"vag/"
 };
+
+// hash names search table, picked from Rackot's BO1.csv
+
 
 // bigfile entry
 typedef struct

@@ -84,6 +84,7 @@ void DefaultExtension (char *path, const char *extension, size_t size_path);
 
 extern void ExtractFilePath (char *path, char *dest);
 extern void ExtractFileBase (char *path, char *dest);
+extern void ExtractFileName (char *path, char *dest);
 extern void StripFileExtension (char *path, char *dest);
 extern void ExtractFileExtension (char *path, char *dest);
 void AddSuffix(char *outpath, char *inpath, char *suffix);

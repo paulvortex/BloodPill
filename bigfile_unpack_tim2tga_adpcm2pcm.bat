@@ -1,1 +1,0 @@
-bpill -w -bigfile pill.big -unpack -scanraw -tim2tga -raw2tga -adpcm2pcm -vag2pcm
