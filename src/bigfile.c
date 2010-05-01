@@ -304,7 +304,7 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 		{
 			ExtractFileExtension(temp, ext);
 			// no extension, so this is a path
-			entry->pathonly = ext[0] ? true : false;
+			entry->pathonly = ext[0] ? false : true;
 			strcpy(entry->path, temp);
 			// warn for double path definition
 			if (ext[0])
@@ -459,7 +459,7 @@ bigfileentry_t *ReadBigfileHeaderOneEntry(FILE *f, unsigned int hash)
 	return entry;
 }
 
-bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecontents)
+bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecontents, qboolean hashnamesonly)
 {	
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
@@ -501,67 +501,89 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 	PacifierEnd();
 
 	// load CSV list for filenames
-	data->namesfromcsv = false;
-	if (FileExists("BO1.csv"))
+	if (!hashnamesonly)
 	{
-		csvf = SafeOpen("BO1.csv", "r");
-		linenum = 0;
-		namesloaded = 0;
-		while(!feof(csvf))
+		if (FileExists("BO1.csv"))
 		{
-			linenum++;
-			fgets(line, 512, csvf);
-			if (!sscanf(line, "%i;%s", &hash, temp))
+			csvf = SafeOpen("BO1.csv", "r");
+			linenum = 0;
+			namesloaded = 0;
+			while(!feof(csvf))
 			{
-				Verbose("Warning: corrupted line %i in BO1.csv: '%s'!\n", linenum, line);
-				continue;
+				linenum++;
+				fgets(line, 512, csvf);
+				if (!sscanf(line, "%i;%s", &hash, temp))
+				{
+					Verbose("Warning: corrupted line %i in BO1.csv: '%s'!\n", linenum, line);
+					continue;
+				}
+				// find hash
+				for (i = 0; i < (int)data->numentries; i++)
+				{
+					if (data->entries[i].hash != hash)
+						continue;
+					ConvSlashW2U(temp);
+					ExtractFileName(temp, line); 
+					sprintf(entry->name, "%s%s", bigentryautopaths[BIGENTRY_UNKNOWN], line);
+					namesloaded++;
+					break;
+				}
 			}
-			// find hash
+			Verbose("BO1.csv: loaded %i names\n", namesloaded);
+			fclose(csvf);
+			// write BO1.h
+			csvf = SafeOpenWrite("BO1.h");
+			fprintf(csvf, "// BO1.h, converted automatically from Rackot's BO1.csv\n");
+			fprintf(csvf, "// Thanks to Ben Lincoln And Andrey [Rackot] Grachev for this\n");
+			fprintf(csvf, "// do not modify\n");
+			fprintf(csvf, "typedef struct\n");
+			fprintf(csvf, "{\n");
+			fprintf(csvf, "	unsigned int	hash;\n");
+			fprintf(csvf, "	char	name[17];\n");
+			fprintf(csvf, "}wheelofdoom_names_t;\n");
+			fprintf(csvf, "\n");
+			fprintf(csvf, "#define NUM_CSV_ENTRIES %i\n", linenum);
+			fprintf(csvf, "\n");
+			fprintf(csvf, "wheelofdoom_names_t wheelofdoom_names[NUM_CSV_ENTRIES] =\n");
+			fprintf(csvf, "{\n");
 			for (i = 0; i < (int)data->numentries; i++)
 			{
-				if (data->entries[i].hash != hash)
-					continue;
-				ConvSlashW2U(temp);
-				ExtractFileName(temp, data->entries[i].name);
-				namesloaded++;
-				break;
+				ExtractFileName(data->entries[i].name, temp);
+				if (strlen(temp) > 16)
+				{
+					Verbose("Warning: BO1.h: name '%s' is more that 16 chars, will be truncated!\n", temp);
+					temp[17] = 0;
+				}
+				if (i+1 < (int)data->numentries)
+					fprintf(csvf, "	{%10i, \"%s\"},\n", data->entries[i].hash, temp);
+				else
+					fprintf(csvf, "	{%10i, \"%s\"}\n", data->entries[i].hash, temp);
 			}
+			fprintf(csvf, "};\n");
+			fclose(csvf);
+			Verbose("BO1.h written.\n", namesloaded);
 		}
-		data->namesfromcsv = true;
-		Verbose("BO1.csv: loaded %i names\n", namesloaded);
-		fclose(csvf);
-		// write BO1.h
-		csvf = SafeOpenWrite("BO1.h");
-		fprintf(csvf, "// BO1.h, converted automatically from Rackot's BO1.csv\n");
-		fprintf(csvf, "// Thanks to Ben Lincoln And Andrey [Rackot] Grachev for this\n");
-		fprintf(csvf, "// do not modify\n");
-		fprintf(csvf, "typedef struct\n");
-		fprintf(csvf, "{\n");
-		fprintf(csvf, "	unsigned int	hash;\n");
-		fprintf(csvf, "	char	name[17];\n");
-		fprintf(csvf, "}wheelofdoom_names_t;\n");
-		fprintf(csvf, "\n");
-		fprintf(csvf, "#define NUM_CSV_ENTRIES %i\n", linenum);
-		fprintf(csvf, "\n");
-		fprintf(csvf, "wheelofdoom_names_t wheelofdoom_names[NUM_CSV_ENTRIES] =\n");
-		fprintf(csvf, "{\n");
-		for (i = 0; i < (int)data->numentries; i++)
+		else
 		{
-			if (strlen(data->entries[i].name) > 16)
+			// or use internal array
+			namesloaded = 0;
+			for (linenum = 0; linenum < NUM_CSV_ENTRIES; linenum++)
 			{
-				Verbose("Warning: BO1.h: name '%s' is more that 16 chars, will be truncated!\n", data->entries[i].name);
-				temp[17] = 0;
+				hash = wheelofdoom_names[linenum].hash;
+				for (i = 0; i < (int)data->numentries; i++)
+				{
+					if (data->entries[i].hash != hash)
+						continue;
+					namesloaded++;
+					sprintf(data->entries[i].name, "%s%s", bigentryautopaths[BIGENTRY_UNKNOWN], wheelofdoom_names[linenum].name);
+					break;
+				}
 			}
-			if (i+1 < (int)data->numentries)
-				fprintf(csvf, "	{%10i, \"%s\"},\n", data->entries[i].hash, data->entries[i].name);
-			else
-				fprintf(csvf, "	{%10i, \"%s\"}\n", data->entries[i].hash, data->entries[i].name);
+			if (namesloaded)
+				Verbose("Loaded %i internal filenames.\n", namesloaded);
 		}
-		fprintf(csvf, "};\n");
-		fclose(csvf);
-		Verbose("BO1.h written.\n", namesloaded);
 	}
-	
+
 	// load contents
 	if (loadfilecontents)
 	{
@@ -577,7 +599,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 			BigfileSeekContents(f, entry->data, entry);
 		}
 		PacifierEnd();
-	}
+	} 
 
 	return data;
 }
@@ -595,77 +617,6 @@ void BigfileHeaderRecalcOffsets(bigfileheader_t *data)
 		entry->offset = (unsigned int)offset;
 		offset = offset + entry->size;
 	}
-}
-
-// check & fix entry that was loaded from listfile
-// this function also does autoconvert job
-void BigfileFixListfileEntry(char *srcdir, bigfileentry_t *entry, qboolean lowmem)
-{
-	char ext[16], filename[MAX_BLOODPATH], basename[MAX_BLOODPATH];
-	tim_image_t *tim;
-	byte *contents;
-	int i, size;
-	FILE *f;
-
-	// extract extension
-	StripFileExtension(entry->name, basename);
-	ExtractFileExtension(entry->name, ext);
-	Q_strlower(ext);
-
-	// standart file
-	if (!strcmp(ext, bigentryext[entry->type]))
-	{
-		sprintf(filename, "%s/%s", srcdir, entry->name);
-		f = SafeOpen(filename, "rb");
-		entry->data = NULL; // load as-is
-		entry->size = (unsigned int)Q_filelength(f);
-		fclose(f);
-		return;
-	}
-
-	// TGA -> TIM autoconversion
-	if (!strcmp(ext, "tga") && entry->type == BIGENTRY_TIM)
-	{
-		// main tim
-		entry->size = 0;
-		if (!entry->timlayers)
-			Error("bad TIM layer info for entry %.8X", entry->hash);
-		for (i = 0; i < entry->timlayers; i++)
-		{
-			// get base filename
-			if (i == 0)
-				sprintf(filename, "%s/%s", srcdir, entry->name);
-			else
-				sprintf(filename, "%s/%s_layer%i.tga", srcdir, basename, i);
-			tim = TIM_LoadFromTarga(filename, entry->timtype[i]); 
-			entry->size += (unsigned int)tim->filelen;
-			if (i == 0)
-				entry->data = tim;
-			if (i != 0 || lowmem) // VorteX: -lomem key support, read that again later
-				FreeTIM(tim);
-		}
-
-		return;
-	}
-
-	// WAV/OGG -> VAG autoconversion
-	if (entry->type == BIGENTRY_RAW_ADPCM)
-	{
-		sprintf(filename, "%s/%s", srcdir, entry->name);
-		if (!SoX_FileToData(filename, "--no-dither", "", "-t ima -c 1", &size, &contents, ""))
-			//Error("unable to convert %s, SoX Error #%i\n", entry->name, GetLastError());
-			Error("unable to convert %s, SoX Error\n", entry->name);
-		entry->data = contents;
-		entry->size = (unsigned int)size;
-
-		if (lowmem) // we know the size, convert again later
-			qfree(entry->data);
-
-		return;
-	}
-
-
-	Error("can't identify file %s", entry->name);
 }
 
 // print stats about loaded bigfile entry
@@ -747,7 +698,7 @@ void BigfileEmitStats(bigfileheader_t *data)
 }
 
 // read bigfile header from listfile
-bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
+bigfileheader_t *BigfileOpenListfile(char *srcdir)
 {
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
@@ -786,11 +737,6 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
 		{
 			if (sscanf(line, "[%X]", &val) < 1)
 				Error("bad entry definition on line %i: %s\n", linenum, line);
-
-			// check old entry
-			if (entry != NULL)
-				BigfileFixListfileEntry(srcdir, entry, lowmem);
-
 			if ((int)data->numentries >= numentries)
 				Error("entries overflow, numentries is out of date\n");
 
@@ -838,15 +784,8 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir, qboolean lowmem)
 	}
 	PacifierEnd();
 
-	// check last entry
-	if (entry != NULL)
-		BigfileFixListfileEntry(srcdir, entry, lowmem);
-
 	// emit some ststs
 	BigfileEmitStats(data);
-
-	// recalc offsets
-	BigfileHeaderRecalcOffsets(data);
 
 	return data;
 }
@@ -871,7 +810,6 @@ void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16
 		// extract base
 		tim = TIM_LoadFromStream(bigf);
 		strcpy(name, outfile);
-		strcpy(entry->name, name); // write correct listfile.txt
 		if (i != 0)
 		{
 			sprintf(suffix, "_layer%i", i);
@@ -884,10 +822,7 @@ void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16
 		// write maskfile
 		if (tim->pixelmask != NULL)
 		{
-			if (i == 0)
-				sprintf(suffix, "_mask");
-			else
-				sprintf(suffix, "_layer%i_mask", i);
+			sprintf(suffix, "_mask");
 			AddSuffix(maskname, name, suffix);
 			TIM_WriteTargaGrayscale(tim->pixelmask, tim->dim.xsize, tim->dim.ysize, maskname);
 		}
@@ -943,13 +878,26 @@ void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolea
 	}
 }
 
+// unpack entry to 'original' dir, assumes that entity is already loaded
+void BigFileUnpackOriginalEntry(bigfileentry_t *entry, char *dstdir, qboolean place_separate)
+{
+	char savefile[MAX_BLOODPATH];
+
+	if (place_separate)
+	{
+		ExtractFileName(entry->name, savefile);
+		sprintf(entry->name, "original/%s", savefile);
+	}
+	sprintf(savefile, "%s/%s", dstdir, entry->name);
+	SaveFile(savefile, entry->data, entry->size);
+}
+
 void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, int adpcmconvert, int vagconvert, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign, qboolean psone)
 {
 	char savefile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
 	char inputcmd[512], outputcmd[512];
 	rawblock_t *rawblock;
 	char *data;
-	FILE *f;
 	int c, size;
 
 	// nopaths, clear path
@@ -968,19 +916,16 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 	}
 
 	// original pill.big has 'funky' files with zero len, export them as empty ones
-	if (entry->size <= 0) 
-	{
-		sprintf(savefile, "%s/%s", dstdir, entry->name);
-		f = SafeOpenWrite(savefile);
-		fclose(f);
+	if (entry->size <= 0)
 		return;
-	}
 
 	// autoconvert TGA
-	// todo: optimise to use common pipeline
 	if (tim2tga && entry->type == BIGENTRY_TIM)
 	{
-		sprintf(outfile, "%s/%s.tga", dstdir, entry->name);
+		ExtractFileBase(entry->name, basename);
+		ExtractFilePath(entry->name, path);
+		sprintf(entry->name, "%s%s.tga", path, basename); // write correct listfile.txt
+		sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
 		TGAfromTIM(bigf, entry, outfile, bpp16to24);
 		return;
 	}
@@ -1033,10 +978,16 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 		{
 			//Warning("unable to convert %s, SoX Error #%i, unpacking original", entry->name, GetLastError());
 			Warning("unable to convert %s, SoX Error, unpacking original", entry->name);
-			sprintf(savefile, "%s/%s", dstdir, entry->name);
-			SaveFile(savefile, entry->data, entry->size);
+			BigFileUnpackOriginalEntry(entry, dstdir, false);
 		}
 
+		// for VAG, unpack original anyway
+		// fixme: make backwards conversion
+		if (entry->type == BIGENTRY_VAG)
+			BigFileUnpackOriginalEntry(entry, dstdir, true);
+
+		if (data != entry->data)
+			qfree(data);
 		qfree(entry->data);
 		entry->data = NULL;
 		return;
@@ -1055,11 +1006,23 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 			TGAfromRAW(rawblock, entry->rawinfo, outfile, rawnoalign, false, (rawblock->chunks > 5) ? true : false); 
 		}
 		FreeRawBlock(rawblock);
+		// unpack original
+		BigFileUnpackOriginalEntry(entry, dstdir, true);
+		qfree(entry->data);
+		entry->data = NULL;
+		return;
+	}
+
+	// convert wave file
+	if (entry->type == BIGENTRY_RIFF_WAVE)
+	{
+		// change file extension to wav and write original
+		StripFileExtension(entry->name, basename);
+		sprintf(entry->name, "%s.wav", basename);
 	}
 
 	// unpack original
-	sprintf(savefile, "%s/%s", dstdir, entry->name);
-	SaveFile(savefile, entry->data, entry->size);
+	BigFileUnpackOriginalEntry(entry, dstdir, false);
 	qfree(entry->data);
 	entry->data = NULL;
 }
@@ -1214,13 +1177,12 @@ bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry, qboolean sc
 
 void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawtype_t forcerawtype, qboolean allow_auto_naming)
 {
-	char name[MAX_BLOODPATH];
+	char name[MAX_BLOODPATH], ext[MAX_BLOODPATH];
 	bigentrytype_t autotype;
 	bigkentry_t *kentry;
 	char *autopath;
 
 	// detect filetype automatically
-	allow_auto_naming = true; // hack
 	autotype = BigfileDetectFiletype(f, entry, scanraw, forcerawtype);
 	if (autotype != BIGENTRY_UNKNOWN) 
 	{
@@ -1229,12 +1191,16 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 		if (allow_auto_naming)
 		{
 			ExtractFileBase(entry->name, name);
+			ExtractFileExtension(entry->name, ext);
 			autopath = NULL;
 			if (autotype == BIGENTRY_RAW_IMAGE)
 				autopath = PathForRawType(entry->rawinfo->type);
 			if (autopath == NULL)
 				autopath = bigentryautopaths[autotype];
-			sprintf(entry->name, "%s%s.%s", autopath, name, bigentryext[entry->type]);
+			if (!strcmp(ext, bigentryext[BIGENTRY_UNKNOWN]))
+				sprintf(entry->name, "%s%s.%s", autopath, name, bigentryext[entry->type]);
+			else
+				sprintf(entry->name, "%s%s.%s", autopath, name, ext);
 		}
 		// check klist and pick rawinfo anyway
 		kentry = BigfileSearchKList(entry->hash);
@@ -1258,24 +1224,28 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 			// check custom path
 			if (allow_auto_naming)
 			{
-				ExtractFileBase(entry->name, name);
+				ExtractFileName(entry->name, name);
 				if (kentry->path[0])
 				{
 					if (kentry->pathonly)
-						sprintf(entry->name, "%s/", kentry->path, name);
+						sprintf(entry->name, "%s/%s", kentry->path, name);
 					else
 						sprintf(entry->name, "%s", kentry->path);
 				}
 				else
 				{
-					ExtractFileBase(entry->name, name);
+					ExtractFileName(entry->name, name);
+					ExtractFileExtension(entry->name, ext);
 					// automatic path
 					autopath = NULL;
 					if (entry->type == BIGENTRY_RAW_IMAGE)
 						autopath = PathForRawType(entry->rawinfo->type);
 					if (autopath == NULL)
 						autopath = bigentryautopaths[autotype];
-					sprintf(entry->name, "%s%s.%s", autopath, name, bigentryext[entry->type]);
+					if (!strcmp(ext, bigentryext[BIGENTRY_UNKNOWN]))
+						sprintf(entry->name, "%s%s.%s", autopath, name, bigentryext[entry->type]);
+					else
+						sprintf(entry->name, "%s%s.%s", autopath, name, ext);
 				}
 			}
 		}
@@ -1298,13 +1268,11 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list
 		if (ixlist)
 			if (!MatchIXList(entry, ixlist, false, false))
 				continue;
-
 		// ignore null-sized
 		if (!entry->size)
 			continue;
-
 		Pacifier("scanning type for entry %i of %i...", i + 1, data->numentries);
-		BigfileScanFiletype(f, entry, scanraw, forcerawtype, data->namesfromcsv ? false : true);
+		BigfileScanFiletype(f, entry, scanraw, forcerawtype, /*data->namesfromcsv ? false : */true);
 	}
 	fsetpos(f, &fpos);
 	
@@ -1362,11 +1330,13 @@ int BigFile_List(int argc, char **argv)
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
 	char name[MAX_BLOODPATH], listfile[MAX_BLOODPATH], exportcsv[MAX_BLOODPATH], typestr[128], extrainfo[128];
+	qboolean hashnamesonly;
 	int i;
 
 	// check parms
 	strcpy(exportcsv, "-");
 	strcpy(listfile, "-");
+	hashnamesonly = false;
 	if (argc > 0) 
 	{
 		strcpy(listfile, argv[0]);
@@ -1382,6 +1352,12 @@ int BigFile_List(int argc, char **argv)
 				}
 				continue;
 			}
+			if (!strcmp(argv[i], "-hashasnames"))
+			{
+				hashnamesonly = true;
+				Verbose("Option: use pure hash names\n");
+				continue;
+			}
 			if (i != 0)
 				Warning("unknown parameter '%s'",  argv[i]);
 		}
@@ -1389,7 +1365,7 @@ int BigFile_List(int argc, char **argv)
 
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
-	data = ReadBigfileHeader(f, bigfile, false);
+	data = ReadBigfileHeader(f, bigfile, false, hashnamesonly);
 	BigfileScanFiletypes(f, data, true, NULL, RAW_TYPE_UNKNOWN);
 
 	// print or...
@@ -1796,7 +1772,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 
 void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *entry, char *infileformat, int defaultinputrate, char *format)
 {
-	char informat[1024], effects[1024], temp[1024];
+	char informat[1024], outformat[1024], effects[1024], temp[1024];
 	int i, ir;
 
 	if (!soxfound)
@@ -1916,11 +1892,14 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 
 	// get format
 	if (!stricmp(format, "wav"))
-		strcpy(format, "-t wav -e signed-integer");
+		strcpy(outformat, "-t wav -e signed-integer");
 	else if (!stricmp(format, "ogg"))
-		strcpy(format, "-t ogg -C 7");
+		strcpy(outformat, "-t ogg -C 7");
 	else
+	{
+		strcpy(outformat, format);
 		Verbose("Option: using custom format '%s'\n", format);
+	}
 
 	// input parms
 	strcpy(informat, infileformat);
@@ -1931,7 +1910,7 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 	}
 
 	// run SoX
-	if (!SoX_DataToFile(entry->data, entry->size, "--no-dither", informat, format, outfile, effects))
+	if (!SoX_DataToFile(entry->data, entry->size, "--no-dither", informat, outformat, outfile, effects))
 		Error("SoX error\n");
 }
 
@@ -1942,7 +1921,6 @@ int BigFile_Extract(int argc, char **argv)
 	unsigned int hash;
 	bigfileentry_t *entry;
 	rawblock_t *rawblock;
-	qboolean usehash;
 	FILE *f;
 	byte *data;
 	int i, size;
@@ -1951,12 +1929,19 @@ int BigFile_Extract(int argc, char **argv)
 	if (argc < 2)
 		Error("not enough parms");
 	if (argv[0][0] == '#')
-	{
-		usehash = true;
 		sscanf(argv[0], "#%X", &hash);
-	}
 	else // filename or path
-		Error("pure filenames not supported");
+	{
+		for (i = 0; i < NUM_CSV_ENTRIES; i++)
+			if (!stricmp(argv[0], wheelofdoom_names[i].name))
+				break;
+		if (i < NUM_CSV_ENTRIES)
+		{
+			hash = wheelofdoom_names[i].hash;
+			Verbose("Hash filename: %.8X\n", hash);
+		}
+		else Error("Failed to lookup entry name '%s' - no such file\n", argv[0]);
+	}
 	strcpy(outfile, argv[1]);
 	ExtractFileExtension(outfile, format);
 	
@@ -2006,7 +1991,7 @@ int BigFile_Extract(int argc, char **argv)
 
 	// get outfile
 	if (outfile == NULL)
-		ExtractFileBase(entry->name, filename); // pick automatic name
+		ExtractFileName(entry->name, filename); // pick automatic name
 	else
 	{
 		last = outfile[strlen(outfile)-1];
@@ -2014,8 +1999,7 @@ int BigFile_Extract(int argc, char **argv)
 			strcpy(filename, outfile);
 		else // only path is given
 		{
-			ExtractFileBase(entry->name, filename);
-			StripFileExtension(filename, basename);
+			ExtractFileName(entry->name, basename);
 			sprintf(filename, "%s%s", outfile, basename);
 		}
 	}
@@ -2122,7 +2106,7 @@ int BigFile_Extract(int argc, char **argv)
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				BigFile_ExtractRawImage(argc, argv, outfile, entry, rawblock, "tga");
 			}
-			if (!stricmp(format, "spr32"))
+			else if (!stricmp(format, "spr32"))
 			{
 				DefaultExtension(filename, ".spr32", sizeof(filename));
 				BigFile_ExtractRawImage(argc, argv, outfile, entry, rawblock, "spr32");
@@ -2153,7 +2137,7 @@ int BigFile_Unpack(int argc, char **argv)
 {
 	FILE *f, *f2;
 	char savefile[MAX_BLOODPATH], dstdir[MAX_BLOODPATH];
-	qboolean tim2tga, bpp16to24, nopaths, rawconvert, rawnoalign, psone;
+	qboolean tim2tga, bpp16to24, nopaths, rawconvert, rawnoalign, psone, hashnamesonly;
 	rawtype_t forcerawtype;
 	bigfileheader_t *data;
 	list_t *ixlist;
@@ -2171,6 +2155,7 @@ int BigFile_Unpack(int argc, char **argv)
 	forcerawtype = RAW_TYPE_UNKNOWN;
 	rawnoalign = false;
 	psone = false;
+	hashnamesonly = false;
 	if (argc > 0)
 	{
 		if (argv[0][0] != '-')
@@ -2194,6 +2179,12 @@ int BigFile_Unpack(int argc, char **argv)
 				if (i < argc)
 					ListAdd(ixlist, argv[i], true);
 				Verbose("Option: include mask '%s'\n", argv[i]);
+				continue;
+			}
+			if (!strcmp(argv[i], "-hashasnames"))
+			{
+				hashnamesonly = true;
+				Verbose("Option: use pure hash names\n");
 				continue;
 			}
 			if (!strcmp(argv[i], "-tim2tga"))
@@ -2279,7 +2270,7 @@ int BigFile_Unpack(int argc, char **argv)
 
 	// open file & load header
 	f = SafeOpen(bigfile, "rb");
-	data = ReadBigfileHeader(f, bigfile, false);
+	data = ReadBigfileHeader(f, bigfile, false, hashnamesonly);
 	BigfileScanFiletypes(f, data, true, ixlist->items ? ixlist : NULL, forcerawtype);
 
 	// export all files
@@ -2310,7 +2301,7 @@ int BigFile_Pack(int argc, char **argv)
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
 	tim_image_t *tim;
-	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH], srcdir[MAX_BLOODPATH];
+	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH], srcdir[MAX_BLOODPATH], ext[128];
 	byte *contents;
 	int i, k, size;
 
@@ -2331,7 +2322,7 @@ int BigFile_Pack(int argc, char **argv)
 	}
 
 	// open listfile
-	data = BigfileOpenListfile(srcdir, true);
+	data = BigfileOpenListfile(srcdir);
 
 	// open bigfile
 	f = fopen(bigfile, "rb");
@@ -2342,94 +2333,75 @@ int BigFile_Pack(int argc, char **argv)
 	}
 	f = SafeOpenWrite(bigfile);
 
-	// write header
+	// write entries count, write headers later
 	SafeWrite(f, &data->numentries, 4);
-	for (i = 0; i < (int)data->numentries; i++)
-	{
-		entry = &data->entries[i];
-
-		Pacifier("writing header %i of %i...", i + 1, data->numentries);
-	
-		SafeWrite(f, &entry->hash, 4);
-		SafeWrite(f, &entry->size, 4);
-		SafeWrite(f, &entry->offset, 4);
-	}
-	PacifierEnd();
+	fseek(f, data->numentries*12, SEEK_CUR);
 
 	// write files
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
 
+		if (entry->size == 0)
+			continue; // skip null files
+
 		Pacifier("writing entry %i of %i...\r", i + 1, data->numentries);
 
-		// if file is already loaded
-		if (entry->data != NULL)
+		ExtractFileExtension(entry->name, ext);
+		// autoconverted TIM
+		if (!strcmp(ext, "tga") && entry->type == BIGENTRY_TIM)
 		{
-			// autoconverted TIM
-			if (entry->type == BIGENTRY_TIM)
+			sprintf(savefile, "%s/%s", srcdir, entry->name);
+			entry->data = TIM_LoadFromTarga(savefile, entry->timtype[0]);
+			size = ((tim_image_t *)entry->data)->filelen;
+			TIM_WriteToStream(entry->data, f);
+			FreeTIM(entry->data);
+			// add sublayers
+			StripFileExtension(entry->name, basename);
+			for (k = 1; k < entry->timlayers; k++)
 			{
-				// VorteX: -lomem key support
-				//	if (lowmem)
-			//	{
-				sprintf(savefile, "%s/%s", srcdir, entry->name);
-				entry->data = TIM_LoadFromTarga(savefile, entry->timtype[0]);
-			//	}
-				tim = entry->data;
-				size = tim->filelen;
-				TIM_WriteToStream(entry->data, f);
-				FreeTIM(entry->data);
-
-				// add sublayers
-				StripFileExtension(entry->name, basename);
-				for (k = 1; k < entry->timlayers; k++)
-				{
-					sprintf(savefile, "%s/%s_layer%i.tga", srcdir, basename, k);
-					tim = TIM_LoadFromTarga(savefile, entry->timtype[k]); 
-					size += tim->filelen;
-					TIM_WriteToStream(tim, f);
-					FreeTIM(tim);
-				}
-
-				if (size != (int)entry->size)
-					Error("entry %.8X (TIM): file size changed (%s%i bytes, newsize %i) while packing\n", entry->hash, (size - (int)entry->size) < 0 ? "-" : "+", size - (int)entry->size, size);
+				sprintf(savefile, "%s/%s_layer%i.tga", srcdir, basename, k);
+				tim = TIM_LoadFromTarga(savefile, entry->timtype[k]); 
+				size += tim->filelen;
+				TIM_WriteToStream(tim, f);
+				FreeTIM(tim);
 			}
-			// autoconverted WAV/OGG
-			else if (entry->type == BIGENTRY_RAW_ADPCM)
-			{
-				// VorteX: -lomem key support
-			//	if (lowmem)
-			//	{
-					sprintf(savefile, "%s/%s", srcdir, entry->name);
-					if (!SoX_FileToData(savefile, "--no-dither", "", "-t ima -c 1", &size, &contents, ""))
-						//Error("unable to convert %s, SoX Error #%i\n", entry->name, GetLastError());
-						Error("unable to convert %s, SoX Error\n", entry->name);
-					entry->data = contents;
-
-					if (size != (int)entry->size)
-						Error("entry %.8X (RAW ADPCM): file size changed (%s%i bytes, newsize %i) while packing\n", entry->hash, (size - (int)entry->size) < 0 ? "-" : "+", size - (int)entry->size, size);
-			//	}
-
-				// write
-				SafeWrite(f, entry->data, entry->size);
-				qfree(entry->data);
-			}
-			// just write
-			else
-			{
-				SafeWrite(f, entry->data, entry->size);
-				qfree(entry->data);
-			}
+			entry->size = size;
 		}
+		// autoconverted WAV/OGG
+		else if ((!strcmp(ext, "wav") || !strcmp(ext, "ogg")) && entry->type == BIGENTRY_RAW_ADPCM)
+		{
+			sprintf(savefile, "%s/%s", srcdir, entry->name);
+			if (!SoX_FileToData(savefile, "--no-dither", "", "-t ima -c 1", &size, &contents, ""))
+				Error("unable to convert %s, SoX Error\n", entry->name);
+			entry->data = contents;
+			entry->size = size;
+			// write
+			SafeWrite(f, entry->data, entry->size);
+			qfree(entry->data);
+		}
+		// just write
 		else
 		{
 			sprintf(savefile, "%s/%s", srcdir, entry->name);
-			size = LoadFile(savefile, &contents);
-			if (size != (int)entry->size)
-				Error("entry %.8X (RAW): file size changed (%s%i bytes, newsize %i) while packing\n", entry->hash, (size - (int)entry->size) < 0 ? "-" : "+", size - (int)entry->size, size);
-			SafeWrite(f, contents, size);
-			qfree(contents);
+			entry->size = LoadFile(savefile, &entry->data);
+			SafeWrite(f, entry->data, entry->size);
+			qfree(entry->data);
 		}
+	}
+	PacifierEnd();
+
+	// write headers
+	Verbose("Recalculating offsets...\n", bigfile);
+	BigfileHeaderRecalcOffsets(data);
+	fseek(f, 4, SEEK_SET);
+	for (i = 0; i < (int)data->numentries; i++)
+	{
+		entry = &data->entries[i];
+		Pacifier("writing header %i of %i...", i + 1, data->numentries);
+		SafeWrite(f, &entry->hash, 4);
+		SafeWrite(f, &entry->size, 4);
+		SafeWrite(f, &entry->offset, 4);
 	}
 	PacifierEnd();
 

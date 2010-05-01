@@ -33,10 +33,10 @@ static char *bigentryext[BIGFILE_NUM_FILETYPES] =
 static char *bigentryautopaths[BIGFILE_NUM_FILETYPES] = 
 { 
 	"unknown/", 
-	"tims/",
+	"graphics/",
 	"adpcm/", 
 	"wave/",
-	"raw/",
+	"raw_image/",
 	"vag/"
 };
 
@@ -77,7 +77,6 @@ typedef struct
 {
 		bigfileentry_t *entries;
 		unsigned int	numentries;
-		qboolean namesfromcsv;
 }
 bigfileheader_t;
 

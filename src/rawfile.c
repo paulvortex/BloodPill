@@ -232,17 +232,13 @@ char *UnparseRawType(rawtype_t rawtype)
 char *PathForRawType(rawtype_t rawtype)
 {
 	if (rawtype == RAW_TYPE_1)
-		return "items/";
+		return "item/";
 	if (rawtype == RAW_TYPE_2)
-		return "gfx/";
-	if (rawtype == RAW_TYPE_3 || rawtype == RAW_TYPE_5)
-		return "sprites/";
-	if (rawtype == RAW_TYPE_4)
-		return "sprites/";
-	if (rawtype == RAW_TYPE_6)
-		return "sprites/";
+		return "graphics/";
+	if (rawtype == RAW_TYPE_3 || rawtype == RAW_TYPE_5 || rawtype == RAW_TYPE_4)
+		return "sprite/";
 	if (rawtype == RAW_TYPE_7)
-		return "tiles/";
+		return "tile/";
 	return NULL;
 }
 
@@ -1159,9 +1155,8 @@ int ReadRLCompressedStreamTest(byte *outbuf, byte *inbuf, int startpos, int bufl
 // read 
 #define DecompressLZ77_MaxIterations 4096000
 //#define DecompressLZ77_MaxOutputSize 67108864 // BO never reach this
-#define DecompressLZ77_MaxOutputSize 2097152
-
-byte DecompressLZ77Out[8388608];
+#define DecompressLZ77_MaxOutputSize 1048576
+byte DecompressLZ77Out[DecompressLZ77_MaxOutputSize];
 void *DecompressLZ77Stream(int *outbufsize, byte *inbuf, int startpos, int buflen)
 {
 	byte *outdata;
@@ -2167,9 +2162,11 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	tim = TIM_LoadFromBuffer(dec, decSize);
 	if (tim->type != TIM_8Bit)
 	{
+		qfree(dec);
 		FreeTIM(tim);
 		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
 	}
+	qfree(dec);
 
 	// convert TIM to chunk
 	rawblock = EmptyRawBlock(1);
@@ -2191,7 +2188,6 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	// read indexes
 	memcpy(rawblock->chunk[0].pixels, tim->pixels, rawblock->chunk[0].size);
 
-	qfree(dec);
 	FreeTIM(tim);
 	rawblock->errorcode = decSize;
 
