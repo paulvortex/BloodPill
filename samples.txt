@@ -5,11 +5,11 @@ extract_file.bat : extract a sprite file from pill.big
 
 list.bat : create a listing file listfile.txt
 
-unpack.bat : unpack pill.big with no conversion to 'bigfile' folder
+unpack.bat : unpack pill.big with all conversions enabled
 
-unpack_tim2tga.bat : unpack pill.big with .tim->.tga conversion
+unpack_raw.bat : unpack pill.big with pure filetypes (no conversions)
 
-unpack_tim2tga_vag2wav.bat : unpack pill.big with sound files to .wav conversion
+unpack_oggsounds.bat : unpack pill.big with all conversions and sound files being converted to Ogg Vorbis
 
 pack.bat : create a new pill2.big based on 'bigfile' folder (converts back all tga and wav)
 

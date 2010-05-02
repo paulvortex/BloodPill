@@ -892,7 +892,7 @@ void BigFileUnpackOriginalEntry(bigfileentry_t *entry, char *dstdir, qboolean pl
 	SaveFile(savefile, entry->data, entry->size);
 }
 
-void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, int adpcmconvert, int vagconvert, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign, qboolean psone)
+void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, int adpcmconvert, int vagconvert, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign)
 {
 	char savefile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
 	char inputcmd[512], outputcmd[512];
@@ -944,17 +944,9 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 		if (entry->type == BIGENTRY_RAW_ADPCM)
 		{
 			c = adpcmconvert;
-		//	if (psone) // if PlayStation pill.big, thread ADPCM as RAW VAG
-		//	{
-		//		VAG_Unpack(entry->data, 0, entry->size, &data, &size);
-		//		sprintf(inputcmd, "-t s16 -r %i -c 1", entry->adpcmrate);
-		//	}
-		//	else
-		//	{
-				data = entry->data;
-				size = entry->size;
-				sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
-		//  }
+			data = entry->data;
+			size = entry->size;
+			sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
 		}
 		else
 		{
@@ -1121,9 +1113,22 @@ qboolean BigFileScanVAG(FILE *f, bigfileentry_t *entry)
 		return false;
 	if (tag[0] != 'V' || tag[1] != 'A' || tag[2] != 'G' || tag[3] != 'p')
 		return false;
-
-	// it's a VAG
 	return true;
+}
+
+// extensive scan for headerless VAG (by parsing file)
+qboolean BigFileScanVAG_PS1(FILE *f, bigfileentry_t *entry)
+{
+	unsigned int readpos;
+	byte *data;
+
+	data = qmalloc(entry->size);
+	BigfileSeekContents(f, data, entry);
+	readpos = VAG_UnpackTest(data, entry->size, 64);
+	qfree(data);
+	//if (readpos == entry->size)
+	//	printf("%.8X______________\n", entry->hash);
+	return (readpos == entry->size) ? true : false;
 }
 
 qboolean BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
@@ -1172,6 +1177,8 @@ bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry, qboolean sc
 	if (scanraw)
 		if (BigFileScanRaw(f, entry, forcerawtype))
 			return BIGENTRY_RAW_IMAGE;
+	if (BigFileScanVAG_PS1(f, entry))
+		return BIGENTRY_VAG;
 	return BIGENTRY_UNKNOWN;
 }
 
@@ -2138,7 +2145,7 @@ int BigFile_Unpack(int argc, char **argv)
 {
 	FILE *f, *f2;
 	char savefile[MAX_BLOODPATH], dstdir[MAX_BLOODPATH];
-	qboolean tim2tga, bpp16to24, nopaths, rawconvert, rawnoalign, psone, hashnamesonly;
+	qboolean tim2tga, bpp16to24, nopaths, rawconvert, rawnoalign, hashnamesonly;
 	rawtype_t forcerawtype;
 	bigfileheader_t *data;
 	list_t *ixlist;
@@ -2155,7 +2162,6 @@ int BigFile_Unpack(int argc, char **argv)
 	rawconvert = false;
 	forcerawtype = RAW_TYPE_UNKNOWN;
 	rawnoalign = false;
-	psone = false;
 	hashnamesonly = false;
 	if (argc > 0)
 	{
@@ -2258,12 +2264,6 @@ int BigFile_Unpack(int argc, char **argv)
 				Verbose("Option: Disable RAW images aligning\n");
 				continue;
 			}
-			if (!strcmp(argv[i], "-psone"))
-			{
-				psone = true;
-				Verbose("Option: PlayStation pill.big\n");
-				continue;
-			}
 			if (i != 0)
 				Warning("unknown parameter '%s'",  argv[i]);
 		}
@@ -2281,7 +2281,7 @@ int BigFile_Unpack(int argc, char **argv)
 			if (!MatchIXList(&data->entries[i], ixlist, true, true))
 				continue;
 		Pacifier("unpacking entry %i of %i...", i + 1, data->numentries);
-		BigFileUnpackEntry(f, &data->entries[i], dstdir, tim2tga, bpp16to24, nopaths, adpcmconvert, vagconvert, rawconvert, forcerawtype, rawnoalign, psone);
+		BigFileUnpackEntry(f, &data->entries[i], dstdir, tim2tga, bpp16to24, nopaths, adpcmconvert, vagconvert, rawconvert, forcerawtype, rawnoalign);
 	}
 	PacifierEnd();
 

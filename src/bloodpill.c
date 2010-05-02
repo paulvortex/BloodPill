@@ -137,6 +137,8 @@ int Help_Main()
 	"    -adpcm2wav: convert raw ADPCM to native ADPCM wave\n"
 	"    -adpcm2pcm: convert raw ADPCM to PCM wave\n"
 	"    -adpcm2ogg: convert raw ADPCM to Ogg Vorbis (quality 5)\n"
+	"    -vag2pcm: convert VAG to PCM wave\n"
+	"    -vag2ogg: convert VAG to Ogg Vorbis (quality 5)\n"
 	"    -raw2tga: convert raw images to readable TGA\n"
 	"     WARNING: a lot of files will be extracted! (about 45000)\n"
 	"     TIP: unlike TIM->TGA, this is one way raw conversion, backward conversion\n"

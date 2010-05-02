@@ -39,6 +39,11 @@ It is unfinished, so will be extended in future
     1 : 7
 	2 : 14
 	
+ 3. Variation of LZ77
+--
+  // TODO
+
+
 =======================================
 
  II. BASIC TYPES
@@ -58,7 +63,7 @@ It is unfinished, so will be extended in future
 --
  Platform: PC, PlayStation
  Desc: standart PlayStation VAG (Very Audio Good) file with header
- Note: in PC all VAG files are unused
+ Note: in PC all VAG files are unused. Also note that many VAG's have no 'VAGp' in header (hence could be only detected only by direct parsing);
  Spec: 
    see Blood Pill sourcecode
    
@@ -192,11 +197,5 @@ It is unfinished, so will be extended in future
  
  RAW FILE TYPE 7
 --
- Desc: tile?
- Note: unfinished
- Spec:
- 0: 4 bytes - data size
- 4-25: ?
- 26: colormap chunks
-     8 bytes - coding 4 16-bit colors
-     1 byte - unknown 'separator byte', 255 if there is nother chunk, otherwize break
+ Desc: tile
+ Spec: a file contains 4 byte of data (chich is size of file - 4 bytes) and Standart 8-bit TIM file packed with LZ77-like compression (see Comression #3).
