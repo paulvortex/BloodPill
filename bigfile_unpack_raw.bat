@@ -1,1 +1,1 @@
-bpill -w -mem -bigfile pill.big -unpack bigfile -hashasnames
+bpill -w -mem -bigfile pill.big -unpack bigfile

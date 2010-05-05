@@ -10,6 +10,7 @@ copy sox\sox.exe release\sox.exe
 copy sox\cyggomp-1.dll release\cyggomp-1.dll
 copy sox\cygwin1.dll release\cygwin1.dll
 # samples
+copy bo_filetypes.txt release\bo_filetypes.txt
 copy samples.txt release\samples\samples.txt
 copy samples_ru.txt release\samples\samples_ru.txt
 copy bigfile_extract_file.bat release\samples\extract_file.bat

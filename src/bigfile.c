@@ -623,30 +623,36 @@ void BigfileHeaderRecalcOffsets(bigfileheader_t *data)
 void BigfileEmitStats(bigfileheader_t *data)
 {
 	bigfileentry_t *entry;
-	int stats[BIGFILE_NUM_FILETYPES], timstats[4], rawstats[NUM_RAW_TYPES];
+	int stats[BIGFILE_NUM_FILETYPES], timstats[4], rawstats[NUM_RAW_TYPES], nullfiles;
 	int i;
 
 	// collect stats
+	nullfiles = 0;
 	memset(stats, 0, sizeof(stats));
 	memset(timstats, 0, sizeof(timstats));
 	memset(rawstats, 0, sizeof(rawstats));
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
-		if (entry->type == BIGENTRY_TIM)
+		if (entry->size == 0)
+			nullfiles++;
+		else
 		{
-			if (entry->timtype[0] == TIM_4Bit)
-				timstats[0]++;
-			else if (entry->timtype[0] == TIM_8Bit)
-				timstats[1]++;
-			else if (entry->timtype[0] == TIM_16Bit)
-				timstats[2]++;	
-			else if (entry->timtype[0] == TIM_24Bit)
-				timstats[3]++;
+			if (entry->type == BIGENTRY_TIM)
+			{
+				if (entry->timtype[0] == TIM_4Bit)
+					timstats[0]++;
+				else if (entry->timtype[0] == TIM_8Bit)
+					timstats[1]++;
+				else if (entry->timtype[0] == TIM_16Bit)
+					timstats[2]++;	
+				else if (entry->timtype[0] == TIM_24Bit)
+					timstats[3]++;
+			}
+			else if (entry->type == BIGENTRY_RAW_IMAGE)
+				rawstats[entry->rawinfo->type]++;
+			stats[entry->type]++;
 		}
-		else if (entry->type == BIGENTRY_RAW_IMAGE)
-			rawstats[entry->rawinfo->type]++;
-		stats[entry->type]++;
 	}
 
 	// print stats
@@ -694,6 +700,8 @@ void BigfileEmitStats(bigfileheader_t *data)
 	// total
 	if (stats[BIGENTRY_UNKNOWN])
 		Print(" %6i unknown\n", stats[BIGENTRY_UNKNOWN]);
+	if (nullfiles)
+		Print(" %6i null\n", nullfiles);
 	Verbose(" %6i TOTAL\n", data->numentries);
 }
 

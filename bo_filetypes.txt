@@ -1,6 +1,7 @@
  
  Blood Omen: Legacy Of Kain 
  pill.big filetypes
+ draft version 0.4
  info by Pavel P. [VorteX] Timofeyev ( paul.vortex@gmail.com )
 ----------------------------------------
 
