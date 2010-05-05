@@ -2146,17 +2146,22 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 // Description: compressed TIM image
 typedef struct
 {
-	byte someinfo[18844];
-	byte layer1[12800];
-	byte layer2[12800];
-	byte layer3[6400];
-	byte someinfo[18844];
-}
+	unsigned short used_tiles[40];
+	unsigned char someinfo[18764];
+	unsigned short layer1[80][80];
+	unsigned short layer2[80][80];
+	unsigned char layer3[80][80];
+	unsigned char someinfo2[20068];
+}bo_map_t;
 
 rawblock_t *RawExtract_Type6(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	int decSize;
-	byte *dec, *in, *out;
+	byte *dec;
+	bo_map_t map;
+	unsigned short shortmap[80][80], shortmap2[80][80];
+	int i, k;
+	rawblock_t *rawblock;
 
 	if (!testonly && verbose)
 		Print("extracting type6\n");
@@ -2167,20 +2172,45 @@ rawblock_t *RawExtract_Type6(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
 
 	// should have fixed size
-	if (decSize != 65536)
+	if (decSize != 64512)
 	{
 		qfree(dec);
 		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
 	}
 
 	// this is type6
+	printf("groupfiles: ");
+	memcpy(&map, dec, 64512);
+	qfree(dec);
+	for (i = 0; i < 40; i++)
+	{
+		if (map.used_tiles[i] == 0 || map.used_tiles[i] == 65535)
+			continue;
+		printf("%05i ", map.used_tiles[i]);
+	}
+	printf("\n");
 
-	18844
+	rawblock = EmptyRawBlock(0);
+	return rawblock;
 
 
-	return RawErrorBlock(NULL, -1);
+	RawTGA("layer1.tga", 160, 80, 0, 0, 0, 0, NULL, (byte *)&map.layer1, 8, NULL);
+	RawTGA("layer2.tga", 160, 80, 0, 0, 0, 0, NULL, (byte *)&map.layer2, 8, NULL);
+	RawTGA("layer3.tga", 80, 80, 0, 0, 0, 0, NULL, (byte *)&map.layer3, 8, NULL);
+
+	// transpose a map
+	for (i = 0; i < 80; i++)
+		for (k = 0; k < 80; k++)
+			shortmap[i][k] = map.layer1[79-k][i];
+	RawTGA("layer4.tga", 160, 80, 0, 0, 0, 0, NULL, (byte *)&shortmap, 8, NULL);
+
+	// transpose a map
+	for (i = 0; i < 80; i++)
+		for (k = 0; k < 80; k++)
+			shortmap2[i][k] = map.layer2[79-k][i];
+	RawTGA("layer5.tga", 160, 80, 0, 0, 0, 0, NULL, (byte *)&shortmap2, 8, NULL);
+
 }
-
 
 /*
 ==========================================================================================
