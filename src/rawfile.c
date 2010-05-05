@@ -2137,6 +2137,54 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 /*
 ==========================================================================================
 
+  TYPE 6 - MAP
+
+==========================================================================================
+*/
+
+// RAW FILE TYPE 6
+// Description: compressed TIM image
+typedef struct
+{
+	byte someinfo[18844];
+	byte layer1[12800];
+	byte layer2[12800];
+	byte layer3[6400];
+	byte someinfo[18844];
+}
+
+rawblock_t *RawExtract_Type6(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+{
+	int decSize;
+	byte *dec, *in, *out;
+
+	if (!testonly && verbose)
+		Print("extracting type6\n");
+
+	// try decompress
+	dec = DecompressLZ77Stream(&decSize, buffer, 0, filelen);
+	if (dec == NULL)
+		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
+
+	// should have fixed size
+	if (decSize != 65536)
+	{
+		qfree(dec);
+		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
+	}
+
+	// this is type6
+
+	18844
+
+
+	return RawErrorBlock(NULL, -1);
+}
+
+
+/*
+==========================================================================================
+
   TYPE 7 - TILE
 
 ==========================================================================================
@@ -2202,11 +2250,6 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 
 ==========================================================================================
 */
-
-rawblock_t *RawExtract_Type6(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
-{
-	return RawErrorBlock(NULL, -1);
-}
 
 rawblock_t *RawExtract_Type8(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
