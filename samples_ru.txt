@@ -9,6 +9,8 @@ unpack.bat : распаковка pill.big со всеми конверсиями (tim->tga, vag->wav, adpcm
 
 unpack_raw.bat : распаковка pill.big без конвертации (все файлы распаковываются как есть).
 
+unpack_fortranslating.bat : распаковка с конверсией TIM->TGA и ADPCM->WAV, удобно для создания перевода к PC версии БО
+
 unpack_oggsounds.bat : распаковка pill.big со всеми конверсиями, звуки конвертируются в форма Ogg Vorbis.
 
 pack.bat : создание архива pill2.big на базе содержания папки 'bigfile'

@@ -11,6 +11,7 @@ copy sox\cyggomp-1.dll release\cyggomp-1.dll
 copy sox\cygwin1.dll release\cygwin1.dll
 # samples
 copy samples.txt release\samples\samples.txt
+copy samples_ru.txt release\samples\samples_ru.txt
 copy bigfile_extract_file.bat release\samples\extract_file.bat
 copy bigfile_list.bat release\samples\list.bat
 copy bigfile_pack.bat release\samples\pack.bat
@@ -19,6 +20,7 @@ copy tga2tim(test.tga).bat release\samples\tga2tim(test.tga).bat
 copy tim2tga(test.tim).bat release\samples\tim2tga(test.tim).bat
 copy tim2tga(test.tim)_16to24.bat release\samples\tim2tga(test.tim)_16to24.bat
 copy bigfile_unpack_raw.bat release\samples\unpack_raw.bat
+copy bigfile_unpack_fortranslating.bat release\samples\unpack_fortranslating.bat
 copy bigfile_unpack_oggsounds.bat release\samples\unpack_oggsounds.bat
 # sourcecode distrib
 mkdir release\bloodpillsource\

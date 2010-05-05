@@ -1152,7 +1152,8 @@ int ReadRLCompressedStreamTest(byte *outbuf, byte *inbuf, int startpos, int bufl
 	#undef writepixel
 }
 
-// read 
+// read decompressed LZ77 stream, thanks to Ben Lincoln for that function
+// fixme: clean it up
 #define DecompressLZ77_MaxIterations 4096000
 //#define DecompressLZ77_MaxOutputSize 67108864 // BO never reach this
 #define DecompressLZ77_MaxOutputSize 1048576

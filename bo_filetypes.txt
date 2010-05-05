@@ -41,8 +41,8 @@ It is unfinished, so will be extended in future
 	
  3. Variation of LZ77
 --
-  // TODO
-
+  Variant of the LZ77 algorithm that is specific to Blood Omen.
+  See Blood Pill sources for more details.
 
 =======================================
 
