@@ -104,6 +104,10 @@ SOURCE=.\bloodpill.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\BO1.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\cmdlib.h
 # End Source File
 # Begin Source File

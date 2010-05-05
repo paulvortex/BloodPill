@@ -25,7 +25,7 @@ static char *bigentryext[BIGFILE_NUM_FILETYPES] =
 	"tim",
 	"adpcm",
 	"wav",
-	"raw",
+	"rsp",
 	"vag"
 };	
 
@@ -36,7 +36,7 @@ static char *bigentryautopaths[BIGFILE_NUM_FILETYPES] =
 	"graphics/",
 	"adpcm/", 
 	"wave/",
-	"raw_image/",
+	"sprite/",
 	"vag/"
 };
 
