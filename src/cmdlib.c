@@ -849,6 +849,11 @@ int ReadShort(byte *buffer)
 	return in.f;
 }
 
+int ReadSignedByte(byte *buffer)
+{
+	return (signed char)buffer[0];
+}
+
 #ifdef _SGI_SOURCE
 #define	__BIG_ENDIAN__
 #endif

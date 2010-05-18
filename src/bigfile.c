@@ -843,6 +843,9 @@ void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolea
 	char name[MAX_BLOODPATH], suffix[8], path[MAX_BLOODPATH], basename[MAX_BLOODPATH];
 	int maxwidth, maxheight, i;
 
+	// dislike negative offsets, rather shift all pictures
+
+
 	// detect maxwidth/maxheight for alignment
 	maxwidth = maxheight = 0;
 	for (i = 0; i < rawblock->chunks; i++)

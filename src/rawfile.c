@@ -583,6 +583,7 @@ rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin)
 	// align chunks
 	for (i = 0; i < rawblock->chunks; i++)
 	{
+		// FIXME: allow negative offset
 		bx = rawblock->chunk[i].x + margin;
 		by = rawblock->chunk[i].y + margin;
 		ax = max(0, maxwidth - rawblock->chunk[i].width - bx);
@@ -2008,6 +2009,7 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
 	int numobjects, filesize, i, chunkpos, last;
+	signed int minx, miny;
 	qboolean decompress255, halfres;
 	rawchunk_t *rawchunk;
 	rawblock_t *rawblock;
@@ -2101,15 +2103,43 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		rawchunk->width = chunk[4] * ((rawinfo->doubleres == true) ? 2 : 1);
 		rawchunk->height = chunk[5] * ((rawinfo->doubleres == true) ? 2 : 1);
 		rawchunk->size = rawchunk->width * rawchunk->height;
-		rawchunk->x = chunk[6];
-		rawchunk->y = chunk[7];
+		rawchunk->x = ReadSignedByte(chunk + 6); // FIXME!
+		rawchunk->y = ReadSignedByte(chunk + 7);
 		if (rawchunk->width < 0 || rawchunk->height < 0)
 			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_HEADER);
 		if (rawchunk->offset <= last && !forced)
 			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_OFFSET);
-		if (verbose == true)
-			Print("%03i: %8i %03ix%03i %03i %03i - %03i\n", i, rawblock->chunk[i].offset, rawblock->chunk[i].width, rawblock->chunk[i].height, rawblock->chunk[i].x, rawblock->chunk[i].y, rawblock->chunk[i].flagbit);    
 		last = rawchunk->offset;
+	}
+
+	// hackland: disallow negative offsets, by shifting all chunks
+	// as negative offsets kills aligning math
+	// this is not changed anything as withg shifting x/y for each chunk we are shifting global 
+	// positions to compernsate as well
+	minx = miny = 0;
+	for (i = 0; i < numobjects; i++)
+	{
+		if (minx > rawblock->chunk[i].x)
+			minx = rawblock->chunk[i].x;
+		if (miny > rawblock->chunk[i].y)
+			miny = rawblock->chunk[i].y;
+	}
+	if (minx || miny)
+	{
+		rawblock->posx = rawblock->posx + minx;
+		rawblock->posy = rawblock->posy + miny;
+		for (i = 0; i < numobjects; i++)
+		{
+			rawblock->chunk[i].x = rawblock->chunk[i].x - minx;
+			rawblock->chunk[i].y = rawblock->chunk[i].y - miny;
+		}
+	}
+
+	// print headers
+	if (verbose == true)
+	{
+		for (i = 0; i < numobjects; i++)
+			Print("%03i: %8i %03ix%03i %03i %03i - %03i\n", i, rawblock->chunk[i].offset, rawblock->chunk[i].width, rawblock->chunk[i].height, rawblock->chunk[i].x, rawblock->chunk[i].y, rawblock->chunk[i].flagbit);    
 	}
 
 	// read pixels
