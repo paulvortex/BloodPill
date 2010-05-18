@@ -53,6 +53,7 @@ extern int Q_strncasecmp (char *s1, char *s2, int n);
 extern int Q_strcasecmp (char *s1, char *s2);
 extern char *ConvSlashU2W (char *start);
 extern char *ConvSlashW2U (char *start);
+char *ConvDot(char *start);
 //extern void Q_getwd (char *out);
 size_t strlcat(char *dst, const char *src, size_t siz);
 size_t strlcpy(char *dst, const char *src, size_t siz);

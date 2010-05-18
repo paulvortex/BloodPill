@@ -467,6 +467,12 @@ byte wintounix(byte c)
 	return c;
 
 }
+byte dotconv(byte c)
+{
+	if (c == '.')
+		return '-';
+	return c;
+}
 char *ConvSlashU2W (char *start)
 {
   char	*in;
@@ -489,7 +495,17 @@ char *ConvSlashW2U (char *start)
     }
   return start;
 }
-
+char *ConvDot(char *start)
+{
+  char	*in;
+  in = start;
+  while (*in)
+    {
+      *in = dotconv(*in);
+      in++;
+    }
+  return start;
+}
 
 /*
 =============================================================================
@@ -733,9 +749,14 @@ void ExtractFileName (char *path, char *dest)
 
 void StripFileExtension (char *path, char *dest)
 {
-  while (*path && *path != '.')
-      *dest++ = *path++;
-  *dest = 0;
+	int l;
+
+	l = strlen(path) - 1;
+	while(path[l] != '.')
+		l--;
+	if (l == 0)
+		return;
+	strlcpy(dest, path, l+1);
 }
 
 void ExtractFileExtension (char *path, char *dest)

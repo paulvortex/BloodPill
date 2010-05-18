@@ -185,8 +185,8 @@ It is unfinished, so will be extended in future
     4 bytes - offset after headers
     1 byte - width
     1 byte - height
-    1 byte - x
-    1 byte - y
+    1 signed byte - x
+    1 signed byte - y
  <compressed pixels of each object>
 	refer to "Index-based RLE" compression, used in index 0 (sometimes 255 index as well)
 

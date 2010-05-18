@@ -389,6 +389,8 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margi
 	cropblock->alphamapExternal = true;
 	cropblock->posx = rawblock->posx;
 	cropblock->posy = rawblock->posy;
+	cropblock->errorcode = rawblock->errorcode;
+	cropblock->notEOF = rawblock->notEOF;
 
 	// if not cropping each chunk - find minimal/maximal crops
 	if (!cropeachchunk)
@@ -579,6 +581,8 @@ rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin)
 	newblock->colormapExternal = true;
 	newblock->alphamap = rawblock->alphamap;
 	newblock->alphamapExternal = true;
+	newblock->errorcode = rawblock->errorcode;
+	newblock->notEOF = rawblock->notEOF;
 
 	// align chunks
 	for (i = 0; i < rawblock->chunks; i++)
@@ -658,6 +662,8 @@ rawblock_t *RawblockPerturbate(rawblock_t *rawblock, list_t *includelist)
 	newblock->alphamapExternal = true;
 	newblock->posx = rawblock->posx;
 	newblock->posy = rawblock->posy;
+	newblock->errorcode = rawblock->errorcode;
+	newblock->notEOF = rawblock->notEOF;
 	for (i = 0, c = 0; i < includelist->items && c < numchunks; i++)
 	{
 		buf = includelist->item[i];
@@ -718,6 +724,8 @@ rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock)
 	newrawblock->alphamapExternal = true;
 	newrawblock->posx = rawblock->posx * 2;
 	newrawblock->posy = rawblock->posy * 2;
+	newrawblock->errorcode = rawblock->errorcode;
+	newrawblock->notEOF = rawblock->notEOF;
 
 	for (i = 0; i < rawblock->chunks; i++)
 	{
@@ -1566,7 +1574,7 @@ rawblock_t *RawExtract_Type2(unsigned char *buffer, int filelen, rawinfo_t *rawi
 	for (i = 0; i < (int)numobjects; i++)
 	{		
 		chunk = buffer + 776 + (768 + 8)*i;
-		RawBlockAllocateChunk(rawblock, i, chunk[772]*resmult, chunk[773]*resmult, 0, 0, true);
+		RawBlockAllocateChunk(rawblock, i, chunk[772]*resmult, chunk[773]*resmult, chunk[774]*resmult, chunk[775]*resmult, true);
 		rawblock->chunk[i].colormap = chunk;
 		rawblock->chunk[i].colormapExternal = true;
 		rawblock->chunk[i].pixels = buffer + chunkpos;
@@ -2008,7 +2016,7 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 //    read pixel, if it's 0 - read next pixel and make this number of black pixels, otherwise write as normal pixel
 rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
 {
-	int numobjects, filesize, i, chunkpos, last;
+	int numobjects, filesize, i, chunkpos, last, resmult;
 	signed int minx, miny;
 	qboolean decompress255, halfres;
 	rawchunk_t *rawchunk;
@@ -2094,17 +2102,18 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 
 	// read object headers, test them
 	last = -1;
+	resmult = (rawinfo->doubleres == true) ? 2 : 1;
 	for (i = 0; i < numobjects; i++)
 	{
 		chunk = buffer + 776 + i*8;
 
 		rawchunk = &rawblock->chunk[i];
 		rawchunk->offset = 776 + numobjects*8 + ReadUInt(chunk);
-		rawchunk->width = chunk[4] * ((rawinfo->doubleres == true) ? 2 : 1);
-		rawchunk->height = chunk[5] * ((rawinfo->doubleres == true) ? 2 : 1);
+		rawchunk->width = chunk[4] * resmult;
+		rawchunk->height = chunk[5] * resmult;
 		rawchunk->size = rawchunk->width * rawchunk->height;
-		rawchunk->x = ReadSignedByte(chunk + 6); // FIXME!
-		rawchunk->y = ReadSignedByte(chunk + 7);
+		rawchunk->x = ReadSignedByte(chunk + 6) * resmult; // FIXME!
+		rawchunk->y = ReadSignedByte(chunk + 7) * resmult;
 		if (rawchunk->width < 0 || rawchunk->height < 0)
 			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_OBJECT_HEADER);
 		if (rawchunk->offset <= last && !forced)
@@ -2197,8 +2206,8 @@ rawblock_t *RawExtract_Type6(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		Print("extracting type6\n");
 
 	// try decompress
-	dec = DecompressLZ77Stream(&decSize, buffer, 0, filelen);
-	if (dec == NULL)
+	//dec = DecompressLZ77Stream(&decSize, buffer, 0, filelen);
+	//if (dec == NULL)
 		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
 
 	// should have fixed size
@@ -2352,11 +2361,57 @@ end:
 		rawinfo->type = testtype;
 	return rawblock;
 }
+
+// nasty nasty hack to handle multifile files like vortout.htm
+void RawExtractTGATailFiles(byte *filedata, int filelen, rawinfo_t *rawinfo, char *outfile, qboolean verbose, qboolean usesubpaths, qboolean rawnoalign)
+{
+	rawblock_t *rawblock;
+	char outfile2[MAX_BLOODPATH], suffix[16];
+	int i, numtries, maxtries;
+	rawtype_t oldtype;
+	byte *in;
+
+	in = filedata;
+
+	maxtries = 16;
+	// force rawinfo type to unknown as tail file could be random type
+	oldtype = rawinfo->type;
+	rawinfo->type = RAW_TYPE_UNKNOWN;
+	// try extract tail files
+	for (i = 1; filelen > 16; i++)
+	{
+		sprintf(suffix, "_sub%0i", i);
+		AddSuffix(outfile2, outfile, suffix);
+		if (verbose)
+			Print("Found tail file at offset %i (%i bytes size), extracting...\n", in - filedata, filelen);
+		for(numtries = 0; filelen > 0 && numtries < maxtries; numtries++)
+		{
+			rawblock = RawExtract(in, filelen, rawinfo, false, verbose, RAW_TYPE_UNKNOWN);
+			if (rawblock->errorcode > 0)
+				break;
+			in++;
+			filelen--;
+			FreeRawBlock(rawblock);
+		}
+		if (numtries >= maxtries) // failed
+		{
+			Error("Failed to read tail file\n");
+			break;
+		}
+		// extract
+		TGAfromRAW(rawblock, rawinfo, outfile2, rawnoalign, verbose, usesubpaths);
+		in += rawblock->errorcode;
+		filelen -= rawblock->errorcode;
+		FreeRawBlock(rawblock);
+	}
+	// restire rawinfo type
+	rawinfo->type = oldtype;
+}
 	
 int Raw_Main(int argc, char **argv)
 {
 	char filename[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], outfile[MAX_BLOODPATH], *c;
-	unsigned char *filedata;
+	byte *filedata;
 	int filelen;
 	qboolean forced, rawnoalign;
 	rawinfo_t rawinfo;
@@ -2508,15 +2563,19 @@ int Raw_Main(int argc, char **argv)
 		}	
 	}
 
-	// open and extract file
 	filelen = LoadFile(filename, &filedata);
 	rawblock = RawExtract(filedata, filelen, &rawinfo, false, true, (forced == true) ? rawinfo.type : RAW_TYPE_UNKNOWN);
-	qfree(filedata);
 	if (rawblock->errorcode < 0)
 		Print("Raw error code %i: %s\n", rawblock->errorcode, RawStringForResult(rawblock->errorcode));
 	else
+	{
 		TGAfromRAW(rawblock, &rawinfo, outfile, rawnoalign, true, false);
-	FreeRawBlock(rawblock);
+		// extract tail files if there is ones
+		if (rawblock->errorcode > 0 && rawblock->errorcode < filelen)
+			RawExtractTGATailFiles(filedata + rawblock->errorcode, filelen - rawblock->errorcode, &rawinfo, outfile, true, false, rawnoalign);
+		FreeRawBlock(rawblock);
+	}
+	qfree(filedata);
 	Print("done.\n");
 	return 0;
 }

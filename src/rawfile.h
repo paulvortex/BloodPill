@@ -136,3 +136,4 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 void RawTGAColormap(char *outfile, const byte *colormapdata, byte bytes, int width, int height);
 void ColormapFromTGA(char *filename, byte *colormap);
 rawblock_t *RawExtract(byte *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype);
+void RawExtractTGATailFiles(byte *filedata, int filelen, rawinfo_t *rawinfo, char *outfile, qboolean verbose, qboolean usesubpaths, qboolean rawnoalign);

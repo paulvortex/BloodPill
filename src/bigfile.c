@@ -580,7 +580,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 				}
 			}
 			if (namesloaded)
-				Verbose("Loaded %i internal filenames.\n", namesloaded);
+				Verbose("loaded %i internal filenames.\n", namesloaded);
 		}
 	}
 
@@ -820,7 +820,7 @@ void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16
 		strcpy(name, outfile);
 		if (i != 0)
 		{
-			sprintf(suffix, "_layer%i", i);
+			sprintf(suffix, "_sub%i", i);
 			AddSuffix(name, name, suffix);
 		}
 		if (tim->error)
@@ -840,11 +840,8 @@ void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16
 
 void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolean rawnoalign, qboolean verbose, qboolean usesubpaths)
 {
-	char name[MAX_BLOODPATH], suffix[8], path[MAX_BLOODPATH], basename[MAX_BLOODPATH];
+	char name[MAX_BLOODPATH], suffix[8], path[MAX_BLOODPATH], basename[MAX_BLOODPATH], filename[MAX_BLOODPATH];
 	int maxwidth, maxheight, i;
-
-	// dislike negative offsets, rather shift all pictures
-
 
 	// detect maxwidth/maxheight for alignment
 	maxwidth = maxheight = 0;
@@ -858,16 +855,17 @@ void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolea
 	// todo: optimize
 	if (usesubpaths)
 	{
-		strcpy(name, outfile);
-		ExtractFilePath(name, path);
-		ExtractFileBase(name, basename);
-		sprintf(name, "%s%s/", path, basename);
+		ExtractFilePath(outfile, path);
+		ExtractFileName(outfile, filename);
+		ConvDot(filename);
+		ExtractFileBase(outfile, basename);
+		sprintf(name, "%s%s/", path, filename);
 		CreatePath(name);
-		sprintf(name, "%s%s/%s.tga", path, basename, basename);
+		sprintf(name, "%s%s/%s.tga", path, filename, basename);
 		strcpy(basename, name);
 	}
 	else
-		sprintf(basename, outfile);
+		sprintf(basename, "%s.tga", outfile);
 
 	// export all chunks
 	for (i = 0; i < rawblock->chunks; i++)
@@ -1004,9 +1002,11 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 			Print("warning: cound not extract raw %s: %s\n", entry->name, RawStringForResult(rawblock->errorcode));
 		else
 		{
-			StripFileExtension(entry->name, basename);
-			sprintf(outfile, "%s/%s.tga", dstdir, basename);
-			TGAfromRAW(rawblock, entry->rawinfo, outfile, rawnoalign, false, (rawblock->chunks > 5) ? true : false); 
+			sprintf(outfile, "%s/%s", dstdir, entry->name);
+			TGAfromRAW(rawblock, entry->rawinfo, outfile, rawnoalign, false, (rawblock->chunks > 1) ? true : false); 
+			// unpack tail files
+			if (rawblock->errorcode > 0 && rawblock->errorcode < (int)entry->size)
+				RawExtractTGATailFiles((byte *)entry->data + rawblock->errorcode, entry->size - rawblock->errorcode, entry->rawinfo, outfile, false, (rawblock->chunks > 1) ? true : false, rawnoalign);
 		}
 		FreeRawBlock(rawblock);
 		// unpack original
@@ -1162,9 +1162,6 @@ qboolean BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
 	rawblock = RawExtract(filedata, entry->size, rawinfo, true, false, forcerawtype);
 	if (rawblock->errorcode >= 0)
 	{
-		if (rawblock->errorcode > 0)
-			if (rawblock->errorcode < (int)entry->size)
-				printf("%.8x: file read pos %i of %i\n", entry->hash, rawblock->errorcode, (int)entry->size);
 		FreeRawBlock(rawblock);
 		entry->rawinfo = rawinfo;
 		qfree(filedata);
@@ -1774,9 +1771,17 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			}
 		}
 		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, (float)alphascale, shadowpix, shadowalpha, spriteflags);
+		// extract tail files
+		if (rawblock->errorcode > 0 && rawblock->errorcode < (int)entry->size)
+			Print("Tail files found but can't be extracted to spr32\n");
 	}
 	else if (!stricmp(format, "tga"))
-		TGAfromRAW(rawblock, entry->rawinfo, outfile, true, true, false);
+	{
+		TGAfromRAW(rawblock, entry->rawinfo, outfile, noalign, true, false);
+		// extract tail files
+		if (rawblock->errorcode > 0 && (int)rawblock->errorcode < (int)entry->size)
+			RawExtractTGATailFiles((byte *)entry->data + rawblock->errorcode, entry->size - rawblock->errorcode, entry->rawinfo, outfile, true, false, noalign);	
+	}
 	else
 		Error("unknown sprite format '%s'!\n", format);
 	Print("done.\n");
@@ -2119,7 +2124,6 @@ int BigFile_Extract(int argc, char **argv)
 			entry->data = qmalloc(entry->size);
 			BigfileSeekContents(f, entry->data, entry);
 			rawblock = RawExtract(entry->data, entry->size, entry->rawinfo, false, false, RAW_TYPE_UNKNOWN);
-			entry->data = NULL;
 			if (!stricmp(format, "tga") || !format[0])
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
@@ -2372,7 +2376,7 @@ int BigFile_Pack(int argc, char **argv)
 			StripFileExtension(entry->name, basename);
 			for (k = 1; k < entry->timlayers; k++)
 			{
-				sprintf(savefile, "%s/%s_layer%i.tga", srcdir, basename, k);
+				sprintf(savefile, "%s/%s_sub%i.tga", srcdir, basename, k);
 				tim = TIM_LoadFromTarga(savefile, entry->timtype[k]); 
 				size += tim->filelen;
 				TIM_WriteToStream(tim, f);
