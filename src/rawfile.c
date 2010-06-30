@@ -1167,7 +1167,7 @@ int ReadRLCompressedStreamTest(byte *outbuf, byte *inbuf, int startpos, int bufl
 //#define DecompressLZ77_MaxOutputSize 67108864 // BO never reach this
 #define DecompressLZ77_MaxOutputSize 1048576
 byte DecompressLZ77Out[DecompressLZ77_MaxOutputSize];
-void *DecompressLZ77Stream(int *outbufsize, byte *inbuf, int startpos, int buflen)
+void *DecompressLZ77Stream(int *outbufsize, byte *inbuf, int startpos, int buflen, qboolean leading_filesize)
 {
 	byte *outdata;
 	int filesize;
@@ -1182,10 +1182,13 @@ void *DecompressLZ77Stream(int *outbufsize, byte *inbuf, int startpos, int bufle
 	// compare file size
 	if (buflen < 8)
 		return NULL;
-	filesize = ReadUInt(inbuf) + 4;
-	startpos = 4;
-	if (filesize != buflen)
-		return NULL;
+	if (leading_filesize)
+	{
+		filesize = ReadUInt(inbuf) + 4;
+		startpos = 4;
+		if (filesize != buflen)
+			return NULL;
+	}
 
 	// initialize decompressor
 	tempIndex = 4078;
@@ -2206,7 +2209,7 @@ rawblock_t *RawExtract_Type6(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		Print("extracting type6\n");
 
 	// try decompress
-	//dec = DecompressLZ77Stream(&decSize, buffer, 0, filelen);
+	//dec = DecompressLZ77Stream(&decSize, buffer, 0, filelen, true);
 	//if (dec == NULL)
 		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
 
@@ -2272,7 +2275,7 @@ rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		Print("extracting type7\n");
 
 	// try decompress
-	dec = DecompressLZ77Stream(&decSize, buffer, 0, filelen);
+	dec = DecompressLZ77Stream(&decSize, buffer, 0, filelen, true);
 	if (dec == NULL)
 		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
 

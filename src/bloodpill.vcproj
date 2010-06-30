@@ -149,6 +149,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\jamfile.c"
+				>
+			</File>
+			<File
 				RelativePath="mem.c"
 				>
 				<FileConfiguration

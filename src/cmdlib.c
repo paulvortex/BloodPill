@@ -1,5 +1,4 @@
 // Useful Functions Library
-// coded by  Forest [LordHavoc] Hale
 
 #define PATHSEPERATOR   '/'
 #define __USE_BSD 1

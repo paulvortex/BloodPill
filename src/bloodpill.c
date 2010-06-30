@@ -40,6 +40,9 @@ int Raw_Main(int argc, char **argv);
 // sprfile.c
 int Spr32_Main(int argc, char **argv);
 
+// jamfile.c
+int Jam_Main(int argc, char **argv);
+
 // soxsupp.c
 int AdpcmConvert_Main(int argc, char **argv);
 
@@ -357,6 +360,8 @@ int main(int argc, char **argv)
 		returncode = AdpcmConvert_Main(argc-i, argv+i);
 	else if (!strcmp(argv[i], "-spr32"))
 		returncode = Spr32_Main(argc-i, argv+i);
+	else if (!strcmp(argv[i], "-jam"))
+		returncode = Jam_Main(argc-i, argv+i);
 	else if (!strcmp (argv[i], "-help"))
 		returncode = Help_Main();
 	else
