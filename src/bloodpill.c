@@ -46,6 +46,9 @@ int Jam_Main(int argc, char **argv);
 // soxsupp.c
 int AdpcmConvert_Main(int argc, char **argv);
 
+// script.c
+int Script_Main(int argc, char **argv);
+
 void Print(char *str, ...)
 {
 	va_list argptr;
@@ -350,6 +353,8 @@ int main(int argc, char **argv)
 	// do the action
 	if (!strcmp(argv[i], "-bigfile"))
 		returncode = BigFile_Main(argc-i, argv+i);
+	else if (!strcmp(argv[i], "-script"))
+		returncode = Script_Main(argc-i, argv+i);
 	else if (!strcmp(argv[i], "-tim2tga"))
 		returncode = Tim2Targa_Main(argc-i, argv+i);
 	else if (!strcmp(argv[i], "-tga2tim"))
@@ -369,13 +374,8 @@ int main(int argc, char **argv)
 
 	Print("\n");
 
-	// print memory stats
-	if (memstats)
-	{
-		Print("=== MemStats ===\n");
-		Q_PrintMem();
-		Print("\n");
-	}
+	// free allocated memory
+	Q_ShutdownMem(memstats);
 
 #if _MSC_VER
 	if (waitforkey)
@@ -384,9 +384,6 @@ int main(int argc, char **argv)
 		getchar();
 	}
 #endif
-
-	// free allocated memory
-	Q_ShutdownMem();
 
 	return returncode;
 }

@@ -1,8 +1,20 @@
 #include "cmdlib.h"
 
+#ifndef BLOODPILL_VERSION
 #define BLOODPILL_VERSION "v0.8c"
-#define BLOODPILL_WELCOME "----------------------------------------\nBlood Pill %s by VorteX and Mean Person\nA set of utils to manipulate Blood Omen: Legacy Of Kain files\nportions of code by LordHavoc\nAdditional thanks to Balder and Zench from XentaX forums (www.xentax.com)\nTIM specs by Klarth and Raul Sobon\nBigfile specs by Andrey [Rackot] Grachev\nRaw Type 7 (Tiles) specs by Ben Lincoln\n----------------------------------------\n"
-#define MAX_BLOODPATH 1024
+static char *BLOODPILL_WELCOME =
+"----------------------------------------\n"
+"Blood Pill %s by VorteX and Mean Person\n"
+"A set of utils to manipulate Blood Omen: Legacy Of Kain files\n"
+"portions of code by LordHavoc\n"
+"Additional thanks to Balder and Zench from XentaX forums (www.xentax.com)\n"
+"TIM specs by Klarth and Raul Sobon\n"
+"Bigfile specs by Andrey [Rackot] Grachev\n"
+"Raw Type 7 (LZW Tiles) specs by Ben Lincoln\n"
+"----------------------------------------\n"
+;
+#define MAX_BLOODPATH 512
+#endif
 
 // global switches
 qboolean waitforkey;

@@ -80,6 +80,40 @@ typedef struct
 }
 bigfileheader_t;
 
+// knowledge base
+typedef struct
+{
+	unsigned int hash;
+
+	int adpcmrate; // adpcm rate
+	char path[MAX_BLOODPATH]; // a path to extract
+	qboolean pathonly; // only define path, not filename
+	bigentrytype_t type; // a type of entry
+	rawinfo_t *rawinfo; // raw format info
+}
+bigkentry_t;
+
+typedef struct
+{
+	int numentries;
+	bigkentry_t *entries;
+}
+bigklist_t;
+
+extern bigklist_t *bigklist;
+
+// base functions
+bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError);
+unsigned int BigfileEntryHashFromString(char *string);
+bigfileentry_t *BigfileGetEntry(bigfileheader_t *bigfile, unsigned int hash);
+bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecontents, qboolean hashnamesonly);
+void BigfileSeekContents(FILE *f, byte *contents, bigfileentry_t *entry);
+void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawtype_t forcerawtype, qboolean allow_auto_naming);
+void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list_t *ixlist, rawtype_t forcerawtype);
+void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_t *entry, rawblock_t *rawblock, char *format);
+void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *entry, char *infileformat, int defaultinputrate, char *format);
+void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *entry, char *outfile);
+
 // convert functions
 void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16to24);
 void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolean rawnoalign, qboolean verbose, qboolean usesubpaths);

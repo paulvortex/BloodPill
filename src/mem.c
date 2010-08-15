@@ -41,19 +41,33 @@ void Q_PrintMem( void )
 	printf( "Total memory allocated: %f MB (%u bytes)\n", total_allocated  / 1048576.0, (unsigned int)total_allocated );
 }
 
-void Q_ShutdownMem( void )
+void Q_ShutdownMem(	qboolean printstats )
 {
         size_t total;
+		size_t numchunks;
 
         if( !mem_initialized )
-                return;
+             return;
+		// print stats
+		if (printstats)
+		{
+			printf("=== MemStats ===\n");
+			Q_PrintMem();
+		}
         total = 0;
+		numchunks = 0;
         while( chunks ) {
                 total += chunks->size;
+				numchunks++;
                 qfree( (void *)((unsigned char *)chunks + sizeof(chunkheader_t)) );
         }
-//		Print( "Leaked memory: %f MB (%i bytes)\n", total  / 1048576.0, total );
-//		Print( "Total memory allocated: %f MB (%i bytes)\n", total_allocated  / 1048576.0, total_allocated );
+		if (printstats)
+		{
+			//printf( "Leaked memory: %f MB (%i bytes)\n", total  / 1048576.0, total );
+			//printf( "Chunks count: %i\n", numchunks );
+			//printf( "Total memory allocated: %f MB (%i bytes)\n", total_allocated  / 1048576.0, total_allocated );
+			printf("\n");
+		}
         mem_initialized = false;
 }
 

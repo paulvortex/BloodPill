@@ -34,28 +34,7 @@
 #define DEFAULT_PACKPATH	"bigfile"
 
 char bigfile[MAX_BLOODPATH];
-
-// knowledge base
-typedef struct
-{
-	unsigned int hash;
-
-	int adpcmrate; // adpcm rate
-	char path[MAX_BLOODPATH]; // a path to extract
-	qboolean pathonly; // only define path, not filename
-	bigentrytype_t type; // a type of entry
-	rawinfo_t *rawinfo; // raw format info
-}
-bigkentry_t;
-
-typedef struct
-{
-	int numentries;
-	bigkentry_t *entries;
-}
-bigklist_t;
-
-bigklist_t *bigklist;
+bigklist_t *bigklist = NULL;
 
 /*
 ==========================================================================================
@@ -337,10 +316,12 @@ bigkentry_t *BigfileSearchKList(unsigned int hash)
 {
 	int i;
 
-	for (i = 0; i < bigklist->numentries; i++)
-		if (bigklist->entries[i].hash == hash)
-			return &bigklist->entries[i];
-
+	if (bigklist)
+	{
+		for (i = 0; i < bigklist->numentries; i++)
+			if (bigklist->entries[i].hash == hash)
+				return &bigklist->entries[i];
+	}
 	return NULL;
 }
 
@@ -418,6 +399,41 @@ void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 	}
 }
 
+// retrieves entry hash from name
+unsigned int BigfileEntryHashFromString(char *string)
+{
+	unsigned int hash;
+	int i;
+
+	if (string[0] == '#')
+	{
+		sscanf(string, "#%X", &hash);
+		return hash;
+	}
+	// filename or path
+	for (i = 0; i < NUM_CSV_ENTRIES; i++)
+		if (!stricmp(string, wheelofdoom_names[i].name))
+			break;
+	if (i < NUM_CSV_ENTRIES)
+	{
+		hash = wheelofdoom_names[i].hash;
+		Verbose("Hash filename: %.8X\n", hash);
+		return hash;
+	}
+	Error("Failed to lookup entry name '%s' - no such entry\n", string);
+	return 0;
+}
+
+// finds entry by hash
+bigfileentry_t *BigfileGetEntry(bigfileheader_t *bigfile, unsigned int hash)
+{
+	int i;
+
+	for (i = 0; i < (int)bigfile->numentries; i++)
+		if (bigfile->entries[i].hash == hash)
+			return &bigfile->entries[i];
+	return NULL;
+}
 
 // quick way to get entry data from header
 bigfileentry_t *ReadBigfileHeaderOneEntry(FILE *f, unsigned int hash)
@@ -1198,6 +1214,7 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 	char *autopath;
 
 	// detect filetype automatically
+	
 	autotype = BigfileDetectFiletype(f, entry, scanraw, forcerawtype);
 	if (autotype != BIGENTRY_UNKNOWN) 
 	{
@@ -1463,9 +1480,9 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	int i, num, minp, maxp, margin, aver, diff, spritex, spritey, spriteflags;
 	sprtype_t spritetype = SPR_VP_PARALLEL;
 	rawblock_t *tb1, *tb2, *tb3, *tb4;
-	qboolean noalign, nocrop, flip, scale;
+	qboolean noalign, nocrop, flip, scale, merge;
 	byte pix, shadowpix, shadowalpha;
-	byte c[3];
+	byte c[3], oldcolormap[768], alphamap[256];
 	double colorscale, cscale, alphascale;
 	list_t *includelist;
 	FILE *f;
@@ -1483,7 +1500,14 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	shadowpix = 15;
 	alphascale = 1.0f;
 	scale = false;
-	for (i = 2; i < argc; i++)
+	merge = false;
+	// copy out colormap & alphamap
+	if (rawblock->colormap)
+		memcpy(oldcolormap, rawblock->colormap, 768);
+	if (rawblock->alphamap)
+		memcpy(alphamap, rawblock->alphamap, 256);
+	// process command line
+	for (i = 0; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-oriented"))
 		{
@@ -1708,7 +1732,14 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 					Verbose("Option: Export palette indexes %s-%s scale %s as #%s to %s\n", argv[i], argv[i+1], argv[i+2], argv[i+3], argv[i+4]);
 				}
 				i += 4;
+				continue;
 			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-m"))
+		{
+			merge = true;
+			Verbose("Option: Merge output instead of replacing if file already exists\n");
 			continue;
 		}
 		Warning("unknown parameter '%s'",  argv[i]);
@@ -1770,7 +1801,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 				rawblock->chunk[i].y = 0 - rawblock->chunk[i].y;
 			}
 		}
-		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, (float)alphascale, shadowpix, shadowalpha, spriteflags);
+		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, (float)alphascale, shadowpix, shadowalpha, spriteflags, merge);
 		// extract tail files
 		if (rawblock->errorcode > 0 && rawblock->errorcode < (int)entry->size)
 			Print("Tail files found but can't be extracted to spr32\n");
@@ -1785,6 +1816,12 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	else
 		Error("unknown sprite format '%s'!\n", format);
 	Print("done.\n");
+
+	// restore colormap & alphamap
+	if (rawblock->colormap)
+		memcpy(rawblock->colormap, oldcolormap, 768);
+	if (rawblock->alphamap)
+		memcpy(rawblock->alphamap, alphamap, 256);
 
 	// free allocated data
 	if (tb1) FreeRawBlock(tb1);
@@ -1804,7 +1841,7 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 	// additional parms
 	ir = defaultinputrate;
 	strcpy(effects, "");
-	for (i = 2; i < argc; i++)
+	for (i = 0; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-trimstart"))
 		{
@@ -1939,39 +1976,20 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 	Print("done.\n");
 }
 
-// "-bigfile c:/pill.big -extract 0AD312F45 0AD312F45.tga"
-int BigFile_Extract(int argc, char **argv)
+void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *entry, char *outfile)
 {
-	char filename[MAX_BLOODPATH], basename[MAX_BLOODPATH], outfile[MAX_BLOODPATH], format[512], last;
-	unsigned int hash;
-	bigfileentry_t *entry;
+	char filename[MAX_BLOODPATH], basename[MAX_BLOODPATH], format[512], last;
 	rawblock_t *rawblock;
-	FILE *f;
 	byte *data;
 	int i, size;
 
-	// read source hash and out file
-	if (argc < 2)
-		Error("not enough parms");
-	if (argv[0][0] == '#')
-		sscanf(argv[0], "#%X", &hash);
-	else // filename or path
-	{
-		for (i = 0; i < NUM_CSV_ENTRIES; i++)
-			if (!stricmp(argv[0], wheelofdoom_names[i].name))
-				break;
-		if (i < NUM_CSV_ENTRIES)
-		{
-			hash = wheelofdoom_names[i].hash;
-			Verbose("Hash filename: %.8X\n", hash);
-		}
-		else Error("Failed to lookup entry name '%s' - no such file\n", argv[0]);
-	}
-	strcpy(outfile, argv[1]);
-	ExtractFileExtension(outfile, format);
-	
+	// cannot extract empty files
+	if (entry->size == 0)
+		Error("Empty file\n");
+
 	// additional parms
-	for (i = 2; i < argc; i++)
+	ExtractFileExtension(outfile, format);
+	for (i = 0; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-f"))
 		{
@@ -1984,34 +2002,20 @@ int BigFile_Extract(int argc, char **argv)
 			continue;
 		}
 	}
-
-	// check format
 	if (!format[0])
 		Error("Format is not given\n");
-
-	// open, get entry, scan
-	f = SafeOpen(bigfile, "rb");
-	entry = ReadBigfileHeaderOneEntry(f, hash);
-	if (entry == NULL)
-		Error("Failed to find entry %.8X\n", hash);
-	BigfileScanFiletype(f, entry, true, RAW_TYPE_UNKNOWN, true);
-
-	// cannot extract empty files
-	if (entry->size == 0)
-		Error("Empty file\n", hash);
 	
 	// raw extract (no conversion)
 	if (!stricmp(format, "raw"))
 	{
 		// load file contents
 		entry->data = qmalloc(entry->size);
-		BigfileSeekContents(f, entry->data, entry);
+		BigfileSeekContents(bigfile, entry->data, entry);
 		// save file
 		SaveFile(outfile, entry->data, entry->size);
 		qfree(entry->data);
 		entry->data = NULL;
-		fclose(f);
-		return 0;
+		return;
 	}
 
 	// get outfile
@@ -2041,20 +2045,20 @@ int BigFile_Extract(int argc, char **argv)
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				Print("writing %s.\n", filename);
-				TGAfromTIM(f, entry, filename, false); 
+				TGAfromTIM(bigfile, entry, filename, false); 
 			}
 			else if (!stricmp(format, "tga24") || !format[0])
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				Print("writing %s.\n", filename);
-				TGAfromTIM(f, entry, filename, true); 
+				TGAfromTIM(bigfile, entry, filename, true); 
 			}
 			else Error("unknown format '%s'\n", format);
 			break;
 		case BIGENTRY_RAW_ADPCM:
 			// load file contents
 			entry->data = qmalloc(entry->size);
-			BigfileSeekContents(f, entry->data, entry);
+			BigfileSeekContents(bigfile, entry->data, entry);
 			// process
 			if (!stricmp(format, "wav") || !format[0])
 			{
@@ -2070,12 +2074,11 @@ int BigFile_Extract(int argc, char **argv)
 			// close
 			qfree(entry->data);
 			entry->data = NULL;
-			fclose(f);
 			break;
 		case BIGENTRY_RIFF_WAVE:
 			// load file contents
 			entry->data = qmalloc(entry->size);
-			BigfileSeekContents(f, entry->data, entry);
+			BigfileSeekContents(bigfile, entry->data, entry);
 			// process
 			if (!stricmp(format, "wav") || !format[0])
 			{
@@ -2091,12 +2094,11 @@ int BigFile_Extract(int argc, char **argv)
 			// close
 			qfree(entry->data);
 			entry->data = NULL;
-			fclose(f);
 			break;
 		case BIGENTRY_VAG:
 			// load file contents
 			entry->data = qmalloc(entry->size);
-			BigfileSeekContents(f, entry->data, entry);
+			BigfileSeekContents(bigfile, entry->data, entry);
 			// unpack vag
 			VAG_Unpack(entry->data, 64, entry->size, &data, &size);
 			qfree(entry->data);
@@ -2117,12 +2119,11 @@ int BigFile_Extract(int argc, char **argv)
 			// close
 			qfree(entry->data);
 			entry->data = NULL;
-			fclose(f);
 			break;
 		case BIGENTRY_RAW_IMAGE:
 			// read file contents and convert to rawblock, then pass to extraction func
 			entry->data = qmalloc(entry->size);
-			BigfileSeekContents(f, entry->data, entry);
+			BigfileSeekContents(bigfile, entry->data, entry);
 			rawblock = RawExtract(entry->data, entry->size, entry->rawinfo, false, false, RAW_TYPE_UNKNOWN);
 			if (!stricmp(format, "tga") || !format[0])
 			{
@@ -2142,6 +2143,28 @@ int BigFile_Extract(int argc, char **argv)
 			Error("bad entry type\n");
 			break;
 	}
+}
+
+// "-bigfile c:/pill.big -extract 0AD312F45 0AD312F45.tga"
+int BigFile_Extract(int argc, char **argv)
+{
+	char outfile[MAX_BLOODPATH];
+	unsigned int hash;
+	bigfileentry_t *entry;
+	FILE *f;
+
+	// read source hash and out file
+	if (argc < 2)
+		Error("not enough parms");
+	hash = BigfileEntryHashFromString(argv[0]);
+	strcpy(outfile, argv[1]);
+	// open, get entry, scan, extract
+	f = SafeOpen(bigfile, "rb");
+	entry = ReadBigfileHeaderOneEntry(f, hash);
+	if (entry == NULL)
+		Error("Failed to find entry %.8X\n", hash);
+	BigfileScanFiletype(f, entry, true, RAW_TYPE_UNKNOWN, true);
+	BigFile_ExtractEntry(argc-2, argv+2, f, entry, outfile);
 	fclose(f);
 	return 0;
 }
