@@ -1,20 +1,6 @@
 # this is known filetypes database
 
 #
-# звуки неизвестного происхождения
-#
-
-[2D00066D]
-type=adpcm
-rate=11025
-path=sound/unknown
-
-[5B647409]
-type=adpcm
-rate=11025
-path=sound/unknown
-
-#
 # звуки грома
 #
 
@@ -108,7 +94,7 @@ rate=11025
 path=sound/spiritfg
 
 #
-# хранители + эльзевир + немезис
+# хранители + немезис
 #
 
 [5B6A700B]
@@ -116,22 +102,7 @@ type=adpcm
 rate=11025
 path=sound/boss
 
-[5B6A720B]
-type=adpcm
-rate=11025
-path=sound/boss
-
-[5B6A790A]
-type=adpcm
-rate=11025
-path=sound/boss
-
 [5B6B700B]
-type=adpcm
-rate=11025
-path=sound/boss
-
-[5B6B720B]
 type=adpcm
 rate=11025
 path=sound/boss
@@ -151,22 +122,7 @@ type=adpcm
 rate=11025
 path=sound/boss
 
-[5B6C790A]
-type=adpcm
-rate=11025
-path=sound/boss
-
 [5B6C7609]
-type=adpcm
-rate=11025
-path=sound/boss
-
-[5B6D700B]
-type=adpcm
-rate=11025
-path=sound/boss
-
-[5B6D720B]
 type=adpcm
 rate=11025
 path=sound/boss
@@ -176,17 +132,7 @@ type=adpcm
 rate=11025
 path=sound/boss
 
-[5B6D790A]
-type=adpcm
-rate=11025
-path=sound/boss
-
 [5B6D7109]
-type=adpcm
-rate=11025
-path=sound/boss
-
-[5B6E790A]
 type=adpcm
 rate=11025
 path=sound/boss
@@ -202,11 +148,6 @@ rate=11025
 path=sound/boss
 
 [5B6F780A]
-type=adpcm
-rate=11025
-path=sound/boss
-
-[5B6F790A]
 type=adpcm
 rate=11025
 path=sound/boss
@@ -241,22 +182,7 @@ type=adpcm
 rate=11025
 path=sound/boss
 
-[5B68720B]
-type=adpcm
-rate=11025
-path=sound/boss
-
-[5B68790A]
-type=adpcm
-rate=11025
-path=sound/boss
-
 [5B69700B]
-type=adpcm
-rate=11025
-path=sound/boss
-
-[5B69720B]
 type=adpcm
 rate=11025
 path=sound/boss
@@ -275,6 +201,115 @@ path=sound/boss
 type=adpcm
 rate=11025
 path=sound/boss
+
+[5B6D700B]
+type=adpcm
+rate=11025
+path=sound/boss
+
+#
+# Малек
+#
+[5B6C790A]
+type=adpcm
+rate=11025
+path=sound/malek
+
+[5B6D790A]
+type=adpcm
+rate=11025
+path=sound/malek
+
+[5B6E790A]
+type=adpcm
+rate=11025
+path=sound/malek
+
+[5B6F790A]
+type=adpcm
+rate=11025
+path=sound/malek
+
+[5B68790A]
+type=adpcm
+rate=11025
+path=sound/malek
+
+[5B6A790A]
+type=adpcm
+rate=11025
+path=sound/malek
+
+[5B69790A]
+type=adpcm
+rate=11025
+path=sound/malek
+
+#
+# Мобиус
+#
+
+[5B6E780A]
+type=adpcm
+rate=11025
+path=sound/moebius
+
+[5B6C780A]
+type=adpcm
+rate=11025
+path=sound/moebius
+
+[5B68780A]
+type=adpcm
+rate=11025
+path=sound/moebius
+
+[5B6A780A]
+type=adpcm
+rate=11025
+path=sound/moebius
+
+#
+# Дежуль 
+#
+
+[5B6F7708]
+type=adpcm
+rate=11025
+path=sound/dejoule
+
+#
+# Мортаниус
+#
+
+[5B6C7109]
+type=adpcm
+rate=11025
+path=sound/mortanius
+
+#
+# Эльзевир
+# 
+
+[5B6B720B]
+type=adpcm
+rate=11025
+path=sound/elzevir
+
+[5B68720B]
+type=adpcm
+rate=11025
+path=sound/elzevir
+
+[5B69720B]
+type=adpcm
+rate=11025
+path=sound/elzevir
+
+[5B6A720B]
+type=adpcm
+rate=11025
+path=sound/elzevir
 
 #
 # оттмар
@@ -295,14 +330,37 @@ type=adpcm
 rate=11025
 path=sound/ottmar
 
+[5B6C7009]
+type=adpcm
+rate=11025
+path=sound/ottmar
+
+#
+# Ирмок
+#
+
+[5B657509]
+type=adpcm
+rate=11025
+path=sound/irmok
+
+#
+# уильям
+#
+
+[5B6B7709]
+type=adpcm
+rate=11025
+path=sound/william
+
+[5B657709]
+type=adpcm
+rate=11025
+path=sound/william
+
 #
 # люди
 #
-
-[5B6A780A]
-type=adpcm
-rate=11025
-path=sound/people
 
 [5B6A7108]
 type=adpcm
@@ -384,27 +442,12 @@ type=adpcm
 rate=11025
 path=sound/people
 
-[5B6B7709]
-type=adpcm
-rate=11025
-path=sound/people
-
 [5B6B7909]
 type=adpcm
 rate=11025
 path=sound/people
 
-[5B6C780A]
-type=adpcm
-rate=11025
-path=sound/people
-
 [5B6C7008]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B6C7009]
 type=adpcm
 rate=11025
 path=sound/people
@@ -434,11 +477,6 @@ type=adpcm
 rate=11025
 path=sound/people
 
-[5B6C7709]
-type=adpcm
-rate=11025
-path=sound/people
-
 [5B6D7209]
 type=adpcm
 rate=11025
@@ -464,11 +502,6 @@ type=adpcm
 rate=11025
 path=sound/people
 
-[5B6D7709]
-type=adpcm
-rate=11025
-path=sound/people
-
 [5B6D7809]
 type=adpcm
 rate=11025
@@ -485,11 +518,6 @@ rate=11025
 path=sound/people
 
 [5B6E720B]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B6E760B]
 type=adpcm
 rate=11025
 path=sound/people
@@ -520,16 +548,6 @@ rate=11025
 path=sound/people
 
 [5B6E7609]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B6E7708]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B6E7709]
 type=adpcm
 rate=11025
 path=sound/people
@@ -569,16 +587,6 @@ type=adpcm
 rate=11025
 path=sound/people
 
-[5B6F7708]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B6F7709]
-type=adpcm
-rate=11025
-path=sound/people
-
 [5B6F7809]
 type=adpcm
 rate=11025
@@ -590,36 +598,6 @@ rate=11025
 path=sound/people
 
 [5B64790A]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B68740B]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B68750A]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B68750B]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B68750F]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B68760A]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B68780A]
 type=adpcm
 rate=11025
 path=sound/people
@@ -689,11 +667,6 @@ type=adpcm
 rate=11025
 path=sound/people
 
-[5B657709]
-type=adpcm
-rate=11025
-path=sound/people
-
 [5B657809]
 type=adpcm
 rate=11025
@@ -725,11 +698,6 @@ rate=11025
 path=sound/people
 
 [5B687609]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B687709]
 type=adpcm
 rate=11025
 path=sound/people
@@ -774,16 +742,6 @@ type=adpcm
 rate=11025
 path=sound/people
 
-[5B697709]
-type=adpcm
-rate=11025
-path=sound/people
-
-[5B697508]
-type=adpcm
-rate=11025
-path=sound/people
-
 [5B697809]
 type=adpcm
 rate=11025
@@ -804,70 +762,124 @@ type=adpcm
 rate=11025
 path=sound/people
 
-#
-# разное
-#
-
-[5B6C7109]
-type=adpcm
-rate=11025
-path=sound/misctalk
-
-[5B6E780A]
-type=adpcm
-rate=11025
-path=sound/misctalk
-
-[5B6F710A]
-type=adpcm
-rate=11025
-path=sound/misctalk
-
-[5B6A7409]
-type=adpcm
-rate=11025
-path=sound/misctalk
-
 [5B6B7809]
 type=adpcm
 rate=11025
-path=sound/misctalk
+path=sound/people
 
-[5B65710B]
+[5B6D720B]
 type=adpcm
 rate=11025
-path=sound/misctalk
-
-[5B69790A]
-type=adpcm
-rate=11025
-path=sound/misctalk
-
-[5B657409]
-type=adpcm
-rate=11025
-path=sound/misctalk
+path=sound/people
 
 [5B687209]
 type=adpcm
 rate=11025
-path=sound/misctalk
+path=sound/people
+
+[5B6D7009]
+type=adpcm
+rate=11025
+path=sound/people
+
+[5B6C7909]
+type=adpcm
+rate=11025
+path=sound/people
+
+[5B6E7909]
+type=adpcm
+rate=11025
+path=sound/people
+
+[5B6C7809]
+type=adpcm
+rate=11025
+path=sound/people
+
+[5B6D7108]
+type=adpcm
+rate=11025
+path=sound/people
+
+[5B6D7008]
+type=adpcm
+rate=11025
+path=sound/people
+
+#
+# разное
+#
+
+[2D00066D]
+type=adpcm
+rate=22050
+path=sound/misc
+
+#
+# наложницы ворадора
+#
+
+[5B6A7409]
+type=adpcm
+rate=11025
+path=sound/bride
+
+[5B657409]
+type=adpcm
+rate=11025
+path=sound/bride
 
 [5B687409]
 type=adpcm
 rate=11025
-path=sound/misctalk
+path=sound/bride
 
 [5B697409]
 type=adpcm
 rate=11025
-path=sound/misctalk
+path=sound/bride
+
+[5B6C7709]
+type=adpcm
+rate=11025
+path=sound/bride
+
+[5B647409]
+type=adpcm
+rate=11025
+path=sound/bride
 
 #
 # ворадор
 #
 
 [5B6A7709]
+type=adpcm
+rate=11025
+path=sound/vorador
+
+[5B6D7709]
+type=adpcm
+rate=11025
+path=sound/vorador
+
+[5B6E7709]
+type=adpcm
+rate=11025
+path=sound/vorador
+
+[5B6F7709]
+type=adpcm
+rate=11025
+path=sound/vorador
+
+[5B687709]
+type=adpcm
+rate=11025
+path=sound/vorador
+
+[5B697709]
 type=adpcm
 rate=11025
 path=sound/vorador
@@ -897,21 +909,6 @@ rate=11025
 path=sound/kain
 
 [5B68740A]
-type=adpcm
-rate=11025
-path=sound/kain
-
-[5B657509]
-type=adpcm
-rate=11025
-path=sound/kain
-
-[5026730C]
-type=adpcm
-rate=11025
-path=sound/kain
-
-[5026740E]
 type=adpcm
 rate=11025
 path=sound/kain
@@ -1196,16 +1193,6 @@ type=adpcm
 rate=11025
 path=sound/kain
 
-[5B6C7809]
-type=adpcm
-rate=11025
-path=sound/kain
-
-[5B6C7909]
-type=adpcm
-rate=11025
-path=sound/kain
-
 [5B6D700A]
 type=adpcm
 rate=11025
@@ -1272,21 +1259,6 @@ rate=11025
 path=sound/kain
 
 [5B6D790B]
-type=adpcm
-rate=11025
-path=sound/kain
-
-[5B6D7008]
-type=adpcm
-rate=11025
-path=sound/kain
-
-[5B6D7009]
-type=adpcm
-rate=11025
-path=sound/kain
-
-[5B6D7108]
 type=adpcm
 rate=11025
 path=sound/kain
@@ -1402,11 +1374,6 @@ rate=11025
 path=sound/kain
 
 [5B6E7508]
-type=adpcm
-rate=11025
-path=sound/kain
-
-[5B6E7909]
 type=adpcm
 rate=11025
 path=sound/kain
@@ -1846,6 +1813,51 @@ rate=11025
 path=sound/kain
 
 [5B697408]
+type=adpcm
+rate=11025
+path=sound/kain
+
+[5B6F710A]
+type=adpcm
+rate=11025
+path=sound/kain
+
+[5B68750B]
+type=adpcm
+rate=11025
+path=sound/kain
+
+[5B68740B]
+type=adpcm
+rate=11025
+path=sound/kain
+
+[5B6E760B]
+type=adpcm
+rate=11025
+path=sound/kain
+
+[5B68750A]
+type=adpcm
+rate=11025
+path=sound/kain
+
+[5B68760A]
+type=adpcm
+rate=11025
+path=sound/kain
+
+[5B697508]
+type=adpcm
+rate=11025
+path=sound/kain
+
+[5B6E7708]
+type=adpcm
+rate=11025
+path=sound/kain
+
+[5B68750F]
 type=adpcm
 rate=11025
 path=sound/kain
@@ -2314,6 +2326,17 @@ type=adpcm
 rate=11025
 path=sound/inventory
 
+[5026730C]
+type=adpcm
+rate=11025
+path=sound/inventory
+
+[5026740E]
+type=adpcm
+rate=11025
+path=sound/inventory
+
+
 #
 # ариэль
 #
@@ -2349,6 +2372,11 @@ rate=11025
 path=sound/ariel
 
 [5B64710B]
+type=adpcm
+rate=11025
+path=sound/ariel
+
+[5B65710B]
 type=adpcm
 rate=11025
 path=sound/ariel
@@ -2440,5 +2468,21 @@ raw.doubleres=true
 type=raw
 raw.type=2
 raw.doubleres=false
+
+#
+# звуки WAV
+#
+
+[474E3C71]
+rate=22050
+
+[24716379]
+rate=5512
+
+[7D060411]
+rate=5512
+
+
+
 
 
