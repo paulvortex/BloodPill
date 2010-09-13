@@ -446,15 +446,15 @@ void Script_Parse(char *filename, char *basepath)
 					sprintf(outfile, "%s%s.spr32", path, com_token);
 					// build arguments string (global, then local)
 					sargc = 0;
-					data = spr_parms;
-					while (data = COM_Parse(data))
+					while (t = COM_Parse(t))
 					{
 						if (sargc >= 32)
 							Error("spr: too many arguments!\n", n);
 						strncpy(sargv[sargc], com_token, 128);
 						sargc++;
 					}
-					while (t = COM_Parse(t))
+					data = spr_parms;
+					while (data = COM_Parse(data))
 					{
 						if (sargc >= 32)
 							Error("spr: too many arguments!\n", n);
