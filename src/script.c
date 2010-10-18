@@ -82,6 +82,15 @@ bigfileentry_t *entry = NULL;
 bigfileheader_t *bigfile = NULL;
 FILE *bigfilehandle;
 
+void SpriteLitFileName(char *in)
+{
+	char name[MAX_BLOODPATH], path[MAX_BLOODPATH];
+
+	ExtractFilePath(in, path);
+	ExtractFileName(in, name);
+	sprintf(in, "%s!%s", path, name);
+}
+
 void Script_Parse(char *filename, char *basepath)
 {
 	double cscale, aver, diff;
@@ -92,7 +101,7 @@ void Script_Parse(char *filename, char *basepath)
 	bigfileentry_t *oldentry;
 	rawinfo_t *newrawinfo;
 	rawblock_t *rawblock;
-	qboolean bloodomnicide = false, allowdebug = true;
+	qboolean bloodomnicide = false, litsprites = false, allowdebug = true;
 	list_t *mergelist;
 	FILE *f;
 
@@ -148,6 +157,8 @@ void Script_Parse(char *filename, char *basepath)
 					bloodomnicide = true;
 					stt_total = atoi(com_token);
 				}
+				else if (!strcmp(com_token, "litsprites"))
+					litsprites = true;
 				goto next;
 			}
 			if (!strcmp(com_token, "export")) 
@@ -244,12 +255,32 @@ void Script_Parse(char *filename, char *basepath)
 				if (!(t = COM_Parse(t)))
 					Error("copy: error parsing parm 2 on line %i\n", n);
 				sprintf(outfile, "%s%s", path, com_token);
+				if (!strcmp(com_token, "sprcopy") && litsprites)
+					SpriteLitFileName(outfile);
 				len = LoadFile(infile, &data);
 				SaveFile(outfile, data, len);
 				qfree(data);
 				stt += 1;
 				goto next;
 			}
+			// sprcopy infile outfile
+			if (!strcmp(com_token, "sprcopy")) 
+			{
+				if (!(t = COM_Parse(t)))
+					Error("copy: error parsing parm 1 on line %i\n", n);
+				strcpy(infile, com_token);
+				if (!(t = COM_Parse(t)))
+					Error("copy: error parsing parm 2 on line %i\n", n);
+				sprintf(outfile, "%s%s", path, com_token);
+				if (litsprites)
+					SpriteLitFileName(outfile);
+				len = LoadFile(infile, &data);
+				SaveFile(outfile, data, len);
+				qfree(data);
+				stt += 1;
+				goto next;
+			}
+
 			// ---- Debug part ----
 			if (allowdebug)
 			{
@@ -444,6 +475,8 @@ void Script_Parse(char *filename, char *basepath)
 					if (!(t = COM_Parse(t)))
 						Error("spr: error parsing parm 2 on line %i\n", n);
 					sprintf(outfile, "%s%s.spr32", path, com_token);
+					if (litsprites)
+						SpriteLitFileName(outfile);
 					// build arguments string (global, then local)
 					sargc = 0;
 					while (t = COM_Parse(t))
