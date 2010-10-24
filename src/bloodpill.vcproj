@@ -149,6 +149,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\dll.c"
+				>
+			</File>
+			<File
 				RelativePath=".\jamfile.c"
 				>
 			</File>
@@ -212,6 +216,10 @@
 				RelativePath=".\vagfile.c"
 				>
 			</File>
+			<File
+				RelativePath=".\zlib.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -231,6 +239,10 @@
 			</File>
 			<File
 				RelativePath="cmdlib.h"
+				>
+			</File>
+			<File
+				RelativePath=".\dll.h"
 				>
 			</File>
 			<File
@@ -255,6 +267,10 @@
 			</File>
 			<File
 				RelativePath=".\vagfile.h"
+				>
+			</File>
+			<File
+				RelativePath=".\zlib.h"
 				>
 			</File>
 		</Filter>

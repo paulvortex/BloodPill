@@ -104,6 +104,7 @@ void Warning(char *str, ...)
 	printf("\n");
 }
 
+
 /*
 ==========================================================================================
 
@@ -323,6 +324,7 @@ int main(int argc, char **argv)
 
 	// init SoX library
 	SoX_Init(customsoxpath);
+	PK3_OpenLibrary(false);
 
 	// print caption
 	if (printcap)
@@ -336,6 +338,10 @@ int main(int argc, char **argv)
 			Print("SoX found\n");
 		else
 			Print("SoX not found\n");
+		if (PK3_Enabled())
+			Print("Zlib found\n");
+		else
+			Print("Zlib not found\n");
 		Print( "\n" );
 	}
 
@@ -376,6 +382,7 @@ int main(int argc, char **argv)
 
 	// free allocated memory
 	Q_ShutdownMem(memstats);
+	PK3_CloseLibrary();
 
 #if _MSC_VER
 	if (waitforkey)
