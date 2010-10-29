@@ -24,6 +24,7 @@
 #include "cmdlib.h"
 #include "mem.h"
 #include "soxsupp.h"
+#include "zlib.h"
 
 char progname[128];
 

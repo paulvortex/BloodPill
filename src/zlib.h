@@ -72,59 +72,56 @@ typedef struct
 	unsigned long	reserved;	///< reserved for future use
 } z_stream;
 
-/// inside a package (PAK or PK3)
-#define QFILE_FLAG_PACKED (1 << 0)
-/// file is compressed using the deflate algorithm (PK3 only)
-#define QFILE_FLAG_DEFLATED (1 << 1)
-/// file is actually already loaded data
-#define QFILE_FLAG_DATA (1 << 2)
-/// real file will be removed on close
-#define QFILE_FLAG_REMOVE (1 << 3)
-
-#define FILE_BUFF_SIZE 2048
-typedef struct
-{
-	z_stream	zstream;
-	size_t		comp_length;			///< length of the compressed file
-	size_t		in_ind, in_len;			///< input buffer current index and length
-	size_t		in_position;			///< position in the compressed file
-	unsigned char		input [FILE_BUFF_SIZE];
-} ztoolkit_t;
-
-struct qfile_s
-{
-	int				flags;
-	int				handle;					///< file descriptor
-	size_t			real_length;			///< uncompressed file size (for files opened in "read" mode)
-	size_t			position;				///< current position in the file
-	size_t			offset;					///< offset into the package (0 if external file)
-	int				ungetc;					///< single stored character from ungetc, cleared to EOF when read
-
-	// Contents buffer
-	size_t			buff_ind, buff_len;		///< buffer current index and length
-	unsigned char	buff [FILE_BUFF_SIZE];
-
-	ztoolkit_t*		ztk; ///< For zipped files.
-
-	const unsigned char *data;	///< For data files.
-
-	const char *filename; ///< Kept around for QFILE_FLAG_REMOVE, unused otherwise
-};
-
 // dll functions to import
-static int (*qz_inflate) (z_stream* strm, int flush);
-static int (*qz_inflateEnd) (z_stream* strm);
-static int (*qz_inflateInit2_) (z_stream* strm, int windowBits, const char *version, int stream_size);
-static int (*qz_inflateReset) (z_stream* strm);
-static int (*qz_deflateInit2_) (z_stream* strm, int level, int method, int windowBits, int memLevel, int strategy, const char *version, int stream_size);
-static int (*qz_deflateEnd) (z_stream* strm);
-static int (*qz_deflate) (z_stream* strm, int flush);
+static int ( *zlib_inflate) (z_stream* strm, int flush);
+static int ( *zlib_inflateEnd) (z_stream* strm);
+static int ( *zlib_inflateInit2_) (z_stream* strm, int windowBits, const char *version, int stream_size);
+static int ( *zlib_inflateReset) (z_stream* strm);
+static int ( *zlib_deflateInit2_) (z_stream* strm, int level, int method, int windowBits, int memLevel, int strategy, const char *version, int stream_size);
+static int ( *zlib_deflateEnd) (z_stream* strm);
+static int ( *zlib_deflate) (z_stream* strm, int flush);
 
-#define qz_inflateInit2(strm, windowBits) \
-        qz_inflateInit2_((strm), (windowBits), ZLIB_VERSION, sizeof(z_stream))
-#define qz_deflateInit2(strm, level, method, windowBits, memLevel, strategy) \
-        qz_deflateInit2_((strm), (level), (method), (windowBits), (memLevel), (strategy), ZLIB_VERSION, sizeof(z_stream))
+#define zlib_inflateInit2(strm, windowBits) zlib_inflateInit2_((strm), (windowBits), ZLIB_VERSION, sizeof(z_stream))
+#define zlib_deflateInit2(strm, level, method, windowBits, memLevel, strategy) zlib_deflateInit2_((strm), (level), (method), (windowBits), (memLevel), (strategy), ZLIB_VERSION, sizeof(z_stream))
 
+#endif
+
+// exporting pk3file structure
+#define MAX_PK3_FILES 65536
+typedef struct pk3_entry_s
+{
+	z_stream stream;
+	unsigned short	xver; // version needed to extract
+	unsigned short	bitflag; // general purpose bit flag
+	unsigned short	compression; // compression method
+	unsigned short	mtime; // last mod file time
+	unsigned short	mdate; // last mod file date 
+	unsigned int	crc32; // crc-32
+	unsigned int	csize; // compressed size
+	unsigned int	usize; // uncompressed size 
+	unsigned int	offset; // relative offset of local header 4 bytes
+	unsigned short	filenamelen;
+	char			filename[1024];
+}pk3_entry_t;
+
+typedef struct pk3_file_s
+{
+	FILE		*file;
+	pk3_entry_t	*files[MAX_PK3_FILES];
+	unsigned short numfiles;
+	
+}pk3_file_t;
+
+// pk3 writing
+pk3_file_t *PK3_Create(char *filepath);
+pk3_entry_t *PK3_CreateFile(pk3_file_t *pk3, char *filename);
+void PK3_CompressFileData(pk3_file_t *pk3, pk3_entry_t *entry, unsigned char *filedata, unsigned int datasize);
+void PK3_AddFile(pk3_file_t *pk3, char *filename, unsigned char *filedata, unsigned int datasize);
+void PK3_AddExternalFile(pk3_file_t *pk3, char *filename, char *externalfile);
+void PK3_Close(pk3_file_t *pk3);
+
+#ifdef __CMDLIB_WRAPFILES__
+void PK3_AddWrappedFiles(pk3_file_t *pk3);
 #endif
 
 // functions to use

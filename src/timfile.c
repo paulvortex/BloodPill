@@ -702,7 +702,7 @@ void TIM_WriteTargaGrayscale(char *data, short width, short height, char *savefi
 	// write file
 	f = SafeOpenWrite(savefile);
 	fwrite(buffer, width*height + 18, 1, f);
-	fclose(f);
+	WriteClose(f);
 	qfree(buffer);
 }
 
@@ -835,7 +835,7 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
 		default:
 			break;
 	}
-	fclose(f);
+	WriteClose(f);
 }
 
 /*
@@ -1027,7 +1027,7 @@ int Targa2Tim_Main(int argc, char **argv)
 	Print("writing %s\n", outfile);
 	f = SafeOpenWrite(outfile);
 	TIM_WriteToStream(tim, f);
-	fclose(f);
+	WriteClose(f);
 	Print("done.\n");
 
 	return 0;

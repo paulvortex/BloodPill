@@ -104,7 +104,7 @@ FILE *SPR_BeginFile(char *outfile, sprversion_t version, sprtype_t type, int max
 	// check if need to rewrite file
 	if (mergeintoexistingfile)
 	{
-		f = fopen(outfile, "r+b");
+		f = OpenReadWrite(outfile);
 		// file exists
 		if (f)
 		{
@@ -125,7 +125,7 @@ FILE *SPR_BeginFile(char *outfile, sprversion_t version, sprtype_t type, int max
 					goto writeheader;
 				}
 			}
-			fclose(f);
+			WriteClose(f);
 		}
 	}
 	// write empty file
@@ -383,92 +383,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			Error("SPR_WriteFromRawblock: cannot write quake sprites yet\n");
 		}
 	}
-	fclose(f);
-}
-
-// FIXME: cleanup or remove as SPR_BeginFile provides nearly same functionality
-void SPR_Merge(list_t *mergelist, char *outfile, qboolean delmerged)
-{
-	int version, type, maxwidth, maxheight, numframes;
-	int i, bufsize;
-	byte *buf;
-	FILE *f, *f2;
-
-	// step1 - calc new sprite headers
-	Verbose("Calc headers...\n");
-	maxwidth = 0;
-	maxheight = 0;
-	numframes = 0;
-	buf = qmalloc(sizeof(spr_t));
-	for (i = 0; i < mergelist->items; i++)
-	{
-		// read header
-		f = SafeOpen(mergelist->item[i], "rb");
-		if (fread(buf, sizeof(spr_t), 1, f) < 1)
-			Error("Broken file\n");
-		fclose(f);
-		// check type
-		if (buf[0] != 'I' && buf[1] != 'D' && buf[2] != 'S' && buf[3] != 'P')
-			Error("%s: not IDSP file\n", mergelist->item[i]);
-		// check version
-		version = LittleInt(buf + 4);
-		if (version != SPR_DARKPLACES)
-			Error("%s: not SPR32 sprite\n", mergelist->item[i]);
-		// check type
-		if (i == 0)
-			type = LittleInt(buf + 8);
-		else if (type != LittleInt(buf + 8))
-			Error("%s: bad type %i, should be %i\n", LittleInt(buf + 8), type);
-		// print info
-		Verbose(" %s : %i frames, maxwidth %i, maxheight %i\n", mergelist->item[i], LittleInt(buf + 24), LittleInt(buf + 16), LittleInt(buf + 20));
-		// calc bounds
-		maxwidth = max(maxwidth, LittleInt(buf + 16));
-		maxheight = max(maxheight, LittleInt(buf + 20));
-		numframes = numframes + LittleInt(buf + 24);
-	}
-	qfree(buf);
-
-	// print some stats
-	Verbose("Total:\n", numframes);
-	Verbose(" framecount = %i\n", numframes);
-	Verbose(" max width = %i\n", maxwidth);
-	Verbose(" max height = %i\n", maxheight);
-
-	// save first file contents since it could be overwritten
-	Verbose("Write new header...\n");
-	f = SafeOpen(mergelist->item[0], "rb");
-	bufsize = Q_filelength(f) - sizeof(spr_t);
-	buf = qmalloc(bufsize);
-	fseek(f, sizeof(spr_t), SEEK_SET);
-	fread(buf, bufsize, 1, f);
-	fclose(f);
-
-	// step 2 - write header and file beginning
-	f = SPR_BeginFile(outfile, version, type, maxwidth, maxheight, numframes, false);
-	fwrite(buf, bufsize, 1, f);
-	qfree(buf);
-
-	// step 3 - merge tail files
-	Verbose("Merging...\n");
-	for (i = 1; i < mergelist->items; i++)
-	{
-		f2 = SafeOpen(mergelist->item[i], "rb");
-		fseek(f2, sizeof(spr_t), SEEK_SET);
-		bufsize = Q_filelength(f2) - sizeof(spr_t);
-		buf = qmalloc(bufsize);
-		fread(buf, bufsize, 1, f2);
-		fclose(f2);
-		fwrite(buf, bufsize, 1, f);
-		qfree(buf);
-		// delete merged file
-		if (delmerged)
-			remove(mergelist->item[i]);
-	}
-	fclose(f);
-}
-
-void SPR32_CompileSprite(char *file)
-{
+	WriteClose(f);
 }
 
 // todo: add proper framegroups
@@ -546,12 +461,12 @@ void SPR32_DecompileSprite(char *file)
 		}
 		fwrite(buffer, framehead[3]*framehead[4]*4 + 18, 1, f2);
 		qfree(buffer);
-		fclose(f2);
+		WriteClose(f2);
 		// advance
 		buf+=framehead[3]*framehead[4]*4;
 		bufsize-=framehead[3]*framehead[4]*4;
 	}
-	fclose(f);
+	WriteClose(f);
 	qfree(b);
 }
 
@@ -599,9 +514,7 @@ int Spr32_Main(int argc, char **argv)
 	}
 
 	// do action
-	if (!strcmp(argv[2], "-merge"))
-		SPR_Merge(mergelist, infile, delmerged);
-	else if (!strcmp(argv[2], "-decompile"))
+	if (!strcmp(argv[2], "-decompile"))
 		SPR32_DecompileSprite(argv[1]);
 	Verbose("Done.\n");
 	return 0;

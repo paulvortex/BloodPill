@@ -576,7 +576,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 					fprintf(csvf, "	{%10i, \"%s\"}\n", data->entries[i].hash, temp);
 			}
 			fprintf(csvf, "};\n");
-			fclose(csvf);
+			WriteClose(csvf);
 			Verbose("BO1.h written.\n", namesloaded);
 		}
 		else
@@ -922,8 +922,8 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 	char savefile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
 	char inputcmd[512], outputcmd[512];
 	rawblock_t *rawblock;
-	char *data;
-	int c, size;
+	byte *data, *outdata;
+	int c, size, outsize;
 
 	// nopaths, clear path
 	if (nopaths)
@@ -989,8 +989,12 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 			sprintf(outputcmd, "-t wav -e signed-integer");
 		else 
 			sprintf(outputcmd, "-t wav");
-		if (SoX_DataToFile(data, size, "--no-dither", inputcmd, outputcmd, savefile, ""))
-			sprintf(entry->name, (c == 3) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.tx
+		if (SoX_DataToData(data, size, "--no-dither", inputcmd, outputcmd, &outdata, &outsize, ""))
+		{
+			sprintf(entry->name, (c == 3) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.txt
+			SaveFile(savefile, outdata, outsize);
+			qfree(outdata);
+		}
 		else
 		{
 			//Warning("unable to convert %s, SoX Error #%i, unpacking original", entry->name, GetLastError());
@@ -1408,7 +1412,7 @@ int BigFile_List(int argc, char **argv)
 		f2 = SafeOpenWrite(listfile);
 		BigfileWriteListfile(f2, data);
 		Print("wrote %s\n", listfile);
-		fclose(f2);
+		WriteClose(f2);
 	}
 
 	// export CSV file
@@ -1440,7 +1444,7 @@ int BigFile_List(int argc, char **argv)
 			ConvSlashU2W(name);
 			fprintf(f2, "%i;%s;%s;%s;\n", entry->hash, name, typestr, extrainfo);
 		}
-		fclose(f2);
+		WriteClose(f2);
 	}
 
 /*
@@ -1833,6 +1837,8 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *entry, char *infileformat, int defaultinputrate, char *format)
 {
 	char informat[1024], outformat[1024], effects[1024], temp[1024];
+	byte *outdata;
+	unsigned int outsize;
 	int i, ir;
 
 	if (!soxfound)
@@ -1970,9 +1976,10 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 	}
 
 	// run SoX
-	Print("writing %s...\n", outfile);
-	if (!SoX_DataToFile(entry->data, entry->size, "--no-dither", informat, outformat, outfile, effects))
+	if (!SoX_DataToData(entry->data, entry->size, "--no-dither", informat, outformat, &outdata, &outsize, effects))
 		Error("SoX error\n");
+	SaveFile(outfile, outdata, outsize);
+	qfree(outdata);
 	Print("done.\n");
 }
 
@@ -2327,7 +2334,7 @@ int BigFile_Unpack(int argc, char **argv)
 	sprintf(savefile, "%s/listfile.txt", dstdir);
 	f2 = SafeOpenWrite(savefile);
 	BigfileWriteListfile(f2, data);
-	fclose(f2);
+	WriteClose(f2);
 	Print("wrote %s\ndone.\n", savefile);
 
 	fclose (f);
@@ -2444,7 +2451,7 @@ int BigFile_Pack(int argc, char **argv)
 	}
 	PacifierEnd();
 
-	fclose (f);
+	WriteClose(f);
 	Print("done.\n");
 	return 0;
 }

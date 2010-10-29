@@ -960,7 +960,7 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 		skiplines3(by)
 		fwrite(buffer, pixelbytes*4 + 18, 1, f);
 	}
-	fclose(f);
+	WriteClose(f);
 	qfree(buffer);
 
 	#undef skiplines1
@@ -1357,7 +1357,7 @@ rawblock_t *RawExtract_Type0(unsigned char *buffer, int filelen, rawinfo_t *rawi
 				pixel == rawinfo->compressionpixels[1] ||
 				pixel == rawinfo->compressionpixels[2] ||
 				pixel == rawinfo->compressionpixels[3])
-			{	
+			{
 				nullpixelsi = pixel;
 				readpixel();
 				nullpixels = pixel;

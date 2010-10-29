@@ -1,7 +1,7 @@
  
  Blood Omen: Legacy Of Kain 
  pill.big filetypes
- draft version 0.4
+ draft version 0.5
  info by Pavel P. [VorteX] Timofeyev ( paul.vortex@gmail.com )
 ----------------------------------------
 
@@ -42,7 +42,7 @@ It is unfinished, so will be extended in future
 	
  3. Variation of LZ77
 --
-  Variant of the LZ77 algorithm that is specific to Blood Omen.
+  Variant of the LZ77 algorithm that is used for .
   See Blood Pill sources for more details.
 
 =======================================
@@ -73,7 +73,7 @@ It is unfinished, so will be extended in future
 --
  Platform: PC 
  Desc: 4bit IMA ADPCM raw streams, most files should be played at 11025, but some ones (music) is 22050
- Note: could not be detected automatically, only by filename search or known-hashes-list
+ Note: could not be detected automatically as it's a raw ADPCM stream with no header at all, detection is done by filename using known-hashes-list
  Spec: no
 
 
@@ -81,7 +81,7 @@ It is unfinished, so will be extended in future
 --
  Platform: PC
  Desc: standart Windows PCM Wave file with header, could be extracted without recoding
- Note: some files have corrupted header with bad rate info
+ Note: header of many files seems incorrect, most player with non-standart sample rate (not 11025 or 22050), like 4000 or 13000.
  Spec: 
    see Windows Wave format
     

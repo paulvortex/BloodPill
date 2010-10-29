@@ -22,6 +22,7 @@
 
 #include "bloodpill.h"
 #include "bigfile.h"
+#include "zlib.h"
 #include "mem.h"
 
 // colormaps for Blood Omnicide
@@ -96,15 +97,16 @@ void Script_Parse(char *filename, char *basepath)
 	double cscale, aver, diff;
 	byte *scriptstring, *s, *t, *data;
 	size_t scriptsize, n, len;
+	qboolean bloodomnicide = false, litsprites = false, allowdebug = true, writingpk3 = false;
 	int i, currentmodel = -1, minp, maxp, sargc, stt = 0, stt_total = 0, c[3];
 	char tempchar, **sargv, outfile[MAX_BLOODPATH], infile[MAX_BLOODPATH], cs[32];
 	bigfileentry_t *oldentry;
 	rawinfo_t *newrawinfo;
 	rawblock_t *rawblock;
-	qboolean bloodomnicide = false, litsprites = false, allowdebug = true;
-	list_t *mergelist;
 	FILE *f;
-
+	pk3_file_t *pk3;
+	strcpy(path, basepath);
+	
 	// read file
 	Verbose("%s:\n", filename);
 	sargv = qmalloc(sizeof(char *)*32);
@@ -134,7 +136,9 @@ void Script_Parse(char *filename, char *basepath)
 			{
 				if (!(t = COM_Parse(t)))
 					Error("path: error parsing parm 1 on line %i\n", n);
-				if (com_token[0])
+				if (writingpk3)
+					sprintf(path, "%s/", com_token);
+				else if (com_token[0])
 					sprintf(path, "%s%s/", basepath, com_token);
 				else
 					strcpy(path, basepath);
@@ -169,8 +173,7 @@ void Script_Parse(char *filename, char *basepath)
 				{
 					// Blood Omnicide - write legacy.nsx
 					sprintf(outfile, "%slegacy.nsx", path);
-					CreatePath(outfile);
-					f = SafeOpen(outfile, "wb");
+					f = SafeOpenWrite(outfile);
 					fputs("// Legacy stuff script file\n", f);
 					fputs("\n[macromodels]name=colormap,speechofs\n", f);
 					for (i = 0; i < legacymodels->num; i++)
@@ -186,17 +189,17 @@ void Script_Parse(char *filename, char *basepath)
 					fputs("\n[models]name={type,scale,paletteindex}\n", f);
 					for (i = 0; i < legacymodelsubs->num; i++)
 						fprintf(f, "%s=%s,%.2f,%i\n", legacymodelsubs->subs[i].name, legacymodelsubs->subs[i].orient, legacymodelsubs->subs[i].scale, legacymodels->models[legacymodelsubs->subs[legacymodelsubs->num].basemodel].colormapid);
-					fclose(f);
+					WriteClose(f);
 					// Blood Omnicide - write colormaps.nsx
 					sprintf(outfile, "%scolormaps.nsx", path);
-					f =	SafeOpen(outfile, "wb");
+					f =	SafeOpenWrite(outfile);
 					fputs("// Particle colormaps  file\n", f);
 					fputs("// colormaps 0-31 are system ones \n", f);
 					fputs("\n[colormaps]index={colormap}\n", f);
 					for (i = 0; i < legacycolormaps->num; i++)
 						if (legacycolormaps->maps[i].map[0])
 							fprintf(f, "%i=%s\n", i, legacycolormaps->maps[i].map);
-					fclose(f);
+					WriteClose(f);
 				}
 				else
 					Error("export: unknown parm 1 on line %i\n", n);
@@ -208,6 +211,12 @@ void Script_Parse(char *filename, char *basepath)
 				{
 					i = (int)((stt * 100) / stt_total);
 					printf("\r%8i%s\r", i, "%");
+				}
+				// on each extract we are packing all wrapped files to PK3
+				if (writingpk3)
+				{
+					PK3_AddWrappedFiles(pk3);
+					WrapFileWritesToMemory();
 				}
 				// check if bigfile is opened
 				if (!bigfile)
@@ -240,7 +249,6 @@ void Script_Parse(char *filename, char *basepath)
 					sargc++;
 				}
 				// extract
-				CreatePath(outfile);
 				BigfileScanFiletype(bigfilehandle, entry, true, RAW_TYPE_UNKNOWN, true);
 				BigFile_ExtractEntry(sargc, sargv, bigfilehandle, entry, outfile);
 				stt += i;
@@ -258,7 +266,10 @@ void Script_Parse(char *filename, char *basepath)
 				if (!strcmp(com_token, "sprcopy") && litsprites)
 					SpriteLitFileName(outfile);
 				len = LoadFile(infile, &data);
-				SaveFile(outfile, data, len);
+				if (writingpk3)
+					PK3_AddFile(pk3, outfile, data, len);
+				else
+					SaveFile(outfile, data, len);
 				qfree(data);
 				stt += 1;
 				goto next;
@@ -275,24 +286,59 @@ void Script_Parse(char *filename, char *basepath)
 				if (litsprites)
 					SpriteLitFileName(outfile);
 				len = LoadFile(infile, &data);
-				SaveFile(outfile, data, len);
+				if (writingpk3)
+					PK3_AddFile(pk3, outfile, data, len);
+				else
+					SaveFile(outfile, data, len);
 				qfree(data);
 				stt += 1;
 				goto next;
 			}
-
+			// pk3 file - begin a new pk3 file and set all output to it
+			if (!strcmp(com_token, "pk3")) 
+			{
+				if (!(t = COM_Parse(t)))
+					Error("pk3: error parsing parm 1 on line %i\n", n);
+				// close old pk3 file
+				if (writingpk3)
+				{
+					PK3_AddWrappedFiles(pk3);
+					PK3_Close(pk3);
+				}
+				// fixme: make path consistent immediately?
+				// begin new pk3 file
+				sprintf(outfile, "%s%s", path, com_token);
+				pk3 = PK3_Create(outfile);
+				WrapFileWritesToMemory();
+				writingpk3 = true;
+				goto next;
+			}
+			// pk3end - close current pk3 file
+			if (!strcmp(com_token, "pk3end")) 
+			{
+				if (writingpk3)
+				{
+					PK3_AddWrappedFiles(pk3);
+					PK3_Close(pk3);
+				}
+				writingpk3 = false;
+			}
 			// ---- Debug part ----
 			if (allowdebug)
 			{
-				if (!strcmp(com_token, "time")) 
-				{
-					printf("script execution time: %f\n", I_DoubleTime() - scriptstarted);
-					goto next;
-				}
 				if (!strcmp(com_token, "break")) 
 				{
+					if (writingpk3)
+					{
+						PK3_AddWrappedFiles(pk3);
+						PK3_Close(pk3);
+						writingpk3 = false;
+					}
+					printf("script execution time: %f\n", I_DoubleTime() - scriptstarted);
 					printf("%i statements\n", stt);
 					printf("break statement\n");
+					printf("=== MemStats ===\n");
+					Q_PrintMem();
 					break;
 				}
 			}
@@ -333,6 +379,12 @@ void Script_Parse(char *filename, char *basepath)
 				{
 					if (!(t = COM_Parse(t)))
 						Error("model: error parsing parm 1 on line %i\n", n);
+					// once beginning new model we are packing all wrapped files to PK3
+					if (writingpk3)
+					{
+						PK3_AddWrappedFiles(pk3);
+						WrapFileWritesToMemory();
+					}
 					// find model or allocate new
 					for (i = 0; i < legacymodels->num; i++)
 						if (!strcmp(legacymodels->models[i].name, com_token))
@@ -453,19 +505,6 @@ void Script_Parse(char *filename, char *basepath)
 					oldentry = entry;
 					if (!(t = COM_Parse(t)))
 						Error("spr: error parsing parm 1 on line %i\n", n);
-					// special directives
-					if (!strcmp(com_token, "merge"))
-					{
-						if (!(t = COM_Parse(t)))
-							Error("spr merge: error parsing parm 2 on line %i\n", n);
-						mergelist = NewList();
-						ListAdd(mergelist, com_token, false);
-						while (t = COM_Parse(t))
-							ListAdd(mergelist, com_token, false);
-						SPR_Merge(mergelist, mergelist->item[0], true);
-						stt += 2;
-						goto next;
-					}
 					// find entry
 					if (com_token[0] != '-')
 						entry = BigfileGetEntry(bigfile, BigfileEntryHashFromString(com_token));
@@ -502,7 +541,6 @@ void Script_Parse(char *filename, char *basepath)
 						entry->data = RawExtract(data, entry->size, newrawinfo, false, false, RAW_TYPE_UNKNOWN);
 					}
 					// do extract
-					CreatePath(outfile);
 					BigFile_ExtractRawImage(sargc, sargv, outfile, entry, (rawblock_t *)entry->data, "spr32");
 					// unload old entry
 					if (oldentry && oldentry->data && oldentry != entry)
@@ -562,6 +600,12 @@ void Script_Parse(char *filename, char *basepath)
 		if (*s == '\n')
 			s++;
 		n++;
+	}
+	if (writingpk3)
+	{
+		PK3_AddWrappedFiles(pk3);
+		PK3_Close(pk3);
+		writingpk3 = false;
 	}
 	qfree(scriptstring);
 	qfree(newrawinfo);

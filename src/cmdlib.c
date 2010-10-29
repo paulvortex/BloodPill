@@ -568,20 +568,6 @@ FILE *SafeOpen (char *filename, char mode[])
   return f;
 }
 
-FILE *SafeOpenWrite (char *filename)
-{
-  FILE	*f;
-  char path[MAX_BLOODPATH];
-
-  // automatically make dir structure
-  ExtractFilePath(filename, path);
-  CreatePath(path);
-  // open file
-  f = fopen(filename, "wb");
-  if (!f)
-	Error ("Error opening %s: %s",filename,strerror(errno));
-  return f;
-}
 
 void SafeRead (FILE *f, void *buffer, int count)
 {
@@ -596,13 +582,12 @@ void SafeWrite (FILE *f, void *buffer, int count)
     Error ("File write failure");
 }
 
-
-
 /*
 ==============
 LoadFile
 ==============
 */
+
 int    LoadFile (char *filename, void **bufferptr)
 {
   FILE	*f;
@@ -626,15 +611,15 @@ int    LoadFile (char *filename, void **bufferptr)
 SaveFile
 ==============
 */
+
 void SaveFile (char *filename, void *buffer, int count)
 {
   FILE	*f;
 
   f = SafeOpenWrite(filename);
-  SafeWrite (f, buffer, count);
-  fclose (f);
+  SafeWrite(f, buffer, count);
+  WriteClose(f);
 }
-
 
 void DefaultPath (char *path, char *basepath)
 {
@@ -1047,4 +1032,212 @@ void CRC_ProcessByte(unsigned short *crcvalue, byte data)
 unsigned short CRC_Value(unsigned short crcvalue)
 {
   return crcvalue ^ CRC_XOR_VALUE;
+}
+
+
+//=======================================================
+
+/* Return a 32-bit CRC of the contents of the buffer. */
+unsigned int crc_tab[256];
+qboolean crc_initialized = false;
+
+void crc32_init()
+{
+	unsigned long crc, poly;
+	int i, j;
+
+	poly = 0xEDB88320L;
+	for (i = 0; i < 256; i++)
+	{
+		crc = i;
+		for (j = 8; j > 0; j--)
+		{
+			if (crc & 1)
+			{
+				crc = (crc >> 1) ^ poly;
+			}
+			else
+			{
+				crc >>= 1;
+			}
+		}
+		crc_tab[i] = crc;
+	}
+
+	crc_initialized = true;
+}
+
+unsigned int crc32(unsigned char *block, unsigned int length)
+{
+   register unsigned long crc;
+   unsigned long i;
+
+   if (!crc_initialized)
+	   crc32_init();
+
+   crc = 0xFFFFFFFF;
+   for (i = 0; i < length; i++)
+   {
+      crc = ((crc >> 8) & 0x00FFFFFF) ^ crc_tab[(crc ^ *block++) & 0xFF];
+   }
+   return (crc ^ 0xFFFFFFFF);
+}
+
+/*
+==============
+ File wrapping routines
+ used to write files into temporary place and query their contents afterwards
+==============
+*/
+
+#define FILE_START_SIZE 1048576 // 1 meg
+qboolean wrapfilestomem;
+
+// wrapped file struct
+typedef struct wrapfile_s
+{
+	char realname[MAX_BLOODPATH];
+	unsigned int filesize;
+	struct wrapfile_s *next;
+	FILE *f;
+}wrapfile_t;
+
+// wrapped file linkchain
+wrapfile_t *wrapfiles = NULL;
+
+// free all wrapped file buffers
+void FreeWrappedFiles()
+{
+	wrapfile_t *current, *next;
+
+	current = wrapfiles;
+	while(current != NULL)
+	{
+		next = current->next;
+		fclose(current->f);
+		qfree(current);
+		current = next;
+	}
+	wrapfiles = NULL;
+}
+
+// return count of wrapped files
+int CountWrappedFiles()
+{
+	wrapfile_t *wrapf;
+	int c = 0;
+
+	for (wrapf = wrapfiles; wrapf != NULL; wrapf = wrapf->next)
+		c++;
+	return c;
+}
+
+// retrieve contents of wrapped file
+int LoadWrappedFile(int wrapnum, void **bufferptr, void **realfilename)
+{
+	wrapfile_t *wrapf;
+	void *buffer;
+	int c = 0;
+
+	// find wrapfile
+	for (wrapf = wrapfiles; wrapf != NULL; wrapf = wrapf->next, c++)
+		if (c == wrapnum)
+			break;
+
+	// if not found - generate error
+	if (wrapf == NULL)
+		Error("LoadWrappedFile: can open file on index %i", wrapnum);
+
+	// open file
+	buffer = qmalloc(wrapf->filesize+1);
+	fseek(wrapf->f, 0, SEEK_SET);
+	SafeRead(wrapf->f, buffer, wrapf->filesize);
+	((char *)buffer)[wrapf->filesize] = 0;
+	*bufferptr = buffer;
+	*realfilename = &wrapf->realname;
+	return wrapf->filesize;
+}
+
+// setup fiels wrapping
+void WrapFileWritesToMemory()
+{
+	FreeWrappedFiles();
+	wrapfilestomem = true;
+}
+
+// open file stream for writing
+FILE *SafeOpenWrite (char *filename)
+{
+	FILE		*f;
+	wrapfile_t	*wrapf, *current;
+	char path[MAX_BLOODPATH];
+
+	// check if opening file that was wrapped
+	for (wrapf = wrapfiles; wrapf != NULL; wrapf = wrapf->next)
+		if (!strcmp(filename, wrapf->realname))
+			return wrapf->f;
+
+	// automatically make dir structure
+	ExtractFilePath(filename, path);
+	// open file or stream
+	if (!wrapfilestomem)
+	{
+		CreatePath(path);
+		f = fopen(filename, "wb");
+	}
+	else
+	{
+		// link to chain
+		wrapf = qmalloc(sizeof(wrapfile_t));
+		wrapf->filesize = 0;
+		wrapf->next = NULL;
+		strcpy(wrapf->realname, filename);
+		if (!wrapfiles)
+			wrapfiles = wrapf;
+		else
+		{
+			current = wrapfiles;
+			while(current->next != NULL)
+				current = current->next;
+			current->next = wrapf;
+		}
+		// return a tempfile
+		wrapf->f = tmpfile();
+		f = wrapf->f;
+	}
+	if (!f)
+		Error("Error opening %s: %s",filename,strerror(errno));
+	return f;
+}
+
+// open stream  for readind and writing
+FILE *OpenReadWrite(char *filename)
+{
+	wrapfile_t	*wrapf;
+
+	// check if opening file that was wrapped
+	for (wrapf = wrapfiles; wrapf != NULL; wrapf = wrapf->next)
+		if (!strcmp(filename, wrapf->realname))
+			return wrapf->f;
+
+	// open normal
+	return fopen(filename, "r+b");
+}
+
+// wrapped fclose function, as wrapped files should not be closed on fclose, but once wrapping code received them
+// also read the filesize on wrapped close
+void WriteClose(FILE *f)
+{
+	wrapfile_t	*wrapf;
+
+	// find in wrapped chain and bail if it is in
+	for (wrapf = wrapfiles; wrapf != NULL; wrapf = wrapf->next)
+	{
+		if (wrapf->f == f)
+		{
+			wrapf->filesize = ftell(f);
+			return;
+		}
+	}
+	fclose(f);
 }

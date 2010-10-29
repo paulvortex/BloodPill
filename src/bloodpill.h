@@ -1,6 +1,5 @@
 #include "cmdlib.h"
 #include "dll.h"
-#include "zlib.h"
 
 #ifndef BLOODPILL_VERSION
 #define BLOODPILL_VERSION "v0.8c"

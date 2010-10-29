@@ -9,6 +9,7 @@ copy klist.txt release\klist.txt
 copy sox\sox.exe release\sox.exe
 copy sox\cyggomp-1.dll release\cyggomp-1.dll
 copy sox\cygwin1.dll release\cygwin1.dll
+copy zlib1.dll release\zlib1.dll
 # samples
 copy bo_filetypes.txt release\bo_filetypes.txt
 copy samples.txt release\samples\samples.txt

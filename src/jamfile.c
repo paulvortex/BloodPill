@@ -29,7 +29,7 @@ void *DecompressLZ77Stream(int *outbufsize, byte *inbuf, int startpos, int bufle
 int Jam_Main(int argc, char **argv)
 {
 	char infile[MAX_BLOODPATH], outfile[MAX_BLOODPATH];
-	unsigned int i, width, height, numframes;
+	unsigned int width, height, numframes;
 	byte *fbuf, *dec;
 	byte tag[4];
 	int decSize;

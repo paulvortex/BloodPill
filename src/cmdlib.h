@@ -72,7 +72,6 @@ extern void Error (char *error, ...);
 extern int CheckParm (char *check);
 
 extern FILE *SafeOpen (char *filename, char mode[]);
-extern FILE *SafeOpenWrite (char *filename);
 extern void SafeRead (FILE *f, void *buffer, int count);
 extern void SafeWrite (FILE *f, void *buffer, int count);
 
@@ -117,15 +116,19 @@ extern void CRC_Init(unsigned short *crcvalue);
 extern void CRC_ProcessByte(unsigned short *crcvalue, byte data);
 extern unsigned short CRC_Value(unsigned short crcvalue);
 
+unsigned int crc32(unsigned char *block, unsigned int length);
+
 extern void COM_CreatePath (char *path);
 extern void COM_CopyFile (char *from, char *to);
 
-extern	char	filename_map[1024];
-extern	char	filename_bsp[1024];
-extern	char	filename_prt[1024];
-extern	char	filename_pts[1024];
-extern	char	filename_lit[1024];
-extern	char	filename_dlit[1024];
-extern	char	filename_lights[1024];
+// file writing and wrapping
+#define __CMDLIB_WRAPFILES__
+void FreeWrappedFiles();
+int CountWrappedFiles();
+int LoadWrappedFile(int wrapnum, void **bufferptr, void **realfilename);
+void WrapFileWritesToMemory();
+FILE *SafeOpenWrite (char *filename);
+FILE *OpenReadWrite(char *filename);
+void WriteClose(FILE *f);
 
 #endif
