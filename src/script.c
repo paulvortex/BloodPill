@@ -79,6 +79,7 @@ legacymodelsubs_t *legacymodelsubs;
 double scriptstarted;
 char path[MAX_BLOODPATH] = { 0 };
 char spr_parms[MAX_BLOODPATH] = { 0 };
+char extract_parms[MAX_BLOODPATH] = { 0 };
 bigfileentry_t *entry = NULL;
 bigfileheader_t *bigfile = NULL;
 FILE *bigfilehandle;
@@ -153,6 +154,12 @@ void Script_Parse(char *filename, char *basepath)
 					if (!(t = COM_Parse(t)))
 						Error("option: error parsing parm 2 on line %i\n", n);
 					strcpy(spr_parms, com_token);
+				}
+				else if (!strcmp(com_token, "extract_parms"))
+				{
+					if (!(t = COM_Parse(t)))
+						Error("option: error parsing parm 2 on line %i\n", n);
+					strcpy(extract_parms, com_token);
 				}
 				else if (!strcmp(com_token, "omnicideinstall")) 
 				{
@@ -234,6 +241,16 @@ void Script_Parse(char *filename, char *basepath)
 				// build arguments string (global, then local)
 				i = 1; // pacifier cost
 				sargc = 0;
+				// add extract_parms first
+				data = extract_parms;
+				while (data = COM_Parse(data))
+				{
+					if (sargc >= 32)
+						Error("extract: too many arguments!\n", n);
+					strncpy(sargv[sargc], com_token, 128);
+					sargc++;
+				}
+				// then generic parms
 				while (t = COM_Parse(t))
 				{
 					if (!strcmp(com_token, "-cost"))

@@ -1923,7 +1923,7 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 			if (i < argc)
 			{
 				strcpy(temp, effects);
-				sprintf(effects, "%s bass %s", temp, argv[i]);
+				sprintf(effects, "%s treble %s", temp, argv[i]);
 				Verbose("Option: treble gain %sDb\n", argv[i]);
 			}
 			continue;
