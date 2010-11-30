@@ -12,6 +12,7 @@ static char *BLOODPILL_WELCOME =
 "TIM specs by Klarth and Raul Sobon\n"
 "Bigfile specs by Andrey [Rackot] Grachev\n"
 "Raw Type 7 (LZW Tiles) specs by Ben Lincoln\n"
+"JAM decoder by MisterGrim\n"
 "----------------------------------------\n"
 ;
 #define MAX_BLOODPATH 512

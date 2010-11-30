@@ -103,6 +103,7 @@ extern char *copystring(char *s);
 extern char token[MAXTOKEN];
 extern int	scriptline;
 
+int ReadInt(byte *buffer);
 unsigned int ReadUInt(byte *buffer);
 unsigned int ReadUShort(byte *buffer);
 int ReadShort(byte *buffer);

@@ -836,6 +836,13 @@ int ParseNum (char *str)
 ============================================================================
 */
 
+int ReadInt(byte *buffer)
+{
+	int i;
+	memcpy(&i, buffer, 4);
+	return i;
+}
+
 unsigned int ReadUInt(byte *buffer)
 {
 	return buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
