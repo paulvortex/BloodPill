@@ -1,7 +1,8 @@
 ////////////////////////////////////////////////////////////////
 //
 // Blood Omen JAM/VAG files loader/exporter
-// coded by Pavel [VorteX] Timofeyev and placed to public domain
+// originally coded by MisterGrim and placed to public domain
+// refactored by VorteX
 //
 //
 // This program is free software; you can redistribute it and/or
