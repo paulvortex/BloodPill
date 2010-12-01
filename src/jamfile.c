@@ -37,11 +37,13 @@ void Jam_DecodeFrame(byte *inbuf, byte *outbuf, byte *prevbuf, int outsize, int 
 	prevptr = prevbuf;
 	bytesleft = outsize;
 
+	// non-packed frame
 	if (frametype == 2)
 	{
 		memcpy(outbuf, inbuf, outsize);
 		return;
 	}
+	// packed frame
 	while(bytesleft > 0)
 	{
 		memcpy(&mark, srcptr, 4);
@@ -84,20 +86,13 @@ void Jam_DecodeFrame(byte *inbuf, byte *outbuf, byte *prevbuf, int outsize, int 
 	}
 }
 
-int Jam_Main(int argc, char **argv)
+void Jam_DecodeToFiles(char *infile, char *outpath)
 {
 	byte jamHead[16], jamColormap[768], frameHead[16], *compressed, *framedata, *prevframedata, *b;
 	int i, width, height, numframes, framesize, outsize, compsize;
-	char infile[MAX_BLOODPATH], outpath[MAX_BLOODPATH], file[MAX_BLOODPATH];
+	char file[MAX_BLOODPATH];
 	FILE *f;
 
-	Verbose("=== Jam Video ===\n");
-
-	// in file
-	if (argc < 3)
-		Error("not enough parms");
-	strcpy(infile, argv[1]);
-	strcpy(outpath, argv[2]);
 	f = SafeOpen(infile, "rb");
 
 	// first 4 chars whould be JAM0
@@ -156,6 +151,21 @@ int Jam_Main(int argc, char **argv)
 	qfree(framedata);
 	qfree(prevframedata);
 	fclose(f);
+}
 
+int Jam_Main(int argc, char **argv)
+{
+	char infile[MAX_BLOODPATH], outpath[MAX_BLOODPATH];
+
+	Verbose("=== Jam Video ===\n");
+
+	// in file
+	if (argc < 3)
+		Error("not enough parms");
+	strcpy(infile, argv[1]);
+	strcpy(outpath, argv[2]);
+	Verbose("decoding %s into %s...\n", infile, outpath);
+	Jam_DecodeToFiles(infile, outpath);
+	
 	return 0;
 }

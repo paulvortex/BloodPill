@@ -1596,6 +1596,18 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			}
 			continue;
 		}
+		if (!strcmp(argv[i], "-colormapsub"))
+		{
+			i++;
+			if (i < argc)
+			{
+				colorscale = atof(argv[i]);
+				for (num = 0; num < 768; num++)
+					rawblock->colormap[num] = (byte)max(0, min(rawblock->colormap[num] - colorscale, 255));
+				Verbose("Option: subtract colormap colors by %f'\n", colorscale);
+			}
+			continue;
+		}
 		if (!strcmp(argv[i], "-shadowpixel"))
 		{
 			i++;
