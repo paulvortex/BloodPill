@@ -54,7 +54,7 @@ static dllfunction_t zlib_funcs[] =
 };
 
 // deflating
-#define PK3_MAX_FILESIZE 16777216 // 16 megs
+#define PK3_MAX_FILESIZE 67108864 // 64 megs
 unsigned char pk3buf[PK3_MAX_FILESIZE];
 
 /*
@@ -242,8 +242,7 @@ void PK3_Close(pk3_file_t *pk3)
 		fwrite(entry->filename, entry->filenamelen, 1, pk3->file);
 		if (ferror(pk3->file))
 			Error("PK3_Close: failed write pk3");
-
-		qfree(pk3->files[pk3->numfiles]);
+		qfree(entry);
 	}
 	cdsize = ftell(pk3->file) - cdofs;
 

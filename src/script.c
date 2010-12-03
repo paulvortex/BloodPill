@@ -24,6 +24,7 @@
 #include "bigfile.h"
 #include "zlib.h"
 #include "mem.h"
+#include "soxsupp.h"
 
 // colormaps for Blood Omnicide
 #define MAX_COLORMAPS		256
@@ -101,6 +102,7 @@ void Script_Parse(char *filename, char *basepath)
 	qboolean bloodomnicide = false, litsprites = false, allowdebug = true, writingpk3 = false;
 	int i, currentmodel = -1, minp, maxp, sargc, stt = 0, stt_total = 0, c[3];
 	char tempchar, **sargv, outfile[MAX_BLOODPATH], infile[MAX_BLOODPATH], cs[32];
+	char soxparm1[1024], soxparm2[1024], soxparm3[1024], soxparm4[1024];
 	bigfileentry_t *oldentry;
 	rawinfo_t *newrawinfo;
 	rawblock_t *rawblock;
@@ -115,6 +117,12 @@ void Script_Parse(char *filename, char *basepath)
 		sargv[sargc] = qmalloc(128);
 	scriptsize = LoadFile(filename, &scriptstring);
 	newrawinfo = NewRawInfo();
+
+	// init
+	strcpy(soxparm1, "");
+	strcpy(soxparm2, "");
+	strcpy(soxparm3, "");
+	strcpy(soxparm4, "");
 
 	// parse file
 	s = scriptstring;
@@ -132,93 +140,135 @@ void Script_Parse(char *filename, char *basepath)
 		// parse line
 		if (t = COM_Parse(t))
 		{
+			if (stt_total) // show pacifier
+			{
+				i = (int)((stt * 100) / stt_total);
+				printf("\r%8i%s\r", i, "%");
+			}
 			// ---- General Part ----
 			if (!strcmp(com_token, "path")) 
 			{
 				if (!(t = COM_Parse(t)))
 					Error("path: error parsing parm 1 on line %i\n", n);
-				if (writingpk3)
-					sprintf(path, "%s/", com_token);
-				else if (com_token[0])
-					sprintf(path, "%s%s/", basepath, com_token);
 				else
-					strcpy(path, basepath);
+				{
+					if (writingpk3)
+						sprintf(path, "%s/", com_token);
+					else if (com_token[0])
+						sprintf(path, "%s%s/", basepath, com_token);
+					else
+						strcpy(path, basepath);
+				}
 				goto next;
 			}
 			if (!strcmp(com_token, "option")) 
 			{
 				if (!(t = COM_Parse(t)))
 					Error("option: error parsing parm 1 on line %i\n", n);
-				if (!strcmp(com_token, "spr_parms"))
+				else
 				{
-					if (!(t = COM_Parse(t)))
-						Error("option: error parsing parm 2 on line %i\n", n);
-					strcpy(spr_parms, com_token);
+					if (!strcmp(com_token, "spr_parms"))
+					{
+						if (!(t = COM_Parse(t)))
+							Error("option: error parsing parm 2 on line %i\n", n);
+						else
+							strcpy(spr_parms, com_token);
+					}
+					else if (!strcmp(com_token, "extract_parms"))
+					{
+						if (!(t = COM_Parse(t)))
+							Error("option: error parsing parm 2 on line %i\n", n);
+						else
+							strcpy(extract_parms, com_token);
+					}
+					else if (!strcmp(com_token, "sox_general"))
+					{
+						if (!(t = COM_Parse(t)))
+							Error("option: error parsing parm 2 on line %i\n", n);
+						else
+							strcpy(soxparm1, com_token);
+					}
+					else if (!strcmp(com_token, "sox_input"))
+					{
+						if (!(t = COM_Parse(t)))
+							Error("option: error parsing parm 2 on line %i\n", n);
+						else
+							strcpy(soxparm2, com_token);
+					}
+					else if (!strcmp(com_token, "sox_output"))
+					{
+						if (!(t = COM_Parse(t)))
+							Error("option: error parsing parm 2 on line %i\n", n);
+						else
+							strcpy(soxparm3, com_token);
+					}
+					else if (!strcmp(com_token, "sox_effect"))
+					{
+						if (!(t = COM_Parse(t)))
+							Error("option: error parsing parm 2 on line %i\n", n);
+						else
+							strcpy(soxparm4, com_token);
+					}
+					else if (!strcmp(com_token, "omnicideinstall")) 
+					{
+						if (!(t = COM_Parse(t)))
+							Error("option: error parsing parm 2 on line %i\n", n);
+						else
+						{
+							bloodomnicide = true;
+							stt_total = atoi(com_token);
+						}
+					}
+					else if (!strcmp(com_token, "litsprites"))
+						litsprites = true;
 				}
-				else if (!strcmp(com_token, "extract_parms"))
-				{
-					if (!(t = COM_Parse(t)))
-						Error("option: error parsing parm 2 on line %i\n", n);
-					strcpy(extract_parms, com_token);
-				}
-				else if (!strcmp(com_token, "omnicideinstall")) 
-				{
-					if (!(t = COM_Parse(t)))
-						Error("option: error parsing parm 2 on line %i\n", n);
-					bloodomnicide = true;
-					stt_total = atoi(com_token);
-				}
-				else if (!strcmp(com_token, "litsprites"))
-					litsprites = true;
 				goto next;
 			}
 			if (!strcmp(com_token, "export")) 
 			{
 				if (!(t = COM_Parse(t)))
 					Error("export: error parsing parm 1 on line %i\n", n);
-				if (!strcmp(com_token, "legacyscripts"))
-				{
-					// Blood Omnicide - write legacy.nsx
-					sprintf(outfile, "%slegacy.nsx", path);
-					f = SafeOpenWrite(outfile);
-					fputs("// Legacy stuff script file\n", f);
-					fputs("\n[macromodels]name=colormap,speechofs\n", f);
-					for (i = 0; i < legacymodels->num; i++)
-						fprintf(f, "%s=%i,%i\n", legacymodels->models[i].name, legacymodels->models[i].colormapid, legacymodels->models[i].speechoffset);
-					fputs("\n[macromodels.bloodofs]name=offsets\n", f);
-					for (i = 0; i < legacymodels->num; i++)
-						if (legacymodels->models[i].bloodoffsets[0])
-							fprintf(f, "%s=%s\n", legacymodels->models[i].name, legacymodels->models[i].bloodoffsets);
-					fputs("\n[macromodels.spellofs]name=offsets\n", f);
-					for (i = 0; i < legacymodels->num; i++)
-						if (legacymodels->models[i].spelloffsets[0])
-							fprintf(f, "%s=%s\n", legacymodels->models[i].name, legacymodels->models[i].spelloffsets);
-					fputs("\n[models]name={type,scale,paletteindex}\n", f);
-					for (i = 0; i < legacymodelsubs->num; i++)
-						fprintf(f, "%s=%s,%.2f,%i\n", legacymodelsubs->subs[i].name, legacymodelsubs->subs[i].orient, legacymodelsubs->subs[i].scale, legacymodels->models[legacymodelsubs->subs[legacymodelsubs->num].basemodel].colormapid);
-					WriteClose(f);
-					// Blood Omnicide - write colormaps.nsx
-					sprintf(outfile, "%scolormaps.nsx", path);
-					f =	SafeOpenWrite(outfile);
-					fputs("// Particle colormaps  file\n", f);
-					fputs("// colormaps 0-31 are system ones \n", f);
-					fputs("\n[colormaps]index={colormap}\n", f);
-					for (i = 0; i < legacycolormaps->num; i++)
-						if (legacycolormaps->maps[i].map[0])
-							fprintf(f, "%i=%s\n", i, legacycolormaps->maps[i].map);
-					WriteClose(f);
-				}
 				else
-					Error("export: unknown parm 1 on line %i\n", n);
+				{
+					if (!strcmp(com_token, "legacyscripts"))
+					{
+						// Blood Omnicide - write legacy.nsx
+						sprintf(outfile, "%slegacy.nsx", path);
+						f = SafeOpenWrite(outfile);
+						fputs("// Legacy stuff script file\n", f);
+						fputs("\n[macromodels]name=colormap,speechofs\n", f);
+						for (i = 0; i < legacymodels->num; i++)
+							fprintf(f, "%s=%i,%i\n", legacymodels->models[i].name, legacymodels->models[i].colormapid, legacymodels->models[i].speechoffset);
+						fputs("\n[macromodels.bloodofs]name=offsets\n", f);
+						for (i = 0; i < legacymodels->num; i++)
+							if (legacymodels->models[i].bloodoffsets[0])
+								fprintf(f, "%s=%s\n", legacymodels->models[i].name, legacymodels->models[i].bloodoffsets);
+						fputs("\n[macromodels.spellofs]name=offsets\n", f);
+						for (i = 0; i < legacymodels->num; i++)
+							if (legacymodels->models[i].spelloffsets[0])
+								fprintf(f, "%s=%s\n", legacymodels->models[i].name, legacymodels->models[i].spelloffsets);
+						fputs("\n[models]name={type,scale,paletteindex}\n", f);
+						for (i = 0; i < legacymodelsubs->num; i++)
+							fprintf(f, "%s=%s,%.2f,%i\n", legacymodelsubs->subs[i].name, legacymodelsubs->subs[i].orient, legacymodelsubs->subs[i].scale, legacymodels->models[legacymodelsubs->subs[legacymodelsubs->num].basemodel].colormapid);
+						WriteClose(f);
+						// Blood Omnicide - write colormaps.nsx
+						sprintf(outfile, "%scolormaps.nsx", path);
+						f =	SafeOpenWrite(outfile);
+						fputs("// Particle colormaps  file\n", f);
+						fputs("// colormaps 0-31 are system ones \n", f);
+						fputs("\n[colormaps]index={colormap}\n", f);
+						for (i = 0; i < legacycolormaps->num; i++)
+							if (legacycolormaps->maps[i].map[0])
+								fprintf(f, "%i=%s\n", i, legacycolormaps->maps[i].map);
+						WriteClose(f);
+					}
+					else
+						Error("export: unknown parm 1 on line %i\n", n);
+				}
 				goto next;
 			}
 			if (!strcmp(com_token, "extract")) 
 			{
-				if (stt_total) // show pacifier
-				{
-					i = (int)((stt * 100) / stt_total);
-					printf("\r%8i%s\r", i, "%");
-				}
 				// on each extract we are packing all wrapped files to PK3
 				if (writingpk3)
 				{
@@ -228,47 +278,128 @@ void Script_Parse(char *filename, char *basepath)
 				// check if bigfile is opened
 				if (!bigfile)
 					Error("extract: requires bigfile on line %i\n", n);
-				// find entry
-				if (!(t = COM_Parse(t)))
-					Error("extract: error parsing parm 1 on line %i\n", n);
-				entry = BigfileGetEntry(bigfile, BigfileEntryHashFromString(com_token));
-				if (entry == NULL)
-					Error("extract: error getting entry on line %i\n", n);
-				// build outfile
-				if (!(t = COM_Parse(t)))
-					Error("extract: error parsing parm 2 on line %i\n", n);
-				sprintf(outfile, "%s%s", path, com_token);
-				// build arguments string (global, then local)
-				i = 1; // pacifier cost
-				sargc = 0;
-				// add extract_parms first
-				data = extract_parms;
-				while (data = COM_Parse(data))
+				else
 				{
-					if (sargc >= 32)
-						Error("extract: too many arguments!\n", n);
-					strncpy(sargv[sargc], com_token, 128);
-					sargc++;
-				}
-				// then generic parms
-				while (t = COM_Parse(t))
-				{
-					if (!strcmp(com_token, "-cost"))
+					// find entry
+					if (!(t = COM_Parse(t)))
+						Error("extract: error parsing parm 1 on line %i\n", n);
+					else
 					{
-						if (t = COM_Parse(t))
-							i = atoi(com_token);
-						continue;
+						entry = BigfileGetEntry(bigfile, BigfileEntryHashFromString(com_token));
+						if (entry == NULL)
+							Error("extract: error getting entry on line %i\n", n);
+						else
+						{
+							// build outfile
+							if (!(t = COM_Parse(t)))
+								Error("extract: error parsing parm 2 on line %i\n", n);
+							else
+							{
+								sprintf(outfile, "%s%s", path, com_token);
+								// build arguments string (global, then local)
+								i = 1; // pacifier cost
+								sargc = 0;
+								// add extract_parms first
+								data = extract_parms;
+								while (data = COM_Parse(data))
+								{
+									if (sargc >= 32)
+										Error("extract: too many arguments!\n", n);
+									else
+										strncpy(sargv[sargc], com_token, 128);
+									sargc++;
+								}
+								// then generic parms
+								while (t = COM_Parse(t))
+								{
+									if (!strcmp(com_token, "-cost"))
+									{
+										if (t = COM_Parse(t))
+											i = atoi(com_token);
+										continue;
+									}
+									// add
+									if (sargc >= 32)
+										Error("extract: too many arguments!\n", n);
+									else
+										strncpy(sargv[sargc], com_token, 128);
+									sargc++;
+								}
+								// extract
+								BigfileScanFiletype(bigfilehandle, entry, true, RAW_TYPE_UNKNOWN, true);
+								BigFile_ExtractEntry(sargc, sargv, bigfilehandle, entry, outfile);
+								stt += i;
+							}
+						}
 					}
-					// add
-					if (sargc >= 32)
-						Error("extract: too many arguments!\n", n);
-					strncpy(sargv[sargc], com_token, 128);
-					sargc++;
 				}
-				// extract
-				BigfileScanFiletype(bigfilehandle, entry, true, RAW_TYPE_UNKNOWN, true);
-				BigFile_ExtractEntry(sargc, sargv, bigfilehandle, entry, outfile);
-				stt += i;
+				goto next;
+			}
+			// convert external file
+			if (!strcmp(com_token, "sox")) 
+			{
+				if (!(t = COM_Parse(t))) // general vmd
+					Error("copy: error parsing parm 1 on line %i\n", n);
+				else
+				{
+					strcpy(infile, com_token);
+					if (!(t = COM_Parse(t)))
+						Error("copy: error parsing parm 2 on line %i\n", n);
+					else
+					{
+						sprintf(outfile, "%s%s", path, com_token);
+						// then generic parms
+						i = 0;
+						while (t = COM_Parse(t))
+						{
+							if (!strcmp(com_token, "-cost"))
+							{
+								if (t = COM_Parse(t))
+									i = atoi(com_token);
+								continue;
+							}
+							if (!strcmp(com_token, "-c"))
+							{
+								if (t = COM_Parse(t))
+									strcpy(soxparm1, com_token);
+								continue;
+							}
+							if (!strcmp(com_token, "-i"))
+							{
+								if (t = COM_Parse(t))
+									strcpy(soxparm2, com_token);
+								continue;
+							}
+							if (!strcmp(com_token, "-o"))
+							{
+								if (t = COM_Parse(t))
+									strcpy(soxparm3, com_token);
+								continue;
+							}
+							if (!strcmp(com_token, "-e"))
+							{
+								if (t = COM_Parse(t))
+									strcpy(soxparm4, com_token);
+								continue;
+							}
+						}
+						// convert
+						if (!SoX_FileToData(infile, soxparm1, soxparm2, soxparm3, &len, &data, soxparm4))
+							Error("sox: failed on line %i\n", n);
+						else
+						{
+							if (writingpk3)
+								PK3_AddFile(pk3, outfile, data, len);
+							else
+								SaveFile(outfile, data, len);
+							if (i)
+								stt += i;
+							else
+								stt += (int)max(1, len / 1024 / 1024);
+							qfree(data);
+						}
+					}
+				}
 				goto next;
 			}
 			// copy infile outfile
@@ -276,19 +407,38 @@ void Script_Parse(char *filename, char *basepath)
 			{
 				if (!(t = COM_Parse(t)))
 					Error("copy: error parsing parm 1 on line %i\n", n);
-				strcpy(infile, com_token);
-				if (!(t = COM_Parse(t)))
-					Error("copy: error parsing parm 2 on line %i\n", n);
-				sprintf(outfile, "%s%s", path, com_token);
-				if (!strcmp(com_token, "sprcopy") && litsprites)
-					SpriteLitFileName(outfile);
-				len = LoadFile(infile, &data);
-				if (writingpk3)
-					PK3_AddFile(pk3, outfile, data, len);
 				else
-					SaveFile(outfile, data, len);
-				qfree(data);
-				stt += 1;
+				{
+					strcpy(infile, com_token);
+					if (!(t = COM_Parse(t)))
+						Error("copy: error parsing parm 2 on line %i\n", n);
+					else
+					{
+						sprintf(outfile, "%s%s", path, com_token);
+						// additionsl parms
+						i = 0;
+						while (t = COM_Parse(t))
+						{
+							if (!strcmp(com_token, "-cost"))
+							{
+								if (t = COM_Parse(t))
+									i = atoi(com_token);
+								continue;
+							}
+						}
+						// copy
+						len = LoadFile(infile, &data);
+						if (writingpk3)
+							PK3_AddFile(pk3, outfile, data, len);
+						else
+							SaveFile(outfile, data, len);
+						qfree(data);
+						if (i)
+							stt += i;
+						else
+							stt += (int)max(1, len / 1024 / 1024);
+					}
+				}
 				goto next;
 			}
 			// sprcopy infile outfile
@@ -296,19 +446,25 @@ void Script_Parse(char *filename, char *basepath)
 			{
 				if (!(t = COM_Parse(t)))
 					Error("copy: error parsing parm 1 on line %i\n", n);
-				strcpy(infile, com_token);
-				if (!(t = COM_Parse(t)))
-					Error("copy: error parsing parm 2 on line %i\n", n);
-				sprintf(outfile, "%s%s", path, com_token);
-				if (litsprites)
-					SpriteLitFileName(outfile);
-				len = LoadFile(infile, &data);
-				if (writingpk3)
-					PK3_AddFile(pk3, outfile, data, len);
 				else
-					SaveFile(outfile, data, len);
-				qfree(data);
-				stt += 1;
+				{
+					strcpy(infile, com_token);
+					if (!(t = COM_Parse(t)))
+						Error("copy: error parsing parm 2 on line %i\n", n);
+					else
+					{
+						sprintf(outfile, "%s%s", path, com_token);
+						if (litsprites)
+							SpriteLitFileName(outfile);
+						len = LoadFile(infile, &data);
+						if (writingpk3)
+							PK3_AddFile(pk3, outfile, data, len);
+						else
+							SaveFile(outfile, data, len);
+						qfree(data);
+					}
+					stt += 1;
+				}
 				goto next;
 			}
 			// pk3 file - begin a new pk3 file and set all output to it
@@ -316,18 +472,21 @@ void Script_Parse(char *filename, char *basepath)
 			{
 				if (!(t = COM_Parse(t)))
 					Error("pk3: error parsing parm 1 on line %i\n", n);
-				// close old pk3 file
-				if (writingpk3)
+				else
 				{
-					PK3_AddWrappedFiles(pk3);
-					PK3_Close(pk3);
+					// close old pk3 file
+					if (writingpk3)
+					{
+						PK3_AddWrappedFiles(pk3);
+						PK3_Close(pk3);
+					}
+					// fixme: make path consistent immediately?
+					// begin new pk3 file
+					sprintf(outfile, "%s%s", path, com_token);
+					pk3 = PK3_Create(outfile);
+					WrapFileWritesToMemory();
+					writingpk3 = true;
 				}
-				// fixme: make path consistent immediately?
-				// begin new pk3 file
-				sprintf(outfile, "%s%s", path, com_token);
-				pk3 = PK3_Create(outfile);
-				WrapFileWritesToMemory();
-				writingpk3 = true;
 				goto next;
 			}
 			// pk3end - close current pk3 file
@@ -367,20 +526,24 @@ void Script_Parse(char *filename, char *basepath)
 				{
 					if (!(t = COM_Parse(t)))
 						Error("colormap: error parsing parm 1 on line %i\n", n);
-					// find colormap or allocate new
-					for (i = 0; i < legacycolormaps->num; i++)
-						if (!strcmp(legacycolormaps->maps[i].name, com_token))
-							break;
-					if (i == legacycolormaps->num)
+					else
 					{
-						if (legacycolormaps->num >= MAX_COLORMAPS)
-							Error("colormap: MAX_COLORMAPS = %i exceded on line %i\n", MAX_COLORMAPS, n);	
-						legacycolormaps->num = i + 1;
+						// find colormap or allocate new
+						for (i = 0; i < legacycolormaps->num; i++)
+							if (!strcmp(legacycolormaps->maps[i].name, com_token))
+								break;
+						if (i == legacycolormaps->num)
+						{
+							if (legacycolormaps->num >= MAX_COLORMAPS)
+								Error("colormap: MAX_COLORMAPS = %i exceded on line %i\n", MAX_COLORMAPS, n);
+							else
+								legacycolormaps->num = i + 1;
+						}
+						// set colormap
+						strncpy(legacycolormaps->maps[i].name, com_token, MAX_COLORMAP_NAME);
+						if (t = COM_Parse(t)) // values string
+							strncpy(legacycolormaps->maps[i].map, com_token, MAX_COLORMAP_STRING);
 					}
-					// set colormap
-					strncpy(legacycolormaps->maps[i].name, com_token, MAX_COLORMAP_NAME);
-					if (t = COM_Parse(t)) // values string
-						strncpy(legacycolormaps->maps[i].map, com_token, MAX_COLORMAP_STRING);
 					goto next;
 				}
 				// state 'message' - casts verbose message
@@ -388,7 +551,8 @@ void Script_Parse(char *filename, char *basepath)
 				{
 					if (!(t = COM_Parse(t)))
 						Error("state: error parsing parm 1 on line %i\n", n);
-					Verbose("%s...\n", com_token);
+					else
+						Verbose("%s...\n", com_token);
 					goto next;
 				}
 				// model 'modelname' [customcolormap]
@@ -396,41 +560,48 @@ void Script_Parse(char *filename, char *basepath)
 				{
 					if (!(t = COM_Parse(t)))
 						Error("model: error parsing parm 1 on line %i\n", n);
-					// once beginning new model we are packing all wrapped files to PK3
-					if (writingpk3)
+					else
 					{
-						PK3_AddWrappedFiles(pk3);
-						WrapFileWritesToMemory();
-					}
-					// find model or allocate new
-					for (i = 0; i < legacymodels->num; i++)
-						if (!strcmp(legacymodels->models[i].name, com_token))
-							break;
-					if (i == legacymodels->num)
-					{
-						if (legacymodels->num >= MAX_LEGACYMODELS)
-							Error("model: MAX_LEGACYMODELS = %i exceded on line %i\n", MAX_LEGACYMODELS, n);	
-						legacymodels->num = i + 1;
-					}
-					strncpy(legacymodels->models[i].name, com_token, MAX_COLORMAP_NAME);
-					currentmodel = i;
-					// allocate new colormap or use existing
-					i = legacycolormaps->num;
-					if (t = COM_Parse(t))
-					{
-						for (i = 0; i < legacycolormaps->num; i++)
-							if (!strcmp(legacycolormaps->maps[i].name, com_token))
+						// once beginning new model we are packing all wrapped files to PK3
+						if (writingpk3)
+						{
+							PK3_AddWrappedFiles(pk3);
+							WrapFileWritesToMemory();
+						}
+						// find model or allocate new
+						for (i = 0; i < legacymodels->num; i++)
+							if (!strcmp(legacymodels->models[i].name, com_token))
 								break;
+						if (i == legacymodels->num)
+						{
+							if (legacymodels->num >= MAX_LEGACYMODELS)
+								Error("model: MAX_LEGACYMODELS = %i exceded on line %i\n", MAX_LEGACYMODELS, n);	
+							else
+								legacymodels->num = i + 1;
+						}
+						strncpy(legacymodels->models[i].name, com_token, MAX_COLORMAP_NAME);
+						currentmodel = i;
+						// allocate new colormap or use existing
+						i = legacycolormaps->num;
+						if (t = COM_Parse(t))
+						{
+							for (i = 0; i < legacycolormaps->num; i++)
+								if (!strcmp(legacycolormaps->maps[i].name, com_token))
+									break;
+						}
+						if (i == legacycolormaps->num)
+						{
+							if (legacycolormaps->num >= MAX_COLORMAPS)
+								Error("model: MAX_COLORMAPS = %i exceded on line %i\n", MAX_COLORMAPS, n);	
+							else
+							{
+								i = max(32, i); // first 32 colormaps are system ones
+								legacycolormaps->num = i + 1; 
+							}
+						}
+						legacymodels->models[currentmodel].colormapid = i;
+						strcpy(legacycolormaps->maps[i].name, legacymodels->models[currentmodel].name);
 					}
-					if (i == legacycolormaps->num)
-					{
-						if (legacycolormaps->num >= MAX_COLORMAPS)
-							Error("model: MAX_COLORMAPS = %i exceded on line %i\n", MAX_COLORMAPS, n);	
-						i = max(32, i); // first 32 colormaps are system ones
-						legacycolormaps->num = i + 1; 
-					}
-					legacymodels->models[currentmodel].colormapid = i;
-					strcpy(legacycolormaps->maps[i].name, legacymodels->models[currentmodel].name);
 					goto next;
 				}
 				//  speech 'vertical_offset'
@@ -438,9 +609,13 @@ void Script_Parse(char *filename, char *basepath)
 				{
 					if (currentmodel < 0)
 						Error("speech: requires model to be set first on line %i\n", n);
-					if (!(t = COM_Parse(t)))
-						Error("speech: error parsing parm 1 on line %i\n", n);
-					legacymodels->models[currentmodel].speechoffset = atoi(com_token);
+					else
+					{
+						if (!(t = COM_Parse(t)))
+							Error("speech: error parsing parm 1 on line %i\n", n);
+						else
+							legacymodels->models[currentmodel].speechoffset = atoi(com_token);
+					}
 					goto next;
 				}
 				//  blood 'offsets'
@@ -448,9 +623,13 @@ void Script_Parse(char *filename, char *basepath)
 				{
 					if (currentmodel < 0)
 						Error("blood: requires model to be set first on line %i\n", n);
-					if (!(t = COM_Parse(t)))
-						Error("blood: error parsing parm 1 on line %i\n", n);
-					strncpy(legacymodels->models[currentmodel].bloodoffsets, com_token, 128);
+					else
+					{
+						if (!(t = COM_Parse(t)))
+							Error("blood: error parsing parm 1 on line %i\n", n);
+						else
+							strncpy(legacymodels->models[currentmodel].bloodoffsets, com_token, 128);
+					}
 					goto next;
 				}
 				//   spell 'offsets'
@@ -458,9 +637,13 @@ void Script_Parse(char *filename, char *basepath)
 				{
 					if (currentmodel < 0)
 						Error("spell: requires model to be set first on line %i\n", n);
-					if (!(t = COM_Parse(t)))
-						Error("spell: error parsing parm 1 on line %i\n", n);
-					strncpy(legacymodels->models[currentmodel].spelloffsets, com_token, 128);
+					else
+					{
+						if (!(t = COM_Parse(t)))
+							Error("spell: error parsing parm 1 on line %i\n", n);
+						else
+							strncpy(legacymodels->models[currentmodel].spelloffsets, com_token, 128);
+					}
 					goto next;
 				}
 				//   mdlsub 'spr32name' 'scaletype' 'orientation'
@@ -478,94 +661,122 @@ void Script_Parse(char *filename, char *basepath)
 				{	
 					if (!(t = COM_Parse(t)))
 						Error("sub: error parsing parm 1 on line %i\n", n);
-					if (currentmodel < 0)
-						Error("sub: requires model to be set first on line %i\n", n);
-					// find sub or allocate new
-					if (legacymodelsubs->num >= MAX_LEGACYMODELS)
-						Error("sub: MAX_LEGACYMODELS = %i exceded on line %i\n", MAX_LEGACYMODELS, n);	
-					strncpy(legacymodelsubs->subs[legacymodelsubs->num].name, com_token, MAX_COLORMAP_NAME);
-					// read scaletype
-					if (!(t = COM_Parse(t)))
-						Error("sub: error parsing parm 2 on line %i\n", n);
-					if (!strcmp(com_token, "player"))
-						legacymodelsubs->subs[legacymodelsubs->num].scale = 0.82f;
-					else if (!strcmp(com_token, "monster"))
-						legacymodelsubs->subs[legacymodelsubs->num].scale = 0.92f;
-					else if (!strcmp(com_token, "bigger"))
-						legacymodelsubs->subs[legacymodelsubs->num].scale = 1.20f;
-					else if (!strcmp(com_token, "effect"))
-						legacymodelsubs->subs[legacymodelsubs->num].scale = 1.00f;
-					else if (!strcmp(com_token, "death"))
-						legacymodelsubs->subs[legacymodelsubs->num].scale = 1.00f;
 					else
-						legacymodelsubs->subs[legacymodelsubs->num].scale = (float)atof(com_token);
-					// read orientation
-					if (!(t = COM_Parse(t)))
-						Error("sub: error parsing parm 3 on line %i\n", n);
-					strncpy(legacymodelsubs->subs[legacymodelsubs->num].orient, com_token, 8);
-					legacymodelsubs->subs[legacymodelsubs->num].basemodel = currentmodel;
-					legacymodelsubs->num = legacymodelsubs->num + 1;
+					{
+						if (currentmodel < 0)
+							Error("sub: requires model to be set first on line %i\n", n);
+						else
+						{
+							// find sub or allocate new
+							if (legacymodelsubs->num >= MAX_LEGACYMODELS)
+								Error("sub: MAX_LEGACYMODELS = %i exceded on line %i\n", MAX_LEGACYMODELS, n);	
+							else
+							{
+								strncpy(legacymodelsubs->subs[legacymodelsubs->num].name, com_token, MAX_COLORMAP_NAME);
+								// read scaletype
+								if (!(t = COM_Parse(t)))
+									Error("sub: error parsing parm 2 on line %i\n", n);
+								else
+								{
+									if (!strcmp(com_token, "player"))
+										legacymodelsubs->subs[legacymodelsubs->num].scale = 0.82f;
+									else if (!strcmp(com_token, "monster"))
+										legacymodelsubs->subs[legacymodelsubs->num].scale = 0.92f;
+									else if (!strcmp(com_token, "bigger"))
+										legacymodelsubs->subs[legacymodelsubs->num].scale = 1.20f;
+									else if (!strcmp(com_token, "effect"))
+										legacymodelsubs->subs[legacymodelsubs->num].scale = 1.00f;
+									else if (!strcmp(com_token, "death"))
+										legacymodelsubs->subs[legacymodelsubs->num].scale = 1.00f;
+									else
+										legacymodelsubs->subs[legacymodelsubs->num].scale = (float)atof(com_token);
+									// read orientation
+									if (!(t = COM_Parse(t)))
+										Error("sub: error parsing parm 3 on line %i\n", n);
+									else
+									{
+										strncpy(legacymodelsubs->subs[legacymodelsubs->num].orient, com_token, 8);
+										legacymodelsubs->subs[legacymodelsubs->num].basemodel = currentmodel;
+										legacymodelsubs->num = legacymodelsubs->num + 1;
+									}
+								}
+							}
+						}
+					}
 					goto next;
 				}
 				//  spr 'entry' 'filename' commandlineargs
 				//  spr merge 'base' 'add1' 'add2' ...
 				if (!strcmp(com_token, "spr")) 
 				{	
-					if (stt_total) // show pacifier
-					{
-						i = (int)((stt * 100) / stt_total);
-						printf("\r%8i%s\r", i, "%");
-					}
 					// check if bigfile is opened
 					if (!bigfile)
 						Error("spr: requires bigfile on line %i\n", n);
-					oldentry = entry;
-					if (!(t = COM_Parse(t)))
-						Error("spr: error parsing parm 1 on line %i\n", n);
-					// find entry
-					if (com_token[0] != '-')
-						entry = BigfileGetEntry(bigfile, BigfileEntryHashFromString(com_token));
-					if (entry == NULL)
-						Error("spr: error getting entry on line %i\n", n);
-					// build outfile
-					if (!(t = COM_Parse(t)))
-						Error("spr: error parsing parm 2 on line %i\n", n);
-					sprintf(outfile, "%s%s.spr32", path, com_token);
-					if (litsprites)
-						SpriteLitFileName(outfile);
-					// build arguments string (global, then local)
-					sargc = 0;
-					while (t = COM_Parse(t))
+					else
 					{
-						if (sargc >= 32)
-							Error("spr: too many arguments!\n", n);
-						strncpy(sargv[sargc], com_token, 128);
-						sargc++;
+						oldentry = entry;
+						if (!(t = COM_Parse(t)))
+							Error("spr: error parsing parm 1 on line %i\n", n);
+						else
+						{
+							// find entry
+							if (com_token[0] != '-')
+								entry = BigfileGetEntry(bigfile, BigfileEntryHashFromString(com_token));
+							if (entry == NULL)
+								Error("spr: error getting entry on line %i\n", n);
+							else
+							{
+								// build outfile
+								if (!(t = COM_Parse(t)))
+									Error("spr: error parsing parm 2 on line %i\n", n);
+								else
+								{
+									sprintf(outfile, "%s%s.spr32", path, com_token);
+									if (litsprites)
+										SpriteLitFileName(outfile);
+									// build arguments string (global, then local)
+									sargc = 0;
+									while (t = COM_Parse(t))
+									{
+										if (sargc >= 32)
+											Error("spr: too many arguments!\n", n);
+										else
+										{
+											strncpy(sargv[sargc], com_token, 128);
+											sargc++;
+										}
+									}
+									data = spr_parms;
+									while (data = COM_Parse(data))
+									{
+										if (sargc >= 32)
+											Error("spr: too many arguments!\n", n);
+										else
+										{
+											strncpy(sargv[sargc], com_token, 128);
+											sargc++;
+										}
+									}
+									// load rawblock
+									if (!entry->data)
+									{
+										data = qmalloc(entry->size);
+										BigfileSeekContents(bigfilehandle, data, entry);
+										entry->data = RawExtract(data, entry->size, newrawinfo, false, false, RAW_TYPE_UNKNOWN);
+									}
+									// do extract
+									BigFile_ExtractRawImage(sargc, sargv, outfile, entry, (rawblock_t *)entry->data, "spr32");
+									// unload old entry
+									if (oldentry && oldentry->data && oldentry != entry)
+									{
+										FreeRawBlock((rawblock_t *)oldentry->data);
+										oldentry->data = NULL;
+									}
+									stt += 2;
+								}
+							}
+						}
 					}
-					data = spr_parms;
-					while (data = COM_Parse(data))
-					{
-						if (sargc >= 32)
-							Error("spr: too many arguments!\n", n);
-						strncpy(sargv[sargc], com_token, 128);
-						sargc++;
-					}
-					// load rawblock
-					if (!entry->data)
-					{
-						data = qmalloc(entry->size);
-						BigfileSeekContents(bigfilehandle, data, entry);
-						entry->data = RawExtract(data, entry->size, newrawinfo, false, false, RAW_TYPE_UNKNOWN);
-					}
-					// do extract
-					BigFile_ExtractRawImage(sargc, sargv, outfile, entry, (rawblock_t *)entry->data, "spr32");
-					// unload old entry
-					if (oldentry && oldentry->data && oldentry != entry)
-					{
-						FreeRawBlock((rawblock_t *)oldentry->data);
-						oldentry->data = NULL;
-					}
-					stt += 2;
 					goto next;
 				}
 				// makecolors 'min_index' 'max_index' 'colorscale' - should be called after spr, extracts palette to nsx-style colormap
@@ -573,37 +784,52 @@ void Script_Parse(char *filename, char *basepath)
 				{	
 					if (currentmodel < 0)
 						Error("makecolors: requires model to be set first on line %i\n", n);
-					if (!(t = COM_Parse(t))) 
-						Error("makecolors: error parsing parm 1 on line %i\n", n);
-					minp = min(255, max(0, atoi(com_token)));
-					if (!(t = COM_Parse(t)))
-						Error("makecolors: error parsing parm 2 on line %i\n", n);
-					maxp = min(255, max(0, atoi(com_token)));
-					if (!(t = COM_Parse(t)))
-						Error("makecolors: error parsing parm 3 on line %i\n", n);
-					cscale = atof(com_token);
-					if (!entry->data)
-						Error("makecolors: entry not loaded, try sub first\n", n);
-					strcpy(legacycolormaps->maps[legacymodels->models[currentmodel].colormapid].map, "");
-					rawblock = (rawblock_t *)entry->data;
-					for (i = minp; i < maxp; i++)
+					else
 					{
-						c[0] = rawblock->colormap[i*3];
-						c[1] = rawblock->colormap[i*3 + 1];
-						c[2] = rawblock->colormap[i*3 + 2];
-						aver = (c[0] + c[1] + c[2])/3;
-						diff = max(c[0], max(c[1], c[2]));
-						// reject any color thats too gray
-						//if (!diff || aver/diff > 0.8)
-						//	continue;
-						sprintf(cs, "'%i %i %i'", (int)(c[0]*cscale), (int)(c[1]*cscale), (int)(c[2]*cscale));
-						strcat(legacycolormaps->maps[legacymodels->models[currentmodel].colormapid].map, cs);
-					}
-					// unload entry
-					if (entry && entry->data)
-					{
-						FreeRawBlock((rawblock_t *)entry->data);
-						entry->data = NULL;
+						if (!(t = COM_Parse(t))) 
+							Error("makecolors: error parsing parm 1 on line %i\n", n);
+						else
+						{
+							minp = min(255, max(0, atoi(com_token)));
+							if (!(t = COM_Parse(t)))
+								Error("makecolors: error parsing parm 2 on line %i\n", n);
+							else
+							{
+								maxp = min(255, max(0, atoi(com_token)));
+								if (!(t = COM_Parse(t)))
+									Error("makecolors: error parsing parm 3 on line %i\n", n);
+								else
+								{
+									cscale = atof(com_token);
+									if (!entry->data)
+										Error("makecolors: entry not loaded on line %i, try sub first\n", n);
+									else
+									{
+										strcpy(legacycolormaps->maps[legacymodels->models[currentmodel].colormapid].map, "");
+										rawblock = (rawblock_t *)entry->data;
+										for (i = minp; i < maxp; i++)
+										{
+											c[0] = rawblock->colormap[i*3];
+											c[1] = rawblock->colormap[i*3 + 1];
+											c[2] = rawblock->colormap[i*3 + 2];
+											aver = (c[0] + c[1] + c[2])/3;
+											diff = max(c[0], max(c[1], c[2]));
+											// reject any color thats too gray
+											//if (!diff || aver/diff > 0.8)
+											//	continue;
+											sprintf(cs, "'%i %i %i'", (int)(c[0]*cscale), (int)(c[1]*cscale), (int)(c[2]*cscale));
+											strcat(legacycolormaps->maps[legacymodels->models[currentmodel].colormapid].map, cs);
+										}
+										// unload entry
+										if (entry && entry->data)
+										{
+											FreeRawBlock((rawblock_t *)entry->data);
+											entry->data = NULL;
+										}
+									}
+								}
+							}
+						}
 					}
 					goto next;
 				}
@@ -618,6 +844,7 @@ void Script_Parse(char *filename, char *basepath)
 			s++;
 		n++;
 	}
+	PacifierEnd();
 	if (writingpk3)
 	{
 		PK3_AddWrappedFiles(pk3);
