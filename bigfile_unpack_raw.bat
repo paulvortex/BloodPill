@@ -1,1 +1,1 @@
-bpill -w -mem -bigfile pill2.big -pack bigfile3
+bpill -w -mem -bigfile pill.big -unpack bigfile
