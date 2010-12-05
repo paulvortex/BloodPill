@@ -99,7 +99,7 @@ void Script_Parse(char *filename, char *basepath)
 	double cscale, aver, diff;
 	byte *scriptstring, *s, *t, *data;
 	size_t scriptsize, n, len;
-	qboolean bloodomnicide = false, litsprites = false, allowdebug = true, writingpk3 = false;
+	qboolean bloodomnicide = false, bigfileinstall = false, litsprites = false, allowdebug = true, writingpk3 = false;
 	int i, currentmodel = -1, minp, maxp, sargc, stt = 0, stt_total = 0, c[3];
 	char tempchar, **sargv, outfile[MAX_BLOODPATH], infile[MAX_BLOODPATH], cs[32];
 	char soxparm1[1024], soxparm2[1024], soxparm3[1024], soxparm4[1024];
@@ -219,6 +219,8 @@ void Script_Parse(char *filename, char *basepath)
 							stt_total = atoi(com_token);
 						}
 					}
+					//else if (!strcmp(com_token, "bigfilerepack")) 
+					//	bigfilerepack = true;
 					else if (!strcmp(com_token, "litsprites"))
 						litsprites = true;
 				}
@@ -884,6 +886,8 @@ int Script_Main(int argc, char **argv)
 			i++;
 			if (i < argc)
 			{
+				if (bigfile)
+					Error("-bigfile : bigfile alredy used");
 				// load known-files-list, load bigfile
 				oldverbose = verbose;
 				oldnoprint = noprint;
@@ -897,6 +901,20 @@ int Script_Main(int argc, char **argv)
 				bigfile = ReadBigfileHeader(bigfilehandle, argv[i], false, false);
 				verbose = oldverbose;
 				noprint = oldnoprint;
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-patch"))
+		{
+			i++;
+			if (i < argc)
+			{
+				if (bigfile)
+					Error("-newfile : bigfile alredy used");
+				// load bigfile
+				bigfilehandle = SafeOpen(argv[i], "rb");
+				bigfile = ReadBigfileHeader(bigfilehandle, argv[i], true, false);
+
 			}
 			continue;
 		}
