@@ -512,7 +512,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 		// assign default name
 		sprintf(entry->name, "%s%.8X.%s", bigentryautopaths[BIGENTRY_UNKNOWN], read[0], bigentryext[BIGENTRY_UNKNOWN]);
 		if (!entry->hash || !entry->offset)
-			Error("BigfileHeader: entry %i is broken\n", i);
+			Error("BigfileHeader(%s): entry %i is broken\n", filename, i);
 	}
 	PacifierEnd();
 
@@ -998,7 +998,7 @@ void BigFileUnpackEntry(FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolea
 		else
 		{
 			//Warning("unable to convert %s, SoX Error #%i, unpacking original", entry->name, GetLastError());
-			Warning("unable to convert %s, SoX Error, unpacking original", entry->name);
+			Error("unable to convert %s, SoX Error, unpacking original", entry->name);
 			BigFileUnpackOriginalEntry(entry, dstdir, false);
 		}
 
@@ -2403,7 +2403,7 @@ int BigFile_Pack(int argc, char **argv)
 		if (entry->size == 0)
 			continue; // skip null files
 
-		Pacifier("writing entry %i of %i...\r", i + 1, data->numentries);
+		Pacifier("writing entry %i of %i...", i + 1, data->numentries);
 
 		ExtractFileExtension(entry->name, ext);
 		// autoconverted TIM

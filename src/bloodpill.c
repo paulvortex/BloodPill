@@ -26,8 +26,6 @@
 #include "soxsupp.h"
 #include "zlib.h"
 
-char progname[128];
-
 // bigfile.c
 int BigFile_Main(int argc, char **argv);
 
@@ -73,6 +71,31 @@ void Verbose(char *str, ...)
 }
 
 // flush out after that string 
+void PercentPacifier(char *str, ...)
+{
+	va_list argptr;
+
+	if (noprint && !solidpacifier)
+		return;
+	va_start(argptr, str);
+	if (solidpacifier)
+	{
+		vprintf(str, argptr);
+		printf("\n");
+		va_end(argptr);
+		Sleep(20);
+		fflush(stdout);
+	}
+	else
+	{
+		printf("\r   ");
+		vprintf(str, argptr);
+		printf("%\r");
+		va_end(argptr);
+		fflush(stdout);
+	}
+}
+
 void Pacifier(char *str, ...)
 {
 	va_list argptr;
@@ -117,12 +140,15 @@ void Warning(char *str, ...)
 int Help_Main()
 {
 	Print(
-	"usage: bpill [-w] [-mem] [-nc] action\n"
+	"usage: bpill [prefixes] action\n"
+	"=== PREFIXES ===\n"
 	" -w : wait for a key press before exit\n"
+	" -ew : wait for a key press once got error (obsoleted by -w)\n"
 	" -mem : print a memory usage stats\n"
 	" -nc : disable printing of caption\n"
 	" -c : compact mode, no verbose messages\n"
 	" -f : function mode, only error and warnings get printed\n"
+	" -cd x: change current dir to this\n"
 	"\n"
 	"=== ACTIONS ===\n"
 	"-bigfile [bigfilename] [-klist file] -list [filename] [optional_switches]\n"
@@ -271,13 +297,15 @@ int Help_Main()
 
 int main(int argc, char **argv)
 {
-	int i, returncode = 0;
+	int i, j, returncode = 0;
 	char customsoxpath[MAX_BLOODPATH];
 	qboolean printcap;
 
 	// get program name
-	memset(progname, 0, 128);
+	memset(progname, 0, MAX_BLOODPATH);
+	memset(progpath, 0, MAX_BLOODPATH);
 	ExtractFileBase(argv[0], progname);
+	ExtractFilePath(argv[0], progpath);
 
 	// check command line flags
 	sprintf(customsoxpath, "sox.exe");
@@ -286,6 +314,7 @@ int main(int argc, char **argv)
 	waitforkey = false;
 	memstats = false;
 	noprint = false;
+	solidpacifier = false;
 	for (i = 1; i < argc; i++)
 	{
 		if (!strcmp(argv[i],"-nc")) // disable caption
@@ -293,8 +322,16 @@ int main(int argc, char **argv)
 			printcap = false;
 			continue;
 		}
+		if (!strcmp(argv[i], "-c")) // disable partial printings
+		{
+			verbose = false;
+			printcap = false;
+			continue;
+		}
 		if (!strcmp(argv[i],"-f")) // disable all printings
 		{
+			verbose = false;
+			printcap = false;
 			noprint = true;
 			continue;
 		}
@@ -308,9 +345,29 @@ int main(int argc, char **argv)
 			waitforkey = true;
 			continue;
 		}
-		if (!strcmp(argv[i], "-c"))
+		if (!strcmp(argv[i], "-ew"))
 		{
-			verbose = false;
+			error_waitforkey = true;
+			continue;
+		}
+		if (!strcmp(argv[i], "-cd"))
+		{
+			i++;
+			if (i < argc)
+				ChangeDirectory(argv[i]);
+			continue;
+		}
+		if (!strcmp(argv[i], "-sp"))
+		{
+			solidpacifier = true;
+			continue;
+		}
+		if (!strcmp(argv[i],"-testcmd"))
+		{
+			printf("Commandline parms test:\n");
+			for (j = 0; j < argc; j++)
+				printf("%i : '%s'\n", j, argv[j]);
+			printf("---\n");
 			continue;
 		}
 		if (!strcmp(argv[i], "-soxpath"))
@@ -347,7 +404,7 @@ int main(int argc, char **argv)
 	}
 
 	// no args check
-	if (argc == 1)
+	if (i >= argc)
 	{
 		waitforkey = true;
 		Help_Main ();
@@ -378,7 +435,6 @@ int main(int argc, char **argv)
 		returncode = Help_Main();
 	else
 		Error("unknown action %s, try %s -help", argv[i], progname);
-
 	Print("\n");
 
 	// free allocated memory

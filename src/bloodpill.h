@@ -2,7 +2,7 @@
 #include "dll.h"
 
 #ifndef BLOODPILL_VERSION
-#define BLOODPILL_VERSION "v0.8c"
+#define BLOODPILL_VERSION "v0.8f"
 static char *BLOODPILL_WELCOME =
 "----------------------------------------\n"
 "Blood Pill %s by VorteX and Mean Person\n"
@@ -15,20 +15,24 @@ static char *BLOODPILL_WELCOME =
 "JAM decoder by MisterGrim\n"
 "----------------------------------------\n"
 ;
-#define MAX_BLOODPATH 512
+#define MAX_BLOODPATH 1024
 #endif
 
 // global switches
 qboolean waitforkey;
+qboolean error_waitforkey;
 qboolean memstats;
 qboolean verbose;
 qboolean noprint;
+qboolean solidpacifier;
 
-extern char progname[128];
+char progname[MAX_BLOODPATH];
+char progpath[MAX_BLOODPATH];
 
 // printing
 void Print (char *str, ...);
 void Verbose (char *str, ...);
 void Warning (char *str, ...);
 void Pacifier(char *str, ...);
+void PercentPacifier(char *str, ...);
 void PacifierEnd();

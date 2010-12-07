@@ -76,6 +76,7 @@ qboolean LoadDll (const char** dllnames, dllhandle_t* handle, const dllfunction_
 #ifdef SUPPORTDLL
 	const dllfunction_t *func;
 	dllhandle_t dllhandle = 0;
+	char dllpath[MAX_BLOODPATH];
 	unsigned int i;
 
 	if (handle == NULL)
@@ -107,50 +108,23 @@ notfound:
 	{
 		if (verbose)
 			Verbose (" \"%s\"", dllnames[i]);
+		sprintf(dllpath, "%s%s", progpath, dllnames[i]);
 #ifdef WIN32
 # ifdef _WIN64
 		SetDllDirectory("bin64");
 # endif
-		dllhandle = LoadLibrary(dllnames[i]);
+		dllhandle = LoadLibrary(dllpath);
 # ifdef _WIN64
 		SetDllDirectory(NULL);
 # endif
 #else
-		dllhandle = dlopen (dllnames[i], RTLD_LAZY | RTLD_GLOBAL);
+		dllhandle = dlopen (dllpath, RTLD_LAZY | RTLD_GLOBAL);
 #endif
 		if (LoadDllFunctions(dllhandle, fcts, verbose, (dllnames[i+1] != NULL) /* vortex: broke || (strrchr(com_argv[0], '/'))*/))
 			break;
 		else
 			UnloadDll (&dllhandle);
 	}
-
-	// see if the names can be loaded relative to the executable path
-	// (this is for Mac OSX which does not check next to the executable)
-	/* vortex: broke
-	if (!dllhandle && strrchr(com_argv[0], '/'))
-	{
-		char path[MAX_OSPATH];
-		strlcpy(path, com_argv[0], sizeof(path));
-		strrchr(path, '/')[1] = 0;
-		for (i = 0; dllnames[i] != NULL; i++)
-		{
-			char temp[1024];
-			strlcpy(temp, path, sizeof(temp));
-			strlcat(temp, dllnames[i], sizeof(temp));
-			if (verbose)
-				Verbose (" \"%s\"", temp);
-#ifdef WIN32
-			dllhandle = LoadLibrary(temp);
-#else
-			dllhandle = dlopen (temp, RTLD_LAZY | RTLD_GLOBAL);
-#endif
-			if (LoadDllFunctions(dllhandle, fcts, verbose, dllnames[i+1] != NULL))
-				break;
-			else
-				UnloadDll (&dllhandle);
-		}
-	}
-	*/
 
 	// No DLL found
 	if (!dllhandle)

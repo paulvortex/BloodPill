@@ -1,6 +1,5 @@
 // Useful Functions Library
 
-#define PATHSEPERATOR   '/'
 #define __USE_BSD 1
 
 #include <sys/types.h>
@@ -154,7 +153,7 @@ void Error (char *error, ...)
 {
 	va_list argptr;
 
-	Print ("\n************ ERROR ************\n");
+	printf("\n*** ERROR ***\n");
 
 	va_start (argptr,error);
 	vprintf (error,argptr);
@@ -162,9 +161,9 @@ void Error (char *error, ...)
 	printf ("\n");
 
 #if _MSC_VER
-	if (waitforkey)
+	if (waitforkey || error_waitforkey)
 	{
-		Print("press any key\n");
+		printf("press any key\n");
 		getchar();
 	}
 #endif
@@ -243,7 +242,7 @@ void Q_mkdir (char *path)
 #endif
     return;
   if (errno != EEXIST)
-    Error ("mkdir %s: %s",path, strerror(errno));
+    Error ("mkdir '%s': %s",path, strerror(errno));
 }
 
 /*
@@ -253,8 +252,9 @@ CreatePath
 */
 void CreatePath (char *path)
 {
-	char *ofs, save;
+	char *ofs, save, *opath;
 
+	opath = path;
 	for (ofs = path+1 ; *ofs ; ofs++)
 	{
 		if (*ofs == '/' || *ofs == '\\')
@@ -262,12 +262,50 @@ void CreatePath (char *path)
 			// create the directory
 			save = *ofs;
 			*ofs = 0;
-			if (path[0])
-				Q_mkdir (path);
+			if (path[0] && path[strlen(path)-1] != ':')
+			{
+				#if defined(WIN32) || defined(_WIN64)
+				  if (mkdir (path) != -1)
+				#else
+				  if (mkdir (path, 0777) != -1)
+				#endif
+					return;
+				if (errno != EEXIST)
+					Error ("CreatePath '%s': %s", opath, strerror(errno));
+			}
 			*ofs = save;
 		}
 	}
 }
+
+/*
+============
+ChangeDirectory
+changes program working directory
+============
+*/
+void ChangeDirectory (char *path)
+{
+	ConvSlashW2U(path);
+	if (_chdir(path) != -1)
+		return;
+	if (errno != EEXIST)
+		 Error("chdir %s: %s", path, strerror(errno));
+}
+void GetDirectory(char *path, int size_bytes)
+{
+	_getcwd(path, size_bytes);
+}
+void GetRealPath(char *outpath, char *inpath)
+{
+	char cdir[MAX_BLOODPATH];
+	_getcwd(cdir, MAX_BLOODPATH);
+	if (cdir[strlen(cdir)-1] == '/' || cdir[strlen(cdir)-1] == '\\' )
+		sprintf(outpath, "%s%s", cdir, inpath);
+	else
+		sprintf(outpath, "%s/%s", cdir, inpath);
+}
+
 
 /*
 ============
@@ -625,8 +663,8 @@ void DefaultPath (char *path, char *basepath)
 {
   char    temp[128];
 
-  if (path[0] == PATHSEPERATOR)
-    return;                   // absolute path location
+  if (path[0] == '/' || path[0] == '\\')
+    return; // absolute path location
   strcpy (temp,path);
   strcpy (path,basepath);
   strcat (path,temp);
@@ -687,7 +725,7 @@ void ExtractFilePath (char *path, char *dest)
   //
   // back up until a \ or the start
   //
-  while (src != path && *(src-1) != PATHSEPERATOR)
+  while (src != path && (*(src-1) != '/' && *(src-1) != '\\'))
     src--;
 
   memcpy (dest, path, src-path);
@@ -703,7 +741,7 @@ void ExtractFileBase (char *path, char *dest)
   //
   // back up until a \ or the start
   //
-  while (src != path && *(src-1) != PATHSEPERATOR)
+  while (src != path && (*(src-1) != '/' && *(src-1) != '\\'))
     src--;
 
   while (*src && *src != '.')
@@ -722,12 +760,12 @@ void ExtractFileName (char *path, char *dest)
   //
   // back up until a \ or the start
   //
-  while (src != path && *(src-1) != PATHSEPERATOR)
+ while (src != path && (*(src-1) != '/' && *(src-1) != '\\'))
     src--;
-  while (*src)
-    {
+  while(*src)
+  {
       *dest++ = *src++;
-    }
+  }
   *dest = 0;
 }
 

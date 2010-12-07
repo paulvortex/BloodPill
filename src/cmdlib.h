@@ -64,6 +64,9 @@ extern int	FileTime (char *path);
 extern void	Q_mkdir (char *path);
 
 void CreatePath (char *path);
+void ChangeDirectory (char *path);
+void GetDirectory(char *path, int size_bytes);
+void GetRealPath(char *outpath, char *inpath);
 
 extern double I_DoubleTime (void);
 

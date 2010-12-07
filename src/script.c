@@ -143,7 +143,7 @@ void Script_Parse(char *filename, char *basepath)
 			if (stt_total) // show pacifier
 			{
 				i = (int)((stt * 100) / stt_total);
-				printf("\r%8i%s\r", i, "%");
+				PercentPacifier("%i", i);
 			}
 			// ---- General Part ----
 			if (!strcmp(com_token, "path")) 
@@ -159,6 +159,13 @@ void Script_Parse(char *filename, char *basepath)
 					else
 						strcpy(path, basepath);
 				}
+				goto next;
+			}
+			if (!strcmp(com_token, "print")) 
+			{
+				while (t = COM_Parse(t))
+					printf("%s", com_token);
+				printf("\n");
 				goto next;
 			}
 			if (!strcmp(com_token, "option")) 
@@ -344,7 +351,7 @@ void Script_Parse(char *filename, char *basepath)
 					Error("copy: error parsing parm 1 on line %i\n", n);
 				else
 				{
-					strcpy(infile, com_token);
+					GetRealPath(infile, com_token);
 					if (!(t = COM_Parse(t)))
 						Error("copy: error parsing parm 2 on line %i\n", n);
 					else
@@ -387,7 +394,7 @@ void Script_Parse(char *filename, char *basepath)
 						}
 						// convert
 						if (!SoX_FileToData(infile, soxparm1, soxparm2, soxparm3, &len, &data, soxparm4))
-							Error("sox: failed on line %i\n", n);
+							Error("sox: failed to process %s on line %i\n", infile, n);
 						else
 						{
 							if (writingpk3)
@@ -840,9 +847,7 @@ void Script_Parse(char *filename, char *basepath)
 		}
 	next:
 		*s = tempchar;
-		if (*s == '\r')
-			s++;
-		if (*s == '\n')
+		if (*s == '\r' || *s == '\n')
 			s++;
 		n++;
 	}
@@ -945,5 +950,5 @@ int Script_Main(int argc, char **argv)
 	if (bigfile)
 		qfree(bigfile);
 
-	return 1;
+	return 0;
 }
