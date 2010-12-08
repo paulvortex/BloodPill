@@ -50,6 +50,7 @@ typedef struct
 	unsigned int hash; // hashed name
 	unsigned int size; // file size
 	unsigned int offset; // file offset
+	unsigned int oldoffset; // old file offset (before recalculating)
 
 	// loaded by tool
 	char name[MAX_BLOODPATH];

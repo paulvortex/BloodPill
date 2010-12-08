@@ -25,6 +25,7 @@ qboolean memstats;
 qboolean verbose;
 qboolean noprint;
 qboolean solidpacifier;
+qboolean errorlog;
 
 char progname[MAX_BLOODPATH];
 char progpath[MAX_BLOODPATH];

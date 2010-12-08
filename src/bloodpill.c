@@ -149,6 +149,8 @@ int Help_Main()
 	" -c : compact mode, no verbose messages\n"
 	" -f : function mode, only error and warnings get printed\n"
 	" -cd x: change current dir to this\n"
+	" -sp : print percentage pacifier as newlines, used by installers\n"
+	" -errlog: once got error, make blooderr.txt with it's contents\n"
 	"\n"
 	"=== ACTIONS ===\n"
 	"-bigfile [bigfilename] [-klist file] -list [filename] [optional_switches]\n"
@@ -182,6 +184,8 @@ int Help_Main()
 	"\n"
 	"-bigfile [bigfilename] -pack [dir]\n"
 	"  create a bigfile from a folder containing all files and listfile\n"
+	"\n"
+	"-bigfile [bigfilename] -patch <patchscript> -outfile outfile\n"
 	"\n"
 	"-bigfile [bigfilename] -extract filename outfile [-f format] [optional_switches]\n"
 	"  extract a specific entry from bigfile\n"
@@ -315,6 +319,7 @@ int main(int argc, char **argv)
 	memstats = false;
 	noprint = false;
 	solidpacifier = false;
+	errorlog = false;
 	for (i = 1; i < argc; i++)
 	{
 		if (!strcmp(argv[i],"-nc")) // disable caption
@@ -360,6 +365,11 @@ int main(int argc, char **argv)
 		if (!strcmp(argv[i], "-sp"))
 		{
 			solidpacifier = true;
+			continue;
+		}
+		if (!strcmp(argv[i], "-errlog"))
+		{
+			errorlog = true;
 			continue;
 		}
 		if (!strcmp(argv[i],"-testcmd"))

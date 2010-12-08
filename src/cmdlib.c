@@ -152,14 +152,28 @@ For abnormal program terminations
 void Error (char *error, ...)
 {
 	va_list argptr;
+	char logfile[MAX_BLOODPATH], err[10384];
+	FILE *f;
+
+	va_start(argptr, error);
+	vsprintf(err, error, argptr);
+	va_end(argptr);
 
 	printf("\n*** ERROR ***\n");
-
-	va_start (argptr,error);
-	vprintf (error,argptr);
-	va_end (argptr);
+	printf(err);
 	printf ("\n");
 
+	// write error log
+	if (errorlog)
+	{
+		sprintf(logfile, "%sblooderr.txt", progpath);
+		f = fopen(logfile, "wb");
+		if (f)
+		{
+			fwrite(err, strlen(err), 1, f);
+			fclose(f);
+		}
+	}
 #if _MSC_VER
 	if (waitforkey || error_waitforkey)
 	{

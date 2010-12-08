@@ -420,7 +420,7 @@ unsigned int BigfileEntryHashFromString(char *string)
 		Verbose("Hash filename: %.8X\n", hash);
 		return hash;
 	}
-	Error("Failed to lookup entry name '%s' - no such entry\n", string);
+	Error("BigfileEntryHashFromString: Failed to lookup entry name '%s' - no such entry\n", string);
 	return 0;
 }
 
@@ -621,15 +621,16 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecon
 }
 
 // recalculate all file offsets
-void BigfileHeaderRecalcOffsets(bigfileheader_t *data)
+void BigfileHeaderRecalcOffsets(bigfileheader_t *data, int additionalentries)
 {
 	bigfileentry_t *entry;
 	int i, offset;
 
-	offset = sizeof(unsigned int) + data->numentries*12;
+	offset = sizeof(unsigned int) + (data->numentries + additionalentries)*12;
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
+		entry->oldoffset = entry->offset;
 		entry->offset = (unsigned int)offset;
 		offset = offset + entry->size;
 	}
@@ -2451,7 +2452,7 @@ int BigFile_Pack(int argc, char **argv)
 
 	// write headers
 	Verbose("Recalculating offsets...\n", bigfile);
-	BigfileHeaderRecalcOffsets(data);
+	BigfileHeaderRecalcOffsets(data, 0);
 	fseek(f, 4, SEEK_SET);
 	for (i = 0; i < (int)data->numentries; i++)
 	{
@@ -2466,6 +2467,304 @@ int BigFile_Pack(int argc, char **argv)
 	WriteClose(f);
 	Print("done.\n");
 	return 0;
+}
+
+/*
+==========================================================================================
+
+  Patch
+
+==========================================================================================
+*/
+
+#define MAX_PATCHFILES 400
+#define PILL_BIG_BIGGEST_ENTRY 1024 * 1024 * 4
+
+typedef enum
+{
+	PATCH_RAW,
+	PATCH_SOUND2ADPCM,
+	PATCH_TGA2TIM
+}patchconv_t;
+
+typedef struct
+{
+	// bigfile entry this file points to
+	bigfileentry_t *entry;
+	unsigned int hash;
+	// file data
+	byte *data;
+	int datasize;
+}patchfile_t;
+
+int BigFile_Patch(int argc, char **argv)
+{
+	char patchfile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], entryname[MAX_BLOODPATH], convtype[1024], line[1024];
+	int i, num_patchfiles, linenum, linebytes, linebytes_total, progress[4], patchedbytes, patchsize_total, chunksize, chunkbytes;
+	patchfile_t patchfiles[MAX_PATCHFILES], *pfile;
+	bigfileheader_t *bigfilehead;
+	bigfileentry_t *entry;
+	int entries_new = 0, entries_changesize = 0;
+	qboolean overwriting;
+	unsigned int num_entries, written_entries, ofs;
+	byte *chunkdata;
+	float p;
+	FILE *f, *bigf, *tmp;
+
+	if (argc < 1)
+		Error("not enough parms");
+	// check parms
+	strcpy(patchfile, argv[0]);
+	strcpy(outfile, bigfile);
+	progress[0] = 5;
+	progress[1] = 40;
+	progress[2] = 60;
+	progress[3] = 100;
+	for (i = 1; i < argc; i++)
+	{
+		if (!strcmp(argv[i], "-outfile"))
+		{
+			i++; 
+			if (i < argc)
+				strcpy(outfile, argv[i]);
+			Verbose("Option: output file '%s'\n", outfile);
+			continue;
+		}
+		if (i != 0)
+			Warning("unknown parameter '%s'",  argv[i]);
+	}
+
+	// first step - (0-5) preload bigfile header
+	if (strcmp(bigfile, outfile))
+	{
+		overwriting = false;
+		Verbose("Deriving patch destination (fast)\n", bigfile);
+		bigf = SafeOpen(bigfile, "rb");
+	}
+	else
+	{
+		overwriting = true;
+		Verbose("Overwriting patch destination (slow)\n", bigfile);
+		bigf = SafeOpen(bigfile, "rb+");
+		fseek(bigf, 0, SEEK_SET);
+	}
+	Verbose("Loading %s...\n", bigfile);
+	bigfilehead = ReadBigfileHeader(bigf, bigfile, false, false);
+	for (i = 0; i < (int)bigfilehead->numentries; i++)
+	{
+		entry = &bigfilehead->entries[i];
+		// show pacifier
+		p = ((float)i / (float)bigfilehead->numentries) * progress[0];
+		PercentPacifier("%i", (int)p);
+	}
+
+	// second step - load patch files
+	Verbose("Loading patch file %s...\n", patchfile);
+	linenum = 0;
+	linebytes = 0;
+	num_patchfiles = 0;
+	patchsize_total = 0;
+	entries_new = false;
+	entries_changesize = false;
+	f = SafeOpen(patchfile, "rb");
+	linebytes_total = Q_filelength(f);
+	while(!feof(f))
+	{
+		fgets(line, 1024, f);
+		linebytes += strlen(line) + 1;
+		linenum++;
+		if (!line[0] || (line[0] == '/' && line[1] == '/')) // commet and null strings
+			continue;
+		if (!sscanf(line, "%s %s %s", &convtype, &entryname, &patchfile))
+			Error("failed to read patchfile line %i", linenum);
+		// register patchfile and preload it
+		if (num_patchfiles >= MAX_PATCHFILES)
+			Error("MAX_PATCHFILES = %i exceeded, consider increase", MAX_PATCHFILES);
+		// find entry for patchfile
+		pfile = &patchfiles[num_patchfiles];
+		pfile->hash = BigfileEntryHashFromString(entryname);
+		if (!pfile->hash)
+			Error("cannot resolve hash on line %i", linenum);
+		pfile->entry = BigfileGetEntry(bigfilehead, pfile->hash);
+		if (!pfile->entry)
+			Error("!");
+		// scan filetype for entry
+		if (pfile->entry->size)
+			BigfileScanFiletype(bigf, pfile->entry, false, RAW_TYPE_UNKNOWN, false);
+		// load patchfile
+		if (!strcmp(convtype, "RAW"))
+			pfile->datasize = LoadFile(patchfile, &pfile->data);
+		else if (!strcmp(convtype, "DEL"))
+			pfile->datasize = 0;
+		else if (!strcmp(convtype, "WAV2ADPCM"))
+		{
+			if (!SoX_FileToData(patchfile, "--no-dither", "", "-t ima -c 1", &pfile->datasize, &pfile->data, ""))
+				Error("unable to convert %s, SoX Error on line %i\n", patchfile, linenum);
+		}
+		else
+			Error("bad patch filetype on line %i", linenum);
+		if (!pfile->data)
+			Error("patchfile has no data on line %i", linenum);
+		patchsize_total += pfile->datasize;
+		num_patchfiles++;
+		// for optimal patching way
+		if (!pfile->entry)
+			entries_new++;
+		else if (pfile->datasize != pfile->entry->size)
+			entries_changesize++;
+		// show pacifier
+		p = progress[0] + ((float)linebytes / (float)linebytes_total) * (progress[1] - progress[0]);
+		PercentPacifier("%i", (int)p);
+	}
+	fclose(f);
+
+	if (!num_patchfiles)
+		Error("nothing to patch");
+
+	Verbose(" %i patch files\n", num_patchfiles);
+	Verbose(" %i new\n", entries_new);
+	Verbose(" %i changing size\n", entries_changesize);
+
+	// most simple patch - if size is not changed
+	patchedbytes = 0;
+	if (!entries_new && !entries_changesize)
+	{
+		Verbose("Applying simple patch...\n");
+		for (i = 0; i < num_patchfiles; i++)
+		{
+			pfile = &patchfiles[i];
+			fseek(bigf, pfile->entry->offset, SEEK_SET);
+			fwrite(pfile->data, pfile->datasize, 1, bigf);
+			patchedbytes += pfile->datasize;
+			// show pacifier
+			p = progress[1] + ((float)patchedbytes / (float)patchsize_total) * (progress[3] - progress[1]);
+			PercentPacifier("%i", (int)p);
+		}
+	}
+	else
+	{
+		Verbose("Applying extended patch...\n");
+		// copy out pillbig
+		if (!overwriting)
+		{
+			tmp = bigf;
+			bigf = SafeOpen(outfile, "wb");
+		}
+		else
+		{
+			Verbose("Buffering %s...\n", bigfile);
+			fseek(bigf, 0, SEEK_SET);
+			linebytes = 0;
+			linebytes_total = Q_filelength(bigf);
+			chunksize = 1024 * 1024 * 4;
+			tmp = tmpfile();
+			chunkdata = qmalloc(chunksize);
+			while(linebytes < linebytes_total)
+			{
+				chunkbytes = min(linebytes_total - linebytes, chunksize);
+				fread(chunkdata, chunkbytes, 1, bigf);
+				fwrite(chunkdata, chunkbytes, 1, tmp);
+				linebytes += chunkbytes;
+				// show pacifier
+				p = progress[2] + ((float)linebytes / (float)linebytes_total) * (progress[3] - progress[2]);
+				PercentPacifier("%i", (int)p);
+			}
+			qfree(chunkdata);
+		}
+		// set new sizes
+		for (i = 0; i < num_patchfiles; i++)
+		{
+			pfile = &patchfiles[i];
+			if (pfile->entry)
+			{
+				pfile->entry->size = pfile->datasize;
+				pfile->entry->data = pfile->data;
+			}
+		}
+		chunkdata = qmalloc(PILL_BIG_BIGGEST_ENTRY);
+		// recalc offsets
+		BigfileHeaderRecalcOffsets(bigfilehead, entries_new);
+		// write new bigfile header
+		num_entries = bigfilehead->numentries + entries_new;
+		fseek(bigf, 0, SEEK_SET);
+		SafeWrite(bigf, &num_entries, 4);
+		for (i = 0; i < (int)bigfilehead->numentries; i++)
+		{
+			entry = &bigfilehead->entries[i];
+			SafeWrite(bigf, &entry->hash, 4);
+			SafeWrite(bigf, &entry->size, 4);
+			SafeWrite(bigf, &entry->offset, 4);
+			ofs = entry->size + entry->offset;
+		}
+		for (i = 0; i < num_patchfiles; i++)
+		{
+			pfile = &patchfiles[i];
+			if (pfile->entry)
+				continue;
+			SafeWrite(bigf, &pfile->hash, 4);
+			SafeWrite(bigf, &entry->size, 4);
+			SafeWrite(bigf, &ofs, 4);
+			ofs += entry->size;
+		}
+		// write entries
+		written_entries = 0;
+		for (i = 0; i < (int)bigfilehead->numentries; i++)
+		{
+			entry = &bigfilehead->entries[i];
+			if (!entry->size)
+				continue;
+			if (entry->data)
+				SafeWrite(bigf, entry->data, entry->size);
+			else
+			{
+				if (entry->size > PILL_BIG_BIGGEST_ENTRY)
+					Error("PILL_BIG_BIGGEST_ENTRY = %i exceeded, consider increasing", PILL_BIG_BIGGEST_ENTRY);
+				if (fseek(tmp, (long int)entry->oldoffset, SEEK_SET))
+					Error("error seeking for data on file %.8X", entry->hash);
+				if (fread(chunkdata, entry->size, 1, tmp) < 1)
+					Error("error reading data on file %.8X (%s)", entry->hash, strerror(errno));
+				SafeWrite(bigf, chunkdata, entry->size);
+			}
+			written_entries++;
+			// show pacifier
+			if (overwriting)
+				p = progress[2] + ((float)written_entries / (float)num_entries) * (progress[3] - progress[2]);
+			else
+				p = progress[1] + ((float)written_entries / (float)num_entries) * (progress[3] - progress[1]);
+			PercentPacifier("%i", (int)p);
+
+		}
+		for (i = 0; i < num_patchfiles; i++)
+		{
+			pfile = &patchfiles[i];
+			if (!pfile->datasize || pfile->entry)
+				continue;
+			SafeWrite(bigf, pfile->data, pfile->datasize);
+			// show pacifier
+			if (overwriting)
+				p = progress[2] + ((float)written_entries / (float)num_entries) * (progress[3] - progress[2]);
+			else
+				p = progress[1] + ((float)written_entries / (float)num_entries) * (progress[3] - progress[1]);
+			PercentPacifier("%i", (int)p);
+		}
+		qfree(chunkdata);
+		fclose(tmp);
+	}
+	fclose(bigf);
+	PacifierEnd();
+		
+	// free patch files
+	for (i = 0; i < num_patchfiles; i++)
+	{
+		pfile = &patchfiles[num_patchfiles];
+		if (pfile->data)
+			qfree(pfile->data);
+	}
+
+	Print("done.\n");
+
+	return 0;
+
 }
 
 /*
@@ -2531,6 +2830,8 @@ int BigFile_Main(int argc, char **argv)
 		returncode = BigFile_Unpack(argc-i-1, argv+i+1);
 	else if (!strcmp(argv[i], "-pack"))
 		returncode = BigFile_Pack(argc-i-1, argv+i+1);
+	else if (!strcmp(argv[i], "-patch"))
+		returncode = BigFile_Patch(argc-i-1, argv+i+1);
 	else
 		Warning("unknown action %s", argv[i]);
 
