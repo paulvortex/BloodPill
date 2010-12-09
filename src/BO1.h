@@ -7,7 +7,7 @@ typedef struct
 	char	name[17];
 }wheelofdoom_names_t;
 
-#define NUM_CSV_ENTRIES 2573
+#define NUM_CSV_ENTRIES 2580
 
 wheelofdoom_names_t wheelofdoom_names[NUM_CSV_ENTRIES] =
 {
@@ -348,6 +348,7 @@ wheelofdoom_names_t wheelofdoom_names[NUM_CSV_ENTRIES] =
 	{  50725644, "blk_sol.sha"},
 	{2120686683, "char0125.sha"},
 	{1145063251, "gam.all"},
+	{1145063251, "gam.tim"},
 	{ 386228789, "blshower.sdr"},
 	{ 169156399, "bone2dis.shd"},
 	{ 270278440, "bone2mst.shd"},
@@ -1944,6 +1945,9 @@ wheelofdoom_names_t wheelofdoom_names[NUM_CSV_ENTRIES] =
 	{ 504852520, "vortitem.all"},
 	{ 253434119, "vortout.all"},
 	{ 369558023, "vorttim.all"},
+	{ 504852520, "vortitem.tim"},
+	{ 253434119, "vortout.tim"},
+	{ 369558023, "vorttim.tim"},
 	{ 174420835, "vp00012.tim"},
 	{1533898760, "av0311.fag"},
 	{1312839251, "all.vag"},
@@ -2207,6 +2211,7 @@ wheelofdoom_names_t wheelofdoom_names[NUM_CSV_ENTRIES] =
 	{ 453836822, "spdeath.sdr"},
 	{ 186253313, "spwrack.sdr"},
 	{ 168325930, "statobjs.sdp"},
+	{ 168325930, "statobjs.tim"},
 	{2132020993, "7F140F01.tim"},
 	{2115243777, "7E140F01.tim"},
 	{2098466561, "7D140F01.tim"},
@@ -2238,6 +2243,7 @@ wheelofdoom_names_t wheelofdoom_names[NUM_CSV_ENTRIES] =
 	{1818493458, "stwad43.tim"},
 	{1801716242, "stwad44.tim"},
 	{ 319776823, "st_items.sdp"},
+	{ 319776823, "st_items.tim"},
 	{1533833736, "av0330.fag"},
 	{1533899272, "av0331.fag"},
 	{1533964808, "av0332.fag"},
@@ -2255,6 +2261,7 @@ wheelofdoom_names_t wheelofdoom_names[NUM_CSV_ENTRIES] =
 	{1533572360, "av0344.fag"},
 	{1533637896, "av0345.fag"},
 	{ 788995179, "videos.sdp"},
+	{ 788995179, "videos.tim"},
 	{ 140800867, "vp00000.tim"},
 	{ 157578083, "vp00001.tim"},
 	{ 174355299, "vp00002.tim"},

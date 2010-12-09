@@ -100,7 +100,7 @@ void Script_Parse(char *filename, char *basepath)
 	byte *scriptstring, *s, *t, *data;
 	size_t scriptsize, n, len;
 	qboolean bloodomnicide = false, bigfileinstall = false, litsprites = false, allowdebug = true, writingpk3 = false;
-	int i, currentmodel = -1, minp, maxp, sargc, stt = 0, stt_total = 0, c[3];
+	int i, currentmodel = -1, minp, maxp, sargc, stt = 0, stt_total = 0, c[3], is_adpcm;
 	char tempchar, **sargv, outfile[MAX_BLOODPATH], infile[MAX_BLOODPATH], cs[32];
 	char soxparm1[1024], soxparm2[1024], soxparm3[1024], soxparm4[1024];
 	bigfileentry_t *oldentry;
@@ -319,12 +319,19 @@ void Script_Parse(char *filename, char *basepath)
 									sargc++;
 								}
 								// then generic parms
+								is_adpcm = 0;
 								while (t = COM_Parse(t))
 								{
 									if (!strcmp(com_token, "-cost"))
 									{
 										if (t = COM_Parse(t))
 											i = atoi(com_token);
+										continue;
+									}
+									if (!strcmp(com_token, "-adpcm"))
+									{
+										if (t = COM_Parse(t))
+											is_adpcm = atoi(com_token);
 										continue;
 									}
 									// add
@@ -334,8 +341,18 @@ void Script_Parse(char *filename, char *basepath)
 										strncpy(sargv[sargc], com_token, 128);
 									sargc++;
 								}
+								// check for null entry
+								if (!entry->size)
+									Error("extract: null entry %X on line %i\n", entry->hash, n);
+
 								// extract
 								BigfileScanFiletype(bigfilehandle, entry, true, RAW_TYPE_UNKNOWN, true);
+								if (is_adpcm && entry->type == BIGENTRY_UNKNOWN)
+								{
+									entry->type = BIGENTRY_RAW_ADPCM;
+									entry->adpcmrate = is_adpcm;
+								}
+								//printf("entry(%s) %X = %s : %s\n", bigentryext[entry->type], entry->hash, entry->name, outfile);
 								BigFile_ExtractEntry(sargc, sargv, bigfilehandle, entry, outfile);
 								stt += i;
 							}

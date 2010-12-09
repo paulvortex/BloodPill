@@ -75,8 +75,6 @@ void PercentPacifier(char *str, ...)
 {
 	va_list argptr;
 
-	if (noprint && !solidpacifier)
-		return;
 	va_start(argptr, str);
 	if (solidpacifier)
 	{
@@ -84,16 +82,15 @@ void PercentPacifier(char *str, ...)
 		printf("\n");
 		va_end(argptr);
 		Sleep(20);
-		fflush(stdout);
 	}
 	else
 	{
-		printf("\r   ");
+		printf("\r");
 		vprintf(str, argptr);
 		printf("%\r");
 		va_end(argptr);
-		fflush(stdout);
 	}
+	fflush(stdout);
 }
 
 void Pacifier(char *str, ...)

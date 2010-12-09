@@ -417,7 +417,7 @@ unsigned int BigfileEntryHashFromString(char *string)
 	if (i < NUM_CSV_ENTRIES)
 	{
 		hash = wheelofdoom_names[i].hash;
-		Verbose("Hash filename: %.8X\n", hash);
+		// Verbose("Hash filename: %.8X\n", hash);
 		return hash;
 	}
 	Error("BigfileEntryHashFromString: Failed to lookup entry name '%s' - no such entry\n", string);
@@ -1219,7 +1219,6 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 	char *autopath;
 
 	// detect filetype automatically
-	
 	autotype = BigfileDetectFiletype(f, entry, scanraw, forcerawtype);
 	if (autotype != BIGENTRY_UNKNOWN) 
 	{
@@ -2497,17 +2496,18 @@ typedef struct
 	int datasize;
 }patchfile_t;
 
+#define chunksize (1024 * 1024 * 4)
+unsigned char chunkdata[chunksize];
 int BigFile_Patch(int argc, char **argv)
 {
 	char patchfile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], entryname[MAX_BLOODPATH], convtype[1024], line[1024];
-	int i, num_patchfiles, linenum, linebytes, linebytes_total, progress[4], patchedbytes, patchsize_total, chunksize, chunkbytes;
+	int i, num_patchfiles, linenum, linebytes, linebytes_total, progress[4], patchedbytes, patchsize_total, chunkbytes;
 	patchfile_t patchfiles[MAX_PATCHFILES], *pfile;
 	bigfileheader_t *bigfilehead;
 	bigfileentry_t *entry;
 	int entries_new = 0, entries_changesize = 0;
 	qboolean overwriting;
 	unsigned int num_entries, written_entries, ofs;
-	byte *chunkdata;
 	float p;
 	FILE *f, *bigf, *tmp;
 
@@ -2577,6 +2577,20 @@ int BigFile_Patch(int argc, char **argv)
 			continue;
 		if (!sscanf(line, "%s %s %s", &convtype, &entryname, &patchfile))
 			Error("failed to read patchfile line %i", linenum);
+		// single line
+		if (strcmp(convtype, "RAW") && strcmp(convtype, "DEL") && strcmp(convtype, "WAV2ADPCM"))
+		{
+			strcpy(convtype, "RAW");
+			strcpy(patchfile, line);
+			// trim
+			while(strlen(patchfile) && (patchfile[strlen(patchfile)-1] == '\n' || patchfile[strlen(patchfile)-1] == '\r' || patchfile[strlen(patchfile)-1] == ' '))
+			{
+				i = strlen(patchfile) - 1;
+				patchfile[i] = 0;
+			}
+			// set internal name
+			ExtractFileName(patchfile, entryname);
+		}
 		// register patchfile and preload it
 		if (num_patchfiles >= MAX_PATCHFILES)
 			Error("MAX_PATCHFILES = %i exceeded, consider increase", MAX_PATCHFILES);
@@ -2586,12 +2600,10 @@ int BigFile_Patch(int argc, char **argv)
 		if (!pfile->hash)
 			Error("cannot resolve hash on line %i", linenum);
 		pfile->entry = BigfileGetEntry(bigfilehead, pfile->hash);
-		if (!pfile->entry)
-			Error("!");
 		// scan filetype for entry
-		if (pfile->entry->size)
+		if (pfile->entry && pfile->entry->size)
 			BigfileScanFiletype(bigf, pfile->entry, false, RAW_TYPE_UNKNOWN, false);
-		// load patchfile
+		//load patchfile
 		if (!strcmp(convtype, "RAW"))
 			pfile->datasize = LoadFile(patchfile, &pfile->data);
 		else if (!strcmp(convtype, "DEL"))
@@ -2656,9 +2668,7 @@ int BigFile_Patch(int argc, char **argv)
 			fseek(bigf, 0, SEEK_SET);
 			linebytes = 0;
 			linebytes_total = Q_filelength(bigf);
-			chunksize = 1024 * 1024 * 4;
 			tmp = tmpfile();
-			chunkdata = qmalloc(chunksize);
 			while(linebytes < linebytes_total)
 			{
 				chunkbytes = min(linebytes_total - linebytes, chunksize);
@@ -2669,8 +2679,8 @@ int BigFile_Patch(int argc, char **argv)
 				p = progress[2] + ((float)linebytes / (float)linebytes_total) * (progress[3] - progress[2]);
 				PercentPacifier("%i", (int)p);
 			}
-			qfree(chunkdata);
 		}
+		Verbose("Patching %s...\n", bigfile);
 		// set new sizes
 		for (i = 0; i < num_patchfiles; i++)
 		{
@@ -2681,7 +2691,6 @@ int BigFile_Patch(int argc, char **argv)
 				pfile->entry->data = pfile->data;
 			}
 		}
-		chunkdata = qmalloc(PILL_BIG_BIGGEST_ENTRY);
 		// recalc offsets
 		BigfileHeaderRecalcOffsets(bigfilehead, entries_new);
 		// write new bigfile header
@@ -2740,6 +2749,7 @@ int BigFile_Patch(int argc, char **argv)
 			if (!pfile->datasize || pfile->entry)
 				continue;
 			SafeWrite(bigf, pfile->data, pfile->datasize);
+			written_entries++;
 			// show pacifier
 			if (overwriting)
 				p = progress[2] + ((float)written_entries / (float)num_entries) * (progress[3] - progress[2]);
@@ -2747,12 +2757,13 @@ int BigFile_Patch(int argc, char **argv)
 				p = progress[1] + ((float)written_entries / (float)num_entries) * (progress[3] - progress[1]);
 			PercentPacifier("%i", (int)p);
 		}
-		qfree(chunkdata);
+		Verbose("Ending patch...\n", bigfile);
 		fclose(tmp);
+
 	}
 	fclose(bigf);
 	PacifierEnd();
-		
+
 	// free patch files
 	for (i = 0; i < num_patchfiles; i++)
 	{
