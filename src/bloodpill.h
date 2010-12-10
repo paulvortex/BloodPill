@@ -2,7 +2,7 @@
 #include "dll.h"
 
 #ifndef BLOODPILL_VERSION
-#define BLOODPILL_VERSION "v0.8f"
+#define BLOODPILL_VERSION "v0.9"
 static char *BLOODPILL_WELCOME =
 "----------------------------------------\n"
 "Blood Pill %s by VorteX and Mean Person\n"

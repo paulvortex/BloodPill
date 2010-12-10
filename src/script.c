@@ -926,20 +926,6 @@ int Script_Main(int argc, char **argv)
 			}
 			continue;
 		}
-		if (!strcmp(argv[i], "-patch"))
-		{
-			i++;
-			if (i < argc)
-			{
-				if (bigfile)
-					Error("-newfile : bigfile alredy used");
-				// load bigfile
-				bigfilehandle = SafeOpen(argv[i], "rb");
-				bigfile = ReadBigfileHeader(bigfilehandle, argv[i], true, false);
-
-			}
-			continue;
-		}
 		if (!strcmp(argv[i], "-path"))
 		{
 			i++;

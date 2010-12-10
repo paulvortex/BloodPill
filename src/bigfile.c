@@ -413,7 +413,8 @@ unsigned int BigfileEntryHashFromString(char *string)
 	// filename or path
 	for (i = 0; i < NUM_CSV_ENTRIES; i++)
 		if (!stricmp(string, wheelofdoom_names[i].name))
-			break;
+			if (strlen(string) == strlen(wheelofdoom_names[i].name))
+				break;
 	if (i < NUM_CSV_ENTRIES)
 	{
 		hash = wheelofdoom_names[i].hash;
@@ -1308,7 +1309,11 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list
 		if (!entry->size)
 			continue;
 		Pacifier("scanning type for entry %i of %i...", i + 1, data->numentries);
+		if (data->entries[i].hash == 288848)
+			printf("oldname: %s\n", data->entries[i].name);
 		BigfileScanFiletype(f, entry, scanraw, forcerawtype, /*data->namesfromcsv ? false : */true);
+		if (data->entries[i].hash == 288848)
+			printf("oldname: %s\n", data->entries[i].name);
 	}
 	fsetpos(f, &fpos);
 	
@@ -2500,7 +2505,7 @@ typedef struct
 unsigned char chunkdata[chunksize];
 int BigFile_Patch(int argc, char **argv)
 {
-	char patchfile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], entryname[MAX_BLOODPATH], convtype[1024], line[1024];
+	char patchfile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], entryname[MAX_BLOODPATH], convtype[1024], line[1024], *l;
 	int i, num_patchfiles, linenum, linebytes, linebytes_total, progress[4], patchedbytes, patchsize_total, chunkbytes;
 	patchfile_t patchfiles[MAX_PATCHFILES], *pfile;
 	bigfileheader_t *bigfilehead;
@@ -2573,15 +2578,18 @@ int BigFile_Patch(int argc, char **argv)
 		fgets(line, 1024, f);
 		linebytes += strlen(line) + 1;
 		linenum++;
-		if (!line[0] || (line[0] == '/' && line[1] == '/')) // commet and null strings
+		l = line;
+		while(*l && (*l == ' ' || *l == '	'))
+			l++;
+		if (!l[0] || (l[0] == '/' && l[1] == '/')) // comment and null strings
 			continue;
-		if (!sscanf(line, "%s %s %s", &convtype, &entryname, &patchfile))
+		if (!sscanf(l, "%s %s %s", &convtype, &entryname, &patchfile))
 			Error("failed to read patchfile line %i", linenum);
 		// single line
 		if (strcmp(convtype, "RAW") && strcmp(convtype, "DEL") && strcmp(convtype, "WAV2ADPCM"))
 		{
 			strcpy(convtype, "RAW");
-			strcpy(patchfile, line);
+			strcpy(patchfile, l);
 			// trim
 			while(strlen(patchfile) && (patchfile[strlen(patchfile)-1] == '\n' || patchfile[strlen(patchfile)-1] == '\r' || patchfile[strlen(patchfile)-1] == ' '))
 			{
@@ -2598,7 +2606,12 @@ int BigFile_Patch(int argc, char **argv)
 		pfile = &patchfiles[num_patchfiles];
 		pfile->hash = BigfileEntryHashFromString(entryname);
 		if (!pfile->hash)
-			Error("cannot resolve hash on line %i", linenum);
+		{
+			ExtractFileBase(entryname, convtype);
+			pfile->hash = BigfileEntryHashFromString(convtype);
+			if (!pfile->hash)
+				Error("cannot resolve hash on line %i", linenum);
+		}
 		pfile->entry = BigfileGetEntry(bigfilehead, pfile->hash);
 		// scan filetype for entry
 		if (pfile->entry && pfile->entry->size)

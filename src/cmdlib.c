@@ -748,21 +748,25 @@ void ExtractFilePath (char *path, char *dest)
 
 void ExtractFileBase (char *path, char *dest)
 {
-  char    *src;
+  char *src, *ext = NULL;
 
   src = path + strlen(path) - 1;
 
   //
   // back up until a \ or the start
   //
-  while (src != path && (*(src-1) != '/' && *(src-1) != '\\'))
+  while(src != path && (*(src-1) != '/' && *(src-1) != '\\'))
     src--;
-
-  while (*src && *src != '.')
-    {
-      *dest++ = *src++;
-    }
-  *dest = 0;
+  while(*src)
+  {
+	if (*src == '.')
+		ext = dest;
+	*dest++ = *src++;
+  }
+  if (ext)
+	*ext = 0;
+  else
+	*dest = 0;
 }
 
 void ExtractFileName (char *path, char *dest)
