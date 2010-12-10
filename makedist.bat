@@ -1,3 +1,4 @@
+rmdir /S /Q release
 mkdir release
 mkdir release\samples
 # main
@@ -24,6 +25,12 @@ copy tim2tga(test.tim)_16to24.bat release\samples\tim2tga(test.tim)_16to24.bat
 copy bigfile_unpack_raw.bat release\samples\unpack_raw.bat
 copy bigfile_unpack_fortranslating.bat release\samples\unpack_fortranslating.bat
 copy bigfile_unpack_oggsounds.bat release\samples\unpack_oggsounds.bat
+# patch sample
+mkdir release\patchtest
+mkdir release\patchtest\files
+copy patchtest\* release\patchtest\*
+copy patchtest\files\* release\patchtest\files\*
+del release\patchtest\*.psd
 # sourcecode distrib
 mkdir release\bloodpillsource\
 copy src\*.c release\bloodpillsource\*.c

@@ -2510,7 +2510,7 @@ int BigFile_Patch(int argc, char **argv)
 	patchfile_t patchfiles[MAX_PATCHFILES], *pfile;
 	bigfileheader_t *bigfilehead;
 	bigfileentry_t *entry;
-	int entries_new = 0, entries_changesize = 0;
+	int entries_new = 0, entries_changesize = 0, entries_total = 0;
 	qboolean overwriting;
 	unsigned int num_entries, written_entries, ofs;
 	float p;
@@ -2573,9 +2573,8 @@ int BigFile_Patch(int argc, char **argv)
 	entries_changesize = false;
 	f = SafeOpen(patchfile, "rb");
 	linebytes_total = Q_filelength(f);
-	while(!feof(f))
+	while(fgets(line, 1024, f))
 	{
-		fgets(line, 1024, f);
 		linebytes += strlen(line) + 1;
 		linenum++;
 		l = line;
