@@ -15,6 +15,8 @@ unpack_oggsounds.bat : распаковка pill.big со всеми конверсиями, звуки конвертир
 
 pack.bat : создание архива pill2.big на базе содержания папки 'bigfile'
 
+jam2tga(act2.jam).bat : конвертирование JAM файла в набор TGA
+
 tga2tim(test.tga).bat : конвертирование tga в tim
 
 tim2tga(test.tim).bat : конвертирование tim в tga

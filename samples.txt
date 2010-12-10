@@ -15,6 +15,8 @@ unpack_oggsounds.bat : unpack pill.big with all conversions and sound files bein
 
 pack.bat : create a new pill2.big based on 'bigfile' folder (converts back all tga and wav)
 
+jam2tga(act2.jam).bat : convert a JAM file to number of TGA's
+
 tga2tim(test.tga).bat : convert a number of tga's to TIM file
 
 tim2tga(test.tim).bat : convert a TIM file to number of 16-bit tga's
