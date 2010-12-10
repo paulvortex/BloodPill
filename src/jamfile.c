@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////
 //
-// Blood Omen JAM/VAG files loader/exporter
+// Blood Omen JAM files loader/exporter
 // originally coded by MisterGrim and placed to public domain
 // refactored by VorteX
 //
@@ -109,6 +109,8 @@ void Jam_DecodeToFiles(char *infile, char *outpath)
 	Verbose("%ix%i %i frames\n", width, height, numframes);
 
 	// parse file
+	memset(jamColormap, 0, 768);
+	memset(jamHead, 0, 16);
 	compressed = qmalloc(framesize);
 	framedata = qmalloc(framesize * 2);
 	prevframedata = qmalloc(framesize * 2);
