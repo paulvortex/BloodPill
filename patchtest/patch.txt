@@ -1,2 +1,2 @@
-RAW #00046850 startup2.tim
-RAW #00046851 startup3.tim
+files/startup2.htm.tim
+RAW startup3.htm.tim files/startup3.htm.tim
