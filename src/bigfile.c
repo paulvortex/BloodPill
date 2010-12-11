@@ -1309,11 +1309,7 @@ void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list
 		if (!entry->size)
 			continue;
 		Pacifier("scanning type for entry %i of %i...", i + 1, data->numentries);
-		if (data->entries[i].hash == 288848)
-			printf("oldname: %s\n", data->entries[i].name);
 		BigfileScanFiletype(f, entry, scanraw, forcerawtype, /*data->namesfromcsv ? false : */true);
-		if (data->entries[i].hash == 288848)
-			printf("oldname: %s\n", data->entries[i].name);
 	}
 	fsetpos(f, &fpos);
 	
@@ -2481,7 +2477,7 @@ int BigFile_Pack(int argc, char **argv)
 ==========================================================================================
 */
 
-#define MAX_PATCHFILES 400
+#define MAX_PATCHFILES 1000
 #define PILL_BIG_BIGGEST_ENTRY 1024 * 1024 * 4
 
 typedef enum
@@ -2597,8 +2593,10 @@ int BigFile_Patch(int argc, char **argv)
 			}
 			// set internal name
 			ExtractFileName(patchfile, entryname);
+			// there are no .WAV files in BO, only .VAG
+			ReplaceExtension(entryname, ".wav", ".vag", "");
 		}
-		// register patchfile and preload it
+		// register patchfile and preload them
 		if (num_patchfiles >= MAX_PATCHFILES)
 			Error("MAX_PATCHFILES = %i exceeded, consider increase", MAX_PATCHFILES);
 		// find entry for patchfile
