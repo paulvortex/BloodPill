@@ -147,7 +147,7 @@ int Help_Main()
 	" -f : function mode, only error and warnings get printed\n"
 	" -cd x: change current dir to this\n"
 	" -sp : print percentage pacifier as newlines, used by installers\n"
-	" -errlog: once got error, make blooderr.txt with it's contents\n"
+	" -errlog: once got error, make berror.txt with it's contents\n"
 	"\n"
 	"=== ACTIONS ===\n"
 	"-bigfile [bigfilename] [-klist file] -list [filename] [optional_switches]\n"

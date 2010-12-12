@@ -166,7 +166,7 @@ void Error (char *error, ...)
 	// write error log
 	if (errorlog)
 	{
-		sprintf(logfile, "%sblooderr.txt", progpath);
+		sprintf(logfile, "%sberror.txt", progpath);
 		f = fopen(logfile, "wb");
 		if (f)
 		{
