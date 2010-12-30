@@ -60,6 +60,7 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 
 extern int Q_filelength (FILE *f);
 extern int	FileTime (char *path);
+void TempFileName(char *out);
 
 extern void	Q_mkdir (char *path);
 

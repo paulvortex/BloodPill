@@ -1,9 +1,5 @@
 // soxsupp.h
 
-// temp files
-#define SOXTEMP_IN	"soxin.tmp"
-#define SOXTEMP_OUT	"soxout.tmp"
-
 extern qboolean soxfound;
 
 qboolean SoX_Init(char *customsoxpath);

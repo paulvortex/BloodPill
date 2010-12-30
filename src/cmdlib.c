@@ -320,6 +320,27 @@ void GetRealPath(char *outpath, char *inpath)
 		sprintf(outpath, "%s/%s", cdir, inpath);
 }
 
+/*
+============
+TempFileName
+get temp directory
+============
+*/
+void TempFileName(char *out)
+{
+	char tempdir[MAX_BLOODPATH], tempfile[MAX_BLOODPATH];
+	int l;
+
+#ifdef WIN32
+	l = GetTempPath(MAX_BLOODPATH, tempdir);
+	tmpnam(tempfile);
+	if (!l)
+		Error("TempFileName: error %i", strerror(GetLastError()));
+	sprintf(out, "%s%s", tempdir, tempfile);
+#else
+	Error("TempFileName: only implemented on Win32\n");
+#endif
+}
 
 /*
 ============
