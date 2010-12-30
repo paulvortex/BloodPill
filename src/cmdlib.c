@@ -335,7 +335,7 @@ void TempFileName(char *out)
 	l = GetTempPath(MAX_BLOODPATH, tempdir);
 	tmpnam(tempfile);
 	if (!l)
-		Error("TempFileName: error %i", strerror(GetLastError()));
+		Error("TempFileName: error %s", strerror(GetLastError()));
 	sprintf(out, "%s%s", tempdir, tempfile);
 #else
 	Error("TempFileName: only implemented on Win32\n");
@@ -616,6 +616,7 @@ int CheckParm (char *check)
 Q_filelength
 ================
 */
+
 int Q_filelength (FILE *f)
 {
   int		pos;
@@ -627,6 +628,20 @@ int Q_filelength (FILE *f)
   fseek (f, pos, SEEK_SET);
 
   return end;
+}
+
+size_t FileSize(char *filename)
+{
+	FILE *f;
+	size_t s;
+
+	f = fopen(filename, "rb");
+	if (!f)
+		return 0;
+	fseek(f, 0, SEEK_END);
+	s = ftell(f);
+	fclose(f);
+	return s;
 }
 
 FILE *SafeOpen (char *filename, char mode[])

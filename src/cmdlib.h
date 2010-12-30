@@ -59,6 +59,7 @@ size_t strlcat(char *dst, const char *src, size_t siz);
 size_t strlcpy(char *dst, const char *src, size_t siz);
 
 extern int Q_filelength (FILE *f);
+size_t FileSize(char *filename);
 extern int	FileTime (char *path);
 void TempFileName(char *out);
 
@@ -124,7 +125,6 @@ extern unsigned short CRC_Value(unsigned short crcvalue);
 unsigned int crc32(unsigned char *block, unsigned int length);
 
 extern void COM_CreatePath (char *path);
-extern void COM_CopyFile (char *from, char *to);
 
 // file writing and wrapping
 #define __CMDLIB_WRAPFILES__

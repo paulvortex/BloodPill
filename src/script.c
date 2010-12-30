@@ -453,12 +453,18 @@ void Script_Parse(char *filename, char *basepath)
 							}
 						}
 						// copy
-						len = LoadFile(infile, &data);
 						if (writingpk3)
+						{
+							len = LoadFile(infile, &data);
 							PK3_AddFile(pk3, outfile, data, len);
+							qfree(data);
+						}
 						else
-							SaveFile(outfile, data, len);
-						qfree(data);
+						{
+							len = FileSize(infile);
+							if (!CopyFile(infile, outfile, false))
+								Error("CopyFile('%s'->'%s'): failed with error: %s", infile, outfile, strerror(GetLastError()));
+						}
 						if (i)
 							stt += i;
 						else
