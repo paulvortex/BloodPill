@@ -79,6 +79,7 @@ legacymodelsubs_t *legacymodelsubs;
 
 double scriptstarted;
 char path[MAX_BLOODPATH] = { 0 };
+char bigfilepath[MAX_BLOODPATH] = { 0 };
 char spr_parms[MAX_BLOODPATH] = { 0 };
 char extract_parms[MAX_BLOODPATH] = { 0 };
 bigfileentry_t *entry = NULL;
@@ -436,6 +437,8 @@ void Script_Parse(char *filename, char *basepath)
 				else
 				{
 					strcpy(infile, com_token);
+					if (!strcmp(infile, "*bigfile"))
+						strcpy(infile, bigfilepath);
 					if (!(t = COM_Parse(t)))
 						Error("copy: error parsing parm 2 on line %i\n", n);
 					else
@@ -924,6 +927,7 @@ int Script_Main(int argc, char **argv)
 					verbose = false;
 					noprint = true;
 				}
+				strcpy(bigfilepath, argv[i]);
 				bigklist = BigfileLoadKList("klist.txt", false);
 				bigfilehandle = SafeOpen(argv[i], "rb");
 				bigfile = ReadBigfileHeader(bigfilehandle, argv[i], false, false);
