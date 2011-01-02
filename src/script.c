@@ -297,7 +297,7 @@ void Script_Parse(char *filename, char *basepath)
 					{
 						entry = BigfileGetEntry(bigfile, BigfileEntryHashFromString(com_token));
 						if (entry == NULL)
-							Error("extract: error getting entry on line %i\n", n);
+							Error("extract: error getting entry '%s' on line %i\n", com_token, n);
 						else
 						{
 							// build outfile
