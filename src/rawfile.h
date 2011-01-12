@@ -104,7 +104,9 @@ typedef struct rawinfo_s
 	int chunknum; // if set, only extract this chunk number
 	rawswitch_t	doubleres;	// double the width & height
 	qboolean	disableCLUT; // disable writing of clut, write indexes as grayscale instead
-	qboolean	dontSwapBgr; // disable swapping of BGR->RGB, for images that are initially BGR	
+	qboolean	dontSwapBgr; // disable swapping of BGR->RGB, for images that are initially BGR
+	int			shadowpixel;
+	byte		shadowalpha;
 }rawinfo_t;
 
 // util functions

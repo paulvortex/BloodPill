@@ -167,7 +167,7 @@ void SPR_WriteFrameHeader(FILE *f, sprframetype_t frametype, int width, int heig
 	fput_littleint(height, f);
 }
 
-void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, byte shadowpixel, byte shadowalpha, int flags, qboolean mergeintoexistingfile)
+void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, int flags, qboolean mergeintoexistingfile)
 {
 	int i, d, r, w, h, maxwidth, maxheight, cropx[2], cropy[2], addx[2], addy[2], cropwidth, cropheight, realwidth, realheight;
 	byte *colormap, *buf, normalalpha, color[4];
@@ -177,7 +177,6 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 	
 	// calc whole alpha
 	normalalpha = (byte)(255 * alpha);
-	shadowalpha = (byte)(shadowalpha * alpha);
 
 	// calc max width/height, write header
 	maxwidth = maxheight = 0;
@@ -210,12 +209,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 				color[0] = colormap[d*3];
 				color[1] = colormap[d*3 + 1];
 				color[2] = colormap[d*3 + 2];
-				if (shadowpixel >= 0 && d == shadowpixel)
-					color[3] = shadowalpha;
-				else if (d == 0) // null pixel always transparent
-					color[3] = 0;
-				else
-					color[3] = normalalpha;
+				color[3] = (rawblock->alphamap) ? (byte)(rawblock->alphamap[d] * alpha) : normalalpha;
 				// fill transparent pixels from neighbours so sprites will have correct outlines
 				#define fill(ox,oy,weight) { r = chunk->pixels[(h+oy)*chunk->width + w + ox] * 3; if (r != 0) { cd[0] += colormap[r]*weight; cd[1] += colormap[r + 1]*weight; cd[2] += colormap[r + 2]*weight; cdiv++; } }
 				if (d == 0)
@@ -329,7 +323,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			realwidth = cropwidth + addx[0] + addx[1];
 			realheight = cropheight + addy[0] + addy[1];
 			// printf(" frame %i cropped from %ix%i to %ix%i (saving %.2f kb)\n", i, chunk->width, chunk->height, cropwidth, cropheight, (float)(chunk->width*chunk->height - cropwidth*cropheight)/256);
-			SPR_WriteFrameHeader(f, SPR_FRAME_SINGLE, realwidth, realheight, chunk->x + rawblock->posx + cx + cropx[1] - addx[1], chunk->y + rawblock->posy + cy - cropy[0] - addy[0]);
+			SPR_WriteFrameHeader(f, SPR_FRAME_SINGLE, realwidth, realheight, chunk->x + rawblock->posx + cx + cropx[1] - addx[1], chunk->y + rawblock->posy + cy - cropy[0] + addy[0]);
 			
 			/*
 			// test TGA output

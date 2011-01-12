@@ -1486,15 +1486,14 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	sprtype_t spritetype = SPR_VP_PARALLEL;
 	rawblock_t *tb1, *tb2, *tb3, *tb4;
 	qboolean noalign, nocrop, flip, scale, merge;
-	byte pix, shadowpix, shadowalpha;
-	byte c[3], oldcolormap[768], alphamap[256];
+	byte pix, shadowpix;
+	byte c[3], oldcolormap[768], oldalphamap[256], loadedcolormap[768];
 	double colorscale, cscale, alphascale;
 	list_t *includelist;
 	FILE *f;
 
 	// additional parms
 	includelist = NewList();
-	shadowalpha = 160;
 	noalign = false;
 	nocrop = false;
 	flip = false;
@@ -1510,7 +1509,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	if (rawblock->colormap)
 		memcpy(oldcolormap, rawblock->colormap, 768);
 	if (rawblock->alphamap)
-		memcpy(alphamap, rawblock->alphamap, 256);
+		memcpy(oldalphamap, rawblock->alphamap, 256);
 	// process command line
 	for (i = 0; i < argc; i++)
 	{
@@ -1625,10 +1624,15 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			if (i < argc)
 			{
 				num = ParseHex(argv[i]);
-				rawblock->colormap[shadowpix*3] = (byte)((num >> 16) & 0xFF);
-				rawblock->colormap[shadowpix*3 + 1] = (byte)((num >> 8) & 0xFF);
-				rawblock->colormap[shadowpix*3 + 2] = (byte)(num & 0xFF);
-				Verbose("Option: custom shadow color '%i %i %i'\n", rawblock->colormap[shadowpix*3], rawblock->colormap[shadowpix*3 + 1], rawblock->colormap[shadowpix*3 + 2]);
+				if (!rawblock->colormap)
+					Warning("cannot set shadow color, rawfile has no shared palette");
+				else
+				{
+					rawblock->colormap[shadowpix*3] = (byte)((num >> 16) & 0xFF);
+					rawblock->colormap[shadowpix*3 + 1] = (byte)((num >> 8) & 0xFF);
+					rawblock->colormap[shadowpix*3 + 2] = (byte)(num & 0xFF);
+					Verbose("Option: custom shadow color '%i %i %i'\n", rawblock->colormap[shadowpix*3], rawblock->colormap[shadowpix*3 + 1], rawblock->colormap[shadowpix*3 + 2]);
+				}
 			}
 			continue;
 		}
@@ -1637,8 +1641,28 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			i++;
 			if (i < argc)
 			{
-				shadowalpha = (byte)atoi(argv[i]);
-				Verbose("Option: custom shadow alpha %i\n", shadowalpha);
+				if (!rawblock->alphamap)
+					Warning("cannot set shadow alpha, rawfile has no shared alphamap");
+				else
+				{
+					rawblock->alphamap[shadowpix] = (byte)atoi(argv[i]);
+					Verbose("Option: custom shadow alpha %i\n", rawblock->alphamap[shadowpix]);
+				}
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-additive"))
+		{
+			if (!rawblock->colormap)
+				Warning("cannot apply alphamap, rawfile has no shared palette");
+			else if (!rawblock->alphamap)
+				Warning("cannot apply alphamap, rawfile has no shared alphamap");
+			else
+			{
+				Verbose("Option: nullifying alpha for black pixels\n");
+				for (num = 0; num < 256; num++)
+					if (!rawblock->colormap[num*3] && !rawblock->colormap[num*3 + 1] && !rawblock->colormap[num*3 + 2])
+						rawblock->alphamap[num] = 0;
 			}
 			continue;
 		}
@@ -1665,6 +1689,31 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 					ColormapFromTGA(argv[i], rawblock->colormap);
 				else
 					Warning("cannot replace colormap, %s not found", argv[i]);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-applyalphamap"))
+		{
+			i++;
+			if (i < argc)
+			{
+				Verbose("Option: applying alphamap from %s\n", argv[i]);
+				if (!rawblock->colormap)
+					Warning("cannot apply alphamap, rawfile has no shared palette");
+				else if (!rawblock->alphamap)
+					Warning("cannot apply alphamap, rawfile has no shared alphamap");
+				else if (FileExists(argv[i]))
+				{
+					ColormapFromTGA(argv[i], loadedcolormap);
+					for (num = 0; num < 256; num++)
+					{
+						rawblock->alphamap[num] = loadedcolormap[num*3];
+						if (!rawblock->alphamap[num])
+							memset(rawblock->colormap + num*3, 0, 3); // black, alpha 0
+					}
+				}
+				else
+					Warning("cannot apply alphamap, %s not found", argv[i]);
 			}
 			continue;
 		}
@@ -1818,7 +1867,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 				rawblock->chunk[i].y = 0 - rawblock->chunk[i].y;
 			}
 		}
-		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, (float)alphascale, shadowpix, shadowalpha, spriteflags, merge);
+		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, (float)alphascale, spriteflags, merge);
 		// extract tail files
 		if (rawblock->errorcode > 0 && rawblock->errorcode < (int)entry->size)
 			Print("Tail files found but can't be extracted to spr32\n");
@@ -1838,7 +1887,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	if (rawblock->colormap)
 		memcpy(rawblock->colormap, oldcolormap, 768);
 	if (rawblock->alphamap)
-		memcpy(rawblock->alphamap, alphamap, 256);
+		memcpy(rawblock->alphamap, oldalphamap, 256);
 
 	// free allocated data
 	if (tb1) FreeRawBlock(tb1);

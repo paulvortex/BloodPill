@@ -82,6 +82,8 @@ void FlushRawInfo(rawinfo_t *rawinfo)
 	rawinfo->doubleres = rauto;
 	rawinfo->disableCLUT = false;
 	rawinfo->dontSwapBgr = false;
+	rawinfo->shadowalpha = 160;
+	rawinfo->shadowpixel = -1;
 	rawinfo->colormapoffset = 0;
 	rawinfo->colormapbytes = 0;
 	rawinfo->chunknum = -1;
@@ -132,6 +134,10 @@ qboolean ReadRawInfo(char *line, rawinfo_t *rawinfo)
 		rawinfo->disableCLUT = true;
 	else if (sscanf(line, "raw.dontSwapBgr"))
 		rawinfo->dontSwapBgr = true;
+	else if (sscanf(line, "raw.shadowpixel=%i", &num))
+		rawinfo->shadowpixel = (byte)num;
+	else if (sscanf(line, "raw.shadowalpha=%i", &num))
+		rawinfo->shadowalpha = (byte)num;
 	else
 		return false;
 	
@@ -161,6 +167,11 @@ void WriteRawInfo(FILE *f, rawinfo_t *rawinfo)
 		fprintf(f, "raw.disableCLUT\n");
 	if (rawinfo->dontSwapBgr == true)
 		fprintf(f, "raw.dontSwapBgr\n");
+	if (rawinfo->shadowpixel >= 0)
+	{
+		fprintf(f, "raw.shadowpixel=%i\n", rawinfo->shadowpixel);
+		fprintf(f, "raw.shadowalpha=%i\n", rawinfo->shadowalpha);
+	}
 }
 
 rawswitch_t ParseRawSwitch(char *str)
@@ -1043,6 +1054,20 @@ byte *ReadColormap(unsigned char *buffer, int filelen, int offset, int palbytes)
 	return colormap;
 }
 
+// make default alphamap
+byte *RawMakeAlphamap(byte *colormap, byte shadowpixel, byte shadowalpha)
+{
+	byte *alphamap;
+
+	alphamap = qmalloc(256);
+	memset(alphamap, 255, 256);
+	alphamap[0] = 0; // null pixel always transparent
+	if (shadowpixel >= 0)
+		alphamap[shadowpixel] = shadowalpha;
+	return alphamap;
+}
+ 
+
 // read colormap from external tga file
 // returns allocated 24-bit colormap
 void ColormapFromTGA(char *filename, byte *colormap)
@@ -1268,7 +1293,7 @@ void *DecompressLZ77Stream(int *outbufsize, byte *inbuf, int startpos, int bufle
 	*outbufsize = bytesWritten;
 	return outdata;
 }
- 
+
 /*
 ==========================================================================================
 
@@ -1449,6 +1474,7 @@ rawblock_t *RawExtract_Type1(unsigned char *buffer, int filelen, rawinfo_t *rawi
 	RawBlockAllocateChunk(rawblock, 0, rawinfo->width, rawinfo->height, 0, 0, true);
 	rawblock->colormap = buffer + 8;
 	rawblock->colormapExternal = true;
+	rawblock->alphamap = RawMakeAlphamap(rawblock->colormap, rawinfo->shadowpixel, rawinfo->shadowalpha);
 	rawblock->chunk[0].pixels = buffer + 788;
 	return rawblock;
 }
@@ -1656,6 +1682,7 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	rawblock->colormap = ReadColormap(buffer, filelen, 8, 3);
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
+	rawblock->alphamap = RawMakeAlphamap(rawblock->colormap, rawinfo->shadowpixel, rawinfo->shadowalpha);
 
 	// global position
 	rawblock->posx = ReadShort(buffer + 776);
@@ -1841,6 +1868,7 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	rawblock->colormap = ReadColormap(buffer, filelen, 8 + objbitssize, 3);
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
+	rawblock->alphamap = RawMakeAlphamap(rawblock->colormap, rawinfo->shadowpixel, rawinfo->shadowalpha);
 
 	// global position
 	rawblock->posx = ReadShort(buffer + 776 + objbitssize);
@@ -2052,6 +2080,7 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 	rawblock->colormap = ReadColormap(buffer, filelen, 8, 3);
 	if (rawblock->colormap == NULL)
 		return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
+	rawblock->alphamap = RawMakeAlphamap(rawblock->colormap, rawinfo->shadowpixel, rawinfo->shadowalpha);
 
 	// check file size again
 	if (filelen < (776 + 8*numobjects + 2))
