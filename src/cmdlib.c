@@ -1284,7 +1284,7 @@ FILE *SafeOpenWrite (char *filename)
 		CreatePath(path);
 		f = fopen(filename, "wb");
 		if (!f)
-			Error("Error opening %s: %s",filename,strerror(errno));
+			Error("Error opening real file %s: %s",filename,strerror(errno));
 	}
 	else
 	{
@@ -1306,7 +1306,7 @@ FILE *SafeOpenWrite (char *filename)
 		wrapf->f = tmpfile();
 		f = wrapf->f;
 		if (!f)
-			Error("Error creating temp file %s: %s",filename,strerror(errno));
+			Error("Error opening temp file %s: %s",filename,strerror(errno));
 	}
 	return f;
 }
