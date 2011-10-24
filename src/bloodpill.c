@@ -48,6 +48,9 @@ int AdpcmConvert_Main(int argc, char **argv);
 // script.c
 int Script_Main(int argc, char **argv);
 
+// mapfile.c
+int MapConvert_Main(int argc, char **argv);
+
 void Print(char *str, ...)
 {
 	va_list argptr;
@@ -178,6 +181,11 @@ int Help_Main()
 	"    -rawnoalign: disables width/height aligning of all chunks in RAW images\n"
 	"     this makes all chunks of RAW image to be different size, yet smaller\n"
 	"     but harder to use in any way\n"
+	"    -map2tga: convert Blood Omen maps to TGA images\n"
+	"    -mapcontents: use with -map2tga, make map image with content blocks\n"
+	"    -maptriggers: use with -map2tga, make map image with script info:\n"
+	"                  triggers, speech, activation points, exits etc.\n"
+	"    -maptoggled: use with -map2tga, make map image with all switches toggled\n"
 	"\n"
 	"-bigfile [bigfilename] -pack [dir]\n"
 	"  create a bigfile from a folder containing all files and listfile\n"
@@ -232,6 +240,10 @@ int Help_Main()
 	"    -shadowcolor XXXXXX : customize shadow pixel color (color is HEX)\n"
 	"    -bgcolor XXXXXX : customize background color (color is HEX)\n"
 	"    -colormapscale X : scale a brightness of colormap at 0-1 range (spr32 only)\n"
+	"   for maps:\n"
+	"    -t: show triggers (buttons, paths, misc info)\n"
+	"    -c: show contents (solid places, special zones)\n"
+	"    -a: animated objects (effects, tiles etc.) shown in toggled state\n"
 	"\n"
 	"-jam jamfile outputdir\n"
 	"  Convert JAM movie to number of TGA files\n"
@@ -252,6 +264,13 @@ int Help_Main()
 	" -pcm: make 16-bit PCM wavefile\n"
 	" -oggvorbis: make Ogg Vorbis files (Quality 7)\n"
 	" -custom: custom SoX output options (see SoX docs)\n"
+	"\n"
+	"-mapconvert mapfile [outfile] [-t] [-c] [-a] [-tilespath]\n"
+	" convert a Blood Omen map to TGA picture\n"
+	" -t: show triggers (buttons, paths, misc info)\n"
+	" -c: show contents (solid places, special zones)\n"
+	" -a: animated objects (effects, tiles etc.) shown in toggled state\n"
+	" -tilespath path: path to grp/effect original files\n"
 	"\n"
 	"-raw infile outfile [options]\n"
 	" convert Blood Omen internal format images to something viewable\n"
@@ -282,8 +301,10 @@ int Help_Main()
 	" wav - PCM Riff Wave files\n"
 	" rsp - raw image files (tiles, sprites, maps etc.)\n"
 	" vag - PSX 'Very Audio Good' compressed sound\n"
+	" ctm - Compressed TIM (tiles)\n"
+	" cmp - Compressed map\n"
 	"\n"
-	"=== APPENDIX II: raw image types ===\n"
+	"=== APPENDIX II: sprites ===\n"
 	" type0 - special type for debugging, should have width, height, \n"
 	"         bytes offset and color bytes. Well suited for 'data massaging'\n"
 	" type1 - item cards, single-object files\n"
@@ -291,8 +312,6 @@ int Help_Main()
 	" type3 - view-parallel sprites (multiobjects, shared colormap)\n"
 	" type4 - mostly oriented sprites (monsters)\n"
 	" type5 - misc sprites\n"
-	" type6 - maps (cmp), not yet supported\n"
-	" type7 - tiles (compressed TIM's)\n"
 	"\n");
 	return 0;
 }
@@ -447,6 +466,8 @@ int main(int argc, char **argv)
 		returncode = Spr32_Main(argc-i, argv+i);
 	else if (!strcmp(argv[i], "-jam"))
 		returncode = Jam_Main(argc-i, argv+i);
+	else if (!strcmp (argv[i], "-mapconvert"))
+		returncode = MapConvert_Main(argc-i, argv+i);
 	else if (!strcmp (argv[i], "-help"))
 		returncode = Help_Main();
 	else

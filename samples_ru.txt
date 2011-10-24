@@ -13,6 +13,10 @@ unpack_fortranslating.bat : распаковка с конверсией TIM->TGA и ADPCM->WAV, удобн
 
 unpack_oggsounds.bat : распаковка pill.big со всеми конверсиями, звуки конвертируются в форма Ogg Vorbis.
 
+unpack_mapsonly_solids.bat : распаковка только карт в TGA формате с показом зон физики (стены, шипы и пр.)
+
+unpack_mapsonly_plain.bat : распаковка только карт в TGA формате без показа дополнительной информации.
+
 pack.bat : создание архива pill2.big на базе содержания папки 'bigfile'
 
 jam2tga(act2.jam).bat : конвертирование JAM файла в набор TGA

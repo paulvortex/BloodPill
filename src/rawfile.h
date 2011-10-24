@@ -10,10 +10,6 @@ typedef enum
 	RAW_TYPE_3,		// multiobject strangely compressed
 	RAW_TYPE_4,
 	RAW_TYPE_5,
-	RAW_TYPE_6,
-	RAW_TYPE_7,
-	RAW_TYPE_8,
-	RAW_TYPE_SPECIAL,
 	NUM_RAW_TYPES
 }rawtype_t;
 
@@ -134,6 +130,7 @@ rawblock_t *EmptyRawBlock(int numchunks);
 rawblock_t *RawErrorBlock(rawblock_t *block, rawextractresult_t errorcode);
 void FreeRawBlock(rawblock_t *block);
 
+// TGS tools
 void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay, const char *colormapdata, const char *pixeldata, int bpp, rawinfo_t *rawinfo);
 void RawTGAColormap(char *outfile, const byte *colormapdata, byte bytes, int width, int height);
 void ColormapFromTGA(char *filename, byte *colormap);

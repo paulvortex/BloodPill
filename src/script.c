@@ -295,7 +295,7 @@ void Script_Parse(char *filename, char *basepath)
 						Error("extract: error parsing parm 1 on line %i\n", n);
 					else
 					{
-						entry = BigfileGetEntry(bigfile, BigfileEntryHashFromString(com_token));
+						entry = BigfileGetEntry(bigfile, BigfileEntryHashFromString(com_token, true));
 						if (entry == NULL)
 							Error("extract: error getting entry '%s' on line %i\n", com_token, n);
 						else
@@ -756,7 +756,7 @@ void Script_Parse(char *filename, char *basepath)
 						{
 							// find entry
 							if (com_token[0] != '-')
-								entry = BigfileGetEntry(bigfile, BigfileEntryHashFromString(com_token));
+								entry = BigfileGetEntry(bigfile, BigfileEntryHashFromString(com_token, true));
 							if (entry == NULL)
 								Error("spr: error getting entry on line %i\n", n);
 							else
@@ -930,7 +930,7 @@ int Script_Main(int argc, char **argv)
 				strcpy(bigfilepath, argv[i]);
 				bigklist = BigfileLoadKList("klist.txt", false);
 				bigfilehandle = SafeOpen(argv[i], "rb");
-				bigfile = ReadBigfileHeader(bigfilehandle, argv[i], false, false);
+				bigfile = ReadBigfileHeader(bigfilehandle, false, false);
 				verbose = oldverbose;
 				noprint = oldnoprint;
 			}

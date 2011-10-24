@@ -696,6 +696,32 @@ int    LoadFile (char *filename, void **bufferptr)
 
 /*
 ==============
+LoadFileUnsafe
+==============
+*/
+
+int LoadFileUnsafe(char *filename, void **bufferptr)
+{
+  FILE	*f;
+  int    length;
+  void    *buffer;
+
+  f = fopen(filename, "rb");
+  if (!f)
+	  return -1;
+  length = Q_filelength (f);
+  buffer = qmalloc (length+1);
+  ((char *)buffer)[length] = 0;
+  SafeRead (f, buffer, length);
+  fclose (f);
+
+  *bufferptr = buffer;
+  return length;
+}
+
+
+/*
+==============
 SaveFile
 ==============
 */
@@ -805,25 +831,20 @@ void ExtractFileBase (char *path, char *dest)
 	*dest = 0;
 }
 
-void ExtractFileName (char *path, char *dest)
+void ExtractFileName(char *path, char *dest)
 {
-  char    *src;
+  char *src;
 
   src = path + strlen(path) - 1;
-
-  //
   // back up until a \ or the start
-  //
- while (src != path && (*(src-1) != '/' && *(src-1) != '\\'))
-    src--;
+  while (src != path && (*(src-1) != '/' && *(src-1) != '\\'))
+	src--;
   while(*src)
-  {
-      *dest++ = *src++;
-  }
+	*dest++ = *src++;
   *dest = 0;
 }
 
-void StripFileExtension (char *path, char *dest)
+void StripFileExtension(char *path, char *dest)
 {
 	int l;
 
@@ -832,7 +853,10 @@ void StripFileExtension (char *path, char *dest)
 		l--;
 	if (l == 0)
 		return;
-	strlcpy(dest, path, l+1);
+	if (path == dest)
+		path[l] = 0;
+	else
+		strlcpy(dest, path, l+1);
 }
 
 void ExtractFileExtension (char *path, char *dest)

@@ -6,6 +6,7 @@ copy bpill.exe release\bpill.exe
 copy bpill.txt release\bpill.txt
 copy bpill_ru.txt release\bpill_ru.txt
 copy klist.txt release\klist.txt
+copy font.tim release\font.tim
 # sox
 copy sox\sox.exe release\sox.exe
 copy sox\cyggomp-1.dll release\cyggomp-1.dll
@@ -26,6 +27,8 @@ copy tim2tga(test.tim)_16to24.bat release\samples\tim2tga(test.tim)_16to24.bat
 copy bigfile_unpack_raw.bat release\samples\unpack_raw.bat
 copy bigfile_unpack_fortranslating.bat release\samples\unpack_fortranslating.bat
 copy bigfile_unpack_oggsounds.bat release\samples\unpack_oggsounds.bat
+copy bigfile_unpack_mapsonly_solids.bat release\samples\unpack_mapsonly_solids.bat
+copy bigfile_unpack_mapsonly_plain.bat release\samples\unpack_mapsonly_plain.bat
 # patch sample
 mkdir release\patchtest
 mkdir release\patchtest\files

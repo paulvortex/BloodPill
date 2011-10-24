@@ -21,6 +21,16 @@
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ////////////////////////////////
 
+// WARNING!
+// this file should be names spritefile.c
+// code was written with no knowledge of what format Blood Omen uses for sprites so it's aimed to raw scan and detect
+// now we have a knowledge of what types Blood Omen is using, and code can be cleaned up and rewritten
+// in real, raw types 1-5 is 2 formats of sprite storage: SDR and SDP with hacks applied on some files
+// but i'm too lazy to refactor it, because it requires a lot of work and on it's current state code is working pretty fast
+// if you decide to make your own loaders based on this, you-d better to refactor
+//
+// VorteX
+
 #include "bloodpill.h"
 #include "bigfile.h"
 #include "cmdlib.h"
@@ -208,12 +218,6 @@ rawtype_t ParseRawType(char *str)
 		return RAW_TYPE_4;
 	if (!strcmp(str, "type5") || !strcmp(str, "5"))
 		return RAW_TYPE_5;
-	if (!strcmp(str, "type6") || !strcmp(str, "6"))
-		return RAW_TYPE_6;
-	if (!strcmp(str, "type7") || !strcmp(str, "7"))
-		return RAW_TYPE_7;
-	if (!strcmp(str, "type8") || !strcmp(str, "8"))
-		return RAW_TYPE_8;
 	return RAW_TYPE_UNKNOWN;
 }
 
@@ -231,25 +235,17 @@ char *UnparseRawType(rawtype_t rawtype)
 		return "type4";
 	if (rawtype == RAW_TYPE_5)
 		return "type5";
-	if (rawtype == RAW_TYPE_6)
-		return "type6";
-	if (rawtype == RAW_TYPE_7)
-		return "type7";
-	if (rawtype == RAW_TYPE_8)
-		return "type8";
 	return "unknown";
 }
 
 char *PathForRawType(rawtype_t rawtype)
 {
 	if (rawtype == RAW_TYPE_1)
-		return "item/";
+		return "items/";
 	if (rawtype == RAW_TYPE_2)
 		return "graphics/";
-	if (rawtype == RAW_TYPE_3 || rawtype == RAW_TYPE_5 || rawtype == RAW_TYPE_4)
-		return "sprite/";
-	if (rawtype == RAW_TYPE_7)
-		return "tile/";
+	if (rawtype == RAW_TYPE_3 || rawtype == RAW_TYPE_4 || rawtype == RAW_TYPE_5)
+		return "sprites/";
 	return NULL;
 }
 
@@ -779,24 +775,34 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 {
 	unsigned char *buffer, *out;
 	const unsigned char *in, *end;
-	int i, j, pixelbytes, realwidth, realheight;
+	int i, j, pixelbytes, realwidth, realheight, cropwidth, cropheight, skipwidth, skipheight;
 	FILE *f;
 
 	// get real width and height
 	realwidth = width + bx + ax;
 	realheight = height + by + ay;
+	cropwidth = width + min(0, bx) + min(0, ax);
+	cropheight = height + min(0, by) + min(0, ay);
+	skipwidth = 0 - min(0, bx);
+	skipheight = 0 - min(0, by);
 	pixelbytes = realwidth*realheight;
+
+	// check negative crop
+	// FIXME! only 24-bit mode supports negative add (cropping) for bx/by/ax/ay
+	if (bpp != 24 && (ax < 0 || ay < 0 || bx < 0 || by < 0))
+		Error("RawTGA: negative border (crop) only supported for 24bit bpp!\n");
+
 	// check bpp
 	if (bpp != 8 && bpp != 16 && bpp != 24 && bpp != 32)
 		Error("RawTGA: bad bpp (only 8, 16, 24 and 32 are supported)!\n");
 
 	// lineskippers
-	#define skiplines1(lines) for (i = 0; i < lines; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; }
-	#define skiplines2(lines) for (i = 0; i < lines; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; *out++ = 0; } 
-	#define skiplines3(lines) for (i = 0; i < lines; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; *out++ = 0; *out++ = 0; }
-	#define skiprows1(rows) for (j = 0; j < rows; j++) { *out++ = 0; }
-	#define skiprows2(rows) for (j = 0; j < rows; j++) { *out++ = 0; *out++ = 0; }
-	#define skiprows3(rows) for (j = 0; j < rows; j++) { *out++ = 0; *out++ = 0; *out++ = 0; }
+	#define skiplines1(lines) { for (i = 0; i < lines; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; } }
+	#define skiplines2(lines) { for (i = 0; i < lines; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; *out++ = 0; }  }
+	#define skiplines3(lines) { for (i = 0; i < lines; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; *out++ = 0; *out++ = 0; } }
+	#define skiprows1(rows) { for (j = 0; j < rows; j++) { *out++ = 0; } }
+	#define skiprows2(rows) { for (j = 0; j < rows; j++) { *out++ = 0; *out++ = 0; }  }
+	#define skiprows3(rows) { for (j = 0; j < rows; j++) { *out++ = 0; *out++ = 0; *out++ = 0; } }
 
 	// create targa header
 	buffer = qmalloc(pixelbytes*(int)(bpp / 8) + ((bpp == 8) ? 768 : 0) + 18);
@@ -906,11 +912,11 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 		// flip upside down, write
 		out = buffer + 18;
 		skiplines3(ay)
-		for (i = height - 1;i >= 0;i--)
+		for (i = cropheight - 1;i >= 0;i--)
 		{
+			in = pixeldata + (i + skipheight)*width*3 + skipwidth*3;
+			end = in + cropwidth * 3;
 			skiprows3(bx)
-			in = pixeldata + i * width * 3;
-			end = in + width * 3;
 			for (;in < end; in += 3)
 			{
 				// swap bgr->rgb
@@ -1184,114 +1190,6 @@ int ReadRLCompressedStreamTest(byte *outbuf, byte *inbuf, int startpos, int bufl
 	return startpos;
 	#undef readpixel
 	#undef writepixel
-}
-
-// read decompressed LZ77 stream, thanks to Ben Lincoln for that function
-// fixme: clean it up
-#define DecompressLZ77_MaxIterations 4096000
-//#define DecompressLZ77_MaxOutputSize 67108864 // BO never reach this
-#define DecompressLZ77_MaxOutputSize 1048576
-byte DecompressLZ77Out[DecompressLZ77_MaxOutputSize];
-void *DecompressLZ77Stream(int *outbufsize, byte *inbuf, int startpos, int buflen, qboolean leading_filesize)
-{
-	byte *outdata;
-	int filesize;
-	qboolean doneDecompressing = false;
-	int numIterations, bytesWritten;
-	unsigned short tempIndex, command;
-	short offset;
-	byte length, currentByte, currentByte1, currentByte2;
-	byte tempBuffer[4114];
-	int i;
-
-	// compare file size
-	if (buflen < 8)
-		return NULL;
-	if (leading_filesize)
-	{
-		filesize = ReadUInt(inbuf) + 4;
-		startpos = 4;
-		if (filesize != buflen)
-			return NULL;
-	}
-
-	// initialize decompressor
-	tempIndex = 4078;
-	numIterations = 0;
-	bytesWritten = 0;
-    command = 0;
-    for (i = 0; i < 4078; i++)
-		tempBuffer[i] = 0x20;
-
-	// decompress
-	while(!doneDecompressing)
-    {
-		// decompression errors
-		if (numIterations > DecompressLZ77_MaxIterations)
-			return NULL;
-		if (bytesWritten > DecompressLZ77_MaxOutputSize)
-			return NULL;
-		if (startpos > buflen)
-			return NULL;
-		// read command and process it
-		command = (unsigned short)(command >> 1);
-		if ((command & 0x0100) == 0)
-		{
-			command = (unsigned short)((unsigned short)(inbuf[startpos]) | 0xFF00);
-			startpos++;
-		}
-		if ((command & 0x01) == 0x01)
-		{
-			currentByte = inbuf[startpos];
-			startpos++;
-			DecompressLZ77Out[bytesWritten] = currentByte;
-			bytesWritten++;
-			tempBuffer[tempIndex] = currentByte;
-			tempIndex++;
-			tempIndex = (unsigned short)(tempIndex % 4096);
-			if (startpos > buflen)
-				break;
-		}
-		else
-		{
-			currentByte1 = inbuf[startpos];
-			startpos++;
-			currentByte2 = inbuf[startpos];
-			startpos++;
-			offset = (unsigned short)(currentByte1 | (currentByte2 & 0xF0) << 4);
-			length = (byte)((currentByte2 & 0x0F) + 3);
-			for (i = 0; i < length; i++)
-			{
-				DecompressLZ77Out[bytesWritten] = tempBuffer[(offset + i) % 4096];
-				bytesWritten++;
-				//counter--;
-				//if (counter == 0)
-				//{
-				//    doneDecompressing = true;
-				//    break;
-				//}
-				if (startpos > buflen)
-				{
-					doneDecompressing = true;
-					break;
-				}
-				tempBuffer[tempIndex] = tempBuffer[(offset + i) % 4096];
-				tempIndex++;
-				tempIndex = (unsigned short)(tempIndex % 4096);
-			}
-		}
-		numIterations++;
-	}
-
-	// Playstation files apparently need to be multiples of 1024 bytes in size
-	if ((bytesWritten % 1024) > 0)
-		bytesWritten = bytesWritten + 1024 - (bytesWritten % 1024);
-
-	// allocate and return
-	outdata = qmalloc(bytesWritten);
-	memcpy(outdata, DecompressLZ77Out, bytesWritten); 
-	*outbufsize = bytesWritten;
-	return outdata;
 }
 
 /*
@@ -1797,6 +1695,7 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		if (!testonly && verbose)
 			Print("Warning! Reading has ended on %i but filelen is %i, possible multiobject file.\n", chunkpos, filelen);
 	}
+
 	return rawblock;
 }
 
@@ -2208,158 +2107,6 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 /*
 ==========================================================================================
 
-  TYPE 6 - MAP
-
-==========================================================================================
-*/
-
-// RAW FILE TYPE 6
-// Description: compressed TIM image
-typedef struct
-{
-	unsigned short used_tiles[40];
-	unsigned char someinfo[18764];
-	unsigned short layer1[80][80];
-	unsigned short layer2[80][80];
-	unsigned char layer3[80][80];
-	unsigned char someinfo2[20068];
-}bo_map_t;
-
-rawblock_t *RawExtract_Type6(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
-{
-	int decSize;
-	byte *dec;
-	bo_map_t map;
-	unsigned short shortmap[80][80], shortmap2[80][80];
-	int i, k;
-	rawblock_t *rawblock;
-
-	if (!testonly && verbose)
-		Print("extracting type6\n");
-
-	// try decompress
-	//dec = DecompressLZ77Stream(&decSize, buffer, 0, filelen, true);
-	//if (dec == NULL)
-		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
-
-	// should have fixed size
-	if (decSize != 64512)
-	{
-		qfree(dec);
-		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
-	}
-
-	// this is type6
-	printf("groupfiles: ");
-	memcpy(&map, dec, 64512);
-	qfree(dec);
-	for (i = 0; i < 40; i++)
-	{
-		if (map.used_tiles[i] == 0 || map.used_tiles[i] == 65535)
-			continue;
-		printf("%05i ", map.used_tiles[i]);
-	}
-	printf("\n");
-
-	rawblock = EmptyRawBlock(0);
-	return rawblock;
-
-
-	RawTGA("layer1.tga", 160, 80, 0, 0, 0, 0, NULL, (byte *)&map.layer1, 8, NULL);
-	RawTGA("layer2.tga", 160, 80, 0, 0, 0, 0, NULL, (byte *)&map.layer2, 8, NULL);
-	RawTGA("layer3.tga", 80, 80, 0, 0, 0, 0, NULL, (byte *)&map.layer3, 8, NULL);
-
-	// transpose a map
-	for (i = 0; i < 80; i++)
-		for (k = 0; k < 80; k++)
-			shortmap[i][k] = map.layer1[79-k][i];
-	RawTGA("layer4.tga", 160, 80, 0, 0, 0, 0, NULL, (byte *)&shortmap, 8, NULL);
-
-	// transpose a map
-	for (i = 0; i < 80; i++)
-		for (k = 0; k < 80; k++)
-			shortmap2[i][k] = map.layer2[79-k][i];
-	RawTGA("layer5.tga", 160, 80, 0, 0, 0, 0, NULL, (byte *)&shortmap2, 8, NULL);
-
-}
-
-/*
-==========================================================================================
-
-  TYPE 7 - TILE
-
-==========================================================================================
-*/
-
-// RAW FILE TYPE 7
-// Description: compressed TIM image
-rawblock_t *RawExtract_Type7(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
-{
-	byte *dec, *in, *out;
-	rawblock_t *rawblock;
-	tim_image_t *tim;
-	int decSize, i;
-
-	if (!testonly && verbose)
-		Print("extracting type7\n");
-
-	// try decompress
-	dec = DecompressLZ77Stream(&decSize, buffer, 0, filelen, true);
-	if (dec == NULL)
-		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
-
-	// read TIM file from that stream
-	tim = TIM_LoadFromBuffer(dec, decSize);
-	if (tim->type != TIM_8Bit)
-	{
-		qfree(dec);
-		FreeTIM(tim);
-		return RawErrorBlock(NULL, RAWX_ERROR_NOT_INDENTIFIED);
-	}
-	qfree(dec);
-
-	// convert TIM to chunk
-	rawblock = EmptyRawBlock(1);
-	rawinfo->width = tim->dim.xsize;
-	rawinfo->height = tim->dim.ysize;
-	if (verbose == true)
-		Print("size: %ix%i\n", rawinfo->width, rawinfo->height);
-	RawBlockAllocateChunk(rawblock, 0, rawinfo->width, rawinfo->height, 0, 0, false);
-	// read colormap, convert to 24-bit
-	rawblock->colormap = qmalloc(768);
-	in = tim->CLUT->data;
-	out = rawblock->colormap;
-	for (i = 0; i < 256; i++)
-	{
-		*out++ = (in[i*2] & 0x1F) * 8; 
-		*out++ = (((in[i*2] & 0xE0) >> 5) + ((in[i*2 + 1] & 0x3) << 3)) * 8;
-		*out++ = ((in[i*2 + 1] & 0x7C) >> 2) * 8;
-	}
-	// read indexes
-	memcpy(rawblock->chunk[0].pixels, tim->pixels, rawblock->chunk[0].size);
-
-	FreeTIM(tim);
-	rawblock->errorcode = decSize;
-
-	return rawblock;
-}
-
-/*
-==========================================================================================
-
-  UNFINISHED RAW FILE TYPES
-
-==========================================================================================
-*/
-
-rawblock_t *RawExtract_Type8(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
-{
-	return RawErrorBlock(NULL, -1);
-}
-
-/*
-==========================================================================================
-
   MAIN
 
 ==========================================================================================
@@ -2381,9 +2128,6 @@ rawblock_t *RawExtract(byte *filedata, int filelen, rawinfo_t *rawinfo, qboolean
 	trytype(RAW_TYPE_4, RawExtract_Type4) 	// VorteX: scan type4 and type5 before type3, because they are derivations from type3
 	trytype(RAW_TYPE_5, RawExtract_Type5)
 	trytype(RAW_TYPE_3, RawExtract_Type3)
-	trytype(RAW_TYPE_6, RawExtract_Type6)
-	trytype(RAW_TYPE_7, RawExtract_Type7)
-	trytype(RAW_TYPE_8, RawExtract_Type8)
 	#undef trytype
 end:
 	if (rawblock == NULL)
@@ -2450,7 +2194,6 @@ int Raw_Main(int argc, char **argv)
 	rawblock_t *rawblock;
 	int i;
 
-	FlushRawInfo(&rawinfo);
 	i = 1;
 	Verbose("=== Raw Image ===\n");
 	Verbose("%s\n", argv[i]);

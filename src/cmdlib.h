@@ -81,6 +81,7 @@ extern void SafeRead (FILE *f, void *buffer, int count);
 extern void SafeWrite (FILE *f, void *buffer, int count);
 
 extern int LoadFile (char *filename, void **bufferptr);
+extern int LoadFileUnsafe (char *filename, void **bufferptr);
 extern void SaveFile (char *filename, void *buffer, int count);
 
 extern void DefaultPath (char *path, char *basepath);

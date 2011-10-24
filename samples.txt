@@ -13,6 +13,10 @@ unpack_fortranslating.bat : unpack with TIM->TGA and ADPCM->WAV conversion which
 
 unpack_oggsounds.bat : unpack pill.big with all conversions and sound files being converted to Ogg Vorbis
 
+unpack_mapsonly_solids.bat : raw unpack with MAP->TGA conversion, showing content blocks.
+
+unpack_mapsonly_plain.bat : raw unpack with MAP->TGA conversion, showing no additional info.
+
 pack.bat : create a new pill2.big based on 'bigfile' folder (converts back all tga and wav)
 
 jam2tga(act2.jam).bat : convert a JAM file to number of TGA's

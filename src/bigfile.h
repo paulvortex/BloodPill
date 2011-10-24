@@ -3,19 +3,22 @@
 #include "rawfile.h"
 #include "sprfile.h"
 #include "vagfile.h"
+#include "mapfile.h"
 
 #define MAX_TIM_LAYERS
 
 // filetypes
-#define BIGFILE_NUM_FILETYPES 6
+#define BIGFILE_NUM_FILETYPES 8
 typedef enum
 {
 	BIGENTRY_UNKNOWN,		// unknown data
 	BIGENTRY_TIM,			// 4 bit TIM texture
 	BIGENTRY_RAW_ADPCM,		// RAW 4 bit ADPCM
 	BIGENTRY_RIFF_WAVE,		// RIFF wave file
-	BIGENTRY_RAW_IMAGE,		// a RAW image file
+	BIGENTRY_SPRITE,		// sprite
 	BIGENTRY_VAG,			// PSX VAG
+	BIGENTRY_TILEMAP,       // tiles texture
+	BIGENTRY_MAP            // a map file
 }bigentrytype_t;
 
 // filetype extensions
@@ -25,8 +28,10 @@ static char *bigentryext[BIGFILE_NUM_FILETYPES] =
 	"tim",
 	"adpcm",
 	"wav",
-	"rsp",
-	"vag"
+	"sdr",
+	"vag",
+	"ctm",
+	"cmp"
 };	
 
 // filetype autopaths
@@ -36,12 +41,13 @@ static char *bigentryautopaths[BIGFILE_NUM_FILETYPES] =
 	"graphics/",
 	"adpcm/", 
 	"wave/",
-	"sprite/",
-	"vag/"
+	"sprites/",
+	"vag/",
+	"tiles/",
+	"maps/"
 };
 
 // hash names search table, picked from Rackot's BO1.csv
-
 
 // bigfile entry
 typedef struct
@@ -105,9 +111,9 @@ extern bigklist_t *bigklist;
 
 // base functions
 bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError);
-unsigned int BigfileEntryHashFromString(char *string);
+unsigned int BigfileEntryHashFromString(char *string, qboolean casterror);
 bigfileentry_t *BigfileGetEntry(bigfileheader_t *bigfile, unsigned int hash);
-bigfileheader_t *ReadBigfileHeader(FILE *f, char *filename, qboolean loadfilecontents, qboolean hashnamesonly);
+bigfileheader_t *ReadBigfileHeader(FILE *f, qboolean loadfilecontents, qboolean hashnamesonly);
 void BigfileSeekContents(FILE *f, byte *contents, bigfileentry_t *entry);
 void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawtype_t forcerawtype, qboolean allow_auto_naming);
 void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list_t *ixlist, rawtype_t forcerawtype);

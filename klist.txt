@@ -2404,62 +2404,62 @@ path=sound/ariel
 [050A1F07]
 type=adpcm
 rate=11025
-path=sound/audiotest.adpcm
+path=cdtracks
 
 [257C636C] 
 type=adpcm
 rate=22050
-path=cdtracks/track01.adpcm
+path=cdtracks
 
 [257D636C]
 type=adpcm
 rate=22050
-path=cdtracks/track02.adpcm
+path=cdtracks
 
 [2570636C]
 type=adpcm
 rate=22050
-path=cdtracks/track03.adpcm
+path=cdtracks
 
 [2571636C]
 type=adpcm
 rate=22050
-path=cdtracks/track04.adpcm
+path=cdtracks
 
 [2572636C]
 type=adpcm
 rate=22050
-path=cdtracks/track05.adpcm
+path=cdtracks
 
 [2573636C]
 type=adpcm
 rate=22050
-path=cdtracks/track06.adpcm
+path=cdtracks
 
 [2574636C]
 type=adpcm
 rate=22050
-path=cdtracks/track07.adpcm
+path=cdtracks
 
 [2575626C]
 type=adpcm
 rate=22050
-path=cdtracks/track08.adpcm
+path=cdtracks
 
 [2575636C]
 type=adpcm
 rate=22050
-path=cdtracks/track09.adpcm
+path=cdtracks
 
 [2576636C]
 type=adpcm
 rate=22050
-path=cdtracks/track10.adpcm
+path=cdtracks
 
 [2577636C]
 type=adpcm
 rate=22050
-path=cdtracks/track11.adpcm
+path=cdtracks
 
 #
 # картинки
