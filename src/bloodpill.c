@@ -299,7 +299,7 @@ int Help_Main()
 	" tim - PSX texture file\n"
 	" adpcm - raw IMA ADPCM, voice data\n"
 	" wav - PCM Riff Wave files\n"
-	" rsp - raw image files (tiles, sprites, maps etc.)\n"
+	" rsp - sprite files"
 	" vag - PSX 'Very Audio Good' compressed sound\n"
 	" ctm - Compressed TIM (tiles)\n"
 	" cmp - Compressed map\n"

@@ -794,18 +794,20 @@ Extract file parts
 */
 void ExtractFilePath (char *path, char *dest)
 {
-  char    *src;
+  char *src;
 
   src = path + strlen(path) - 1;
 
-  //
   // back up until a \ or the start
-  //
   while (src != path && (*(src-1) != '/' && *(src-1) != '\\'))
     src--;
-
-  memcpy (dest, path, src-path);
-  dest[src-path] = 0;
+  if (path == dest)
+	*src = 0;
+  else
+  {
+	 memcpy(dest, path, src-path);
+	 dest[src-path] = 0;
+  }
 }
 
 void ExtractFileBase (char *path, char *dest)

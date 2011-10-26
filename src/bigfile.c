@@ -939,7 +939,7 @@ void BigFileUnpackOriginalEntry(bigfileentry_t *entry, char *dstdir, qboolean pl
 	SaveFile(savefile, entry->data, entry->size);
 }
 
-int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, qboolean with_solid, qboolean with_triggers, qboolean toggled_objects, qboolean developer, int devnum);
+int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, qboolean with_solid, qboolean with_triggers, qboolean toggled_objects, qboolean developer, int devnum, qboolean group_sections_by_path);
 void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, int adpcmconvert, int vagconvert, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign, qboolean map2tga, qboolean map_show_contents, qboolean map_show_triggers, qboolean map_toggled_objects)
 {
 	char savefile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
@@ -1026,7 +1026,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 		oldprint = noprint;
 		noprint = true;
 		sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
-		MapExtract(basename, entry->data, entry->size, outfile, bigfileheader, bigf, "", map_show_contents, map_show_triggers, map_toggled_objects, false, 0);
+		MapExtract(basename, entry->data, entry->size, outfile, bigfileheader, bigf, "", map_show_contents, map_show_triggers, map_toggled_objects, false, 0, nopaths ? false : true);
 		noprint = oldprint;
 		// write original
 		BigFileUnpackOriginalEntry(entry, dstdir, true, true);
@@ -2355,7 +2355,7 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			if (!stricmp(format, "tga"))
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
-				MapExtract(entry->name, entry->data, entry->size, filename, bigfileheader, bigfile, "", with_solid, with_triggers, toggled_objects, false, 0);
+				MapExtract(entry->name, entry->data, entry->size, filename, bigfileheader, bigfile, "", with_solid, with_triggers, toggled_objects, false, 0, false);
 			}
 			else Error("unknown format '%s'\n", format);
 			qfree(entry->data);
