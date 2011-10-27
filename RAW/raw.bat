@@ -6,6 +6,6 @@ del *.tga
 del *.map
 
 set file=m0007221.cmp
-bpill -nc -bigfile ../pill.big -extract %file% %file%.tga -t >> log.txt
+bpill -nc -bigfile ../pill.big -extract %file% %file%.tga -t -c -a >> log.txt
 
 pause
