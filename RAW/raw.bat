@@ -5,7 +5,7 @@ copy .\..\bpill.exe bpill.exe /y
 del *.tga
 del *.map
 
-set file=m0007221.cmp
-bpill -nc -bigfile ../pill.big -extract %file% %file%.tga -t -c -a >> log.txt
+set file=m0000812.cmp
+bpill -nc -bigfile ../pill.big -extract %file% %file%.tga
 
 pause
