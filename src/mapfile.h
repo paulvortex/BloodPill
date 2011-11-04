@@ -1,6 +1,30 @@
+////////////////////////////////////////////////////////////////
+//
+// Blood Omen MAP files loader/exporter
+// LZ77 decompression by Ben Lincoln
+// coded by VorteX
+//
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+//
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+////////////////////////////////
+
+
 #include "bloodpill.h"
 
-// blood omen map raw structure
+// blood omen map structure
 typedef struct 
 {
 	unsigned short parm1;    // first parm, if script is not defined it's 0xFFFF, 0xFFFE is null value
@@ -201,10 +225,9 @@ typedef struct
 }bo_map_t;
 
 // things that are not figured out yet:
-// - how lightning is done (variable form lights)
-// - monster's paths
-// - counters and puzzle triggers
-// - traps that fires bolts
+// - how lightning is done (variable form lights, day-night light, ambient light)
+// - monster's paths's switch (some paths are messed up)
+// - counters and puzzle triggers?
 
 // tileflags
 #define TILEFLAG_UNKNOWN1       1024

@@ -851,7 +851,7 @@ void StripFileExtension(char *path, char *dest)
 	int l;
 
 	l = strlen(path) - 1;
-	while(path[l] != '.')
+	while(l >= 0 && path[l] != '.')
 		l--;
 	if (l == 0)
 		return;
