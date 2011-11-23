@@ -242,11 +242,11 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 				entry->rawinfo = NULL;
 				entry->pathonly = false;
 				strcpy(entry->path, "");
-				
-				// warn for double defienition
+
+				// warn for double definition
 				for (i = 0; i < klist->numentries; i++)
 					if (klist->entries[i].hash == hash)
-						Warning("redefenition of hash %.8X on line %i", hash, linenum);
+						Warning("redefinition of hash %.8X on line %i", hash, linenum);
 
 				klist->numentries++;
 			}
@@ -308,7 +308,7 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 		Warning("bad line %i: %s", linenum, line);
 	}
 
-	Verbose("%s: %i entries\n", filename, klist->numentries);
+	Verbose("%s: %i entries (%i unhashed names)\n", filename, klist->numentries);
 	return klist;
 }
 
@@ -975,151 +975,135 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 		BigfileSeekContents(bigf, entry->data, entry);
 	}
 
-	// autoconvert TGA
-	if (tim2tga && entry->type == BIGENTRY_TIM)
+	// autoextract
+	ExtractFileBase(entry->name, basename);
+	ExtractFilePath(entry->name, path);
+	switch(entry->type)
 	{
-		// unpack original anyway as we may need it (for map extraction for example)
-		//BigFileUnpackOriginalEntry(entry, dstdir, true, false);
-		qfree(entry->data);
-		entry->data = NULL;
-		// extract TIM
-		ExtractFileBase(entry->name, basename);
-		ExtractFilePath(entry->name, path);
-		sprintf(entry->name, "%s%s.tga", path, basename); // write correct listfile.txt
-		sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
-		TGAfromTIM(bigf, entry, outfile, bpp16to24);
-		return;
-	}
-
-	// autoconvert TGA (for tiles)
-	// fixme: both-way conversion?
-	if (tim2tga && entry->type == BIGENTRY_TILEMAP)
-	{
-		ExtractFileBase(entry->name, basename);
-		ExtractFilePath(entry->name, path);
-		sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
-		// write original
-		BigFileUnpackOriginalEntry(entry, dstdir, true, true);
-		// decode
-		outsize = entry->size;
-		data = LzDec(&size, entry->data, 0, outsize, true);
-		qfree(entry->data);
-		entry->timlayers = 1;
-		entry->data = data;
-		entry->size = size;
-		// write
-		TGAfromTIM(bigf, entry, outfile, bpp16to24);
-		// cleanup, restore size
-		qfree(entry->data);
-		entry->timlayers = 0;
-		entry->size = outsize;
-		entry->data = NULL;
-		return;
-	}
-
-	// autoconvert map
-	if (map2tga && entry->type == BIGENTRY_MAP)
-	{
-		// write
-		ExtractFileBase(entry->name, basename);
-		ExtractFilePath(entry->name, path);
-		oldprint = noprint;
-		noprint = true;
-		sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
-		MapExtract(basename, entry->data, entry->size, outfile, bigfileheader, bigf, "", map_show_contents, map_show_triggers, map_toggled_objects, false, 0, nopaths ? false : true);
-		noprint = oldprint;
-		// write original
-		BigFileUnpackOriginalEntry(entry, dstdir, true, true);
-		// clean
-		qfree(entry->data);
-		entry->data = NULL;
-		return;
-	}
-	
-	// autoconvert raw ADPCM or VAG
-	if ((adpcmconvert && entry->type == BIGENTRY_RAW_ADPCM) || (vagconvert && entry->type == BIGENTRY_VAG))
-	{
-		StripFileExtension(entry->name, basename);
-		if (entry->type == BIGENTRY_RAW_ADPCM)
-		{
-			c = adpcmconvert;
-			data = entry->data;
-			size = entry->size;
-			sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
-		}
-		else
-		{
-			c = vagconvert;
-			// unpack vag
-			VAG_Unpack(entry->data, 64, entry->size, &data, &size);
-			sprintf(inputcmd, "-t s16 -r %i -c 1", entry->adpcmrate);
-		}
-
-		// try to save
-		sprintf(savefile, (c == 3) ? "%s/%s.ogg" : "%s/%s.wav", dstdir, basename);
-		if (c == 3)
-			sprintf(outputcmd, "-t ogg -C 7");
-		else if (c == 2)
-			sprintf(outputcmd, "-t wav -e signed-integer");
-		else 
-			sprintf(outputcmd, "-t wav");
-		if (SoX_DataToData(data, size, "--no-dither", inputcmd, outputcmd, &outdata, &outsize, ""))
-		{
-			sprintf(entry->name, (c == 3) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.txt
-			SaveFile(savefile, outdata, outsize);
-			qfree(outdata);
-		}
-		else
-		{
-			//Warning("unable to convert %s, SoX Error #%i, unpacking original", entry->name, GetLastError());
-			Error("unable to convert %s, SoX Error, unpacking original", entry->name);
+		case BIGENTRY_TIM:
+			// extract TIM image
+			if (tim2tga)
+			{
+				sprintf(entry->name, "%s%s.tga", path, basename); // write correct listfile.txt
+				sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
+				TGAfromTIM(bigf, entry, outfile, bpp16to24);
+			}
+			break;
+		case BIGENTRY_TILEMAP:
+			// extract tilemap
+			if (tim2tga)
+			{
+				outsize = entry->size;
+				data = LzDec(&size, entry->data, 0, outsize, true);
+				qfree(entry->data);
+				entry->timlayers = 1;
+				entry->data = data;
+				entry->size = size;
+				// write
+				sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
+				TGAfromTIM(bigf, entry, outfile, bpp16to24);
+				entry->timlayers = 0;
+				entry->size = outsize;
+			}
+			break;
+		case BIGENTRY_MAP:
+			// extract map
+			if (map2tga)
+			{
+				oldprint = noprint;
+				noprint = true;
+				sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
+				MapExtract(basename, entry->data, entry->size, outfile, bigfileheader, bigf, "", map_show_contents, map_show_triggers, map_toggled_objects, false, 0, nopaths ? false : true);
+				noprint = oldprint;
+			}
+			break;
+		case BIGENTRY_RAW_ADPCM:
+			// extract ADPCM sound
+			if (adpcmconvert)
+			{
+				c = adpcmconvert;
+				data = entry->data;
+				size = entry->size;
+				sprintf(inputcmd, "-t ima -r %i -c 1", entry->adpcmrate);
+				// write
+				StripFileExtension(entry->name, basename);
+				sprintf(savefile, (c == 3) ? "%s/%s.ogg" : "%s/%s.wav", dstdir, basename);
+				if (c == 3)
+					sprintf(outputcmd, "-t ogg -C 7");
+				else if (c == 2)
+					sprintf(outputcmd, "-t wav -e signed-integer");
+				else 
+					sprintf(outputcmd, "-t wav");
+				if (SoX_DataToData(data, size, "--no-dither", inputcmd, outputcmd, &outdata, &outsize, ""))
+				{
+					sprintf(entry->name, (c == 3) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.txt
+					SaveFile(savefile, outdata, outsize);
+					qfree(outdata);
+				}
+				else
+				{
+					Error("unable to convert %s, SoX Error, unpacking original", entry->name);
+					BigFileUnpackOriginalEntry(entry, dstdir, false, false);
+				}
+				if (data != entry->data)
+					qfree(data);
+			}
+			break;
+		case BIGENTRY_VAG:
+			// extract VAG sound
+			if (vagconvert)
+			{
+				c = vagconvert;
+				VAG_Unpack(entry->data, 64, entry->size, &data, &size);
+				sprintf(inputcmd, "-t s16 -r %i -c 1", entry->adpcmrate);
+				// write
+				StripFileExtension(entry->name, basename);
+				sprintf(savefile, (c == 3) ? "%s/%s.ogg" : "%s/%s.wav", dstdir, basename);
+				if (c == 3)
+					sprintf(outputcmd, "-t ogg -C 7");
+				else if (c == 2)
+					sprintf(outputcmd, "-t wav -e signed-integer");
+				else 
+					sprintf(outputcmd, "-t wav");
+				if (SoX_DataToData(data, size, "--no-dither", inputcmd, outputcmd, &outdata, &outsize, ""))
+				{
+					sprintf(entry->name, (c == 3) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.txt
+					SaveFile(savefile, outdata, outsize);
+					qfree(outdata);
+				}
+				else
+				{
+					Error("unable to convert %s, SoX Error, unpacking original", entry->name);
+					BigFileUnpackOriginalEntry(entry, dstdir, false, false);
+				}
+				if (data != entry->data)
+					qfree(data);
+			}
+			break;
+		case BIGENTRY_SPRITE:
+			// extract sprite
+			rawblock = RawExtract(entry->data, entry->size, entry->rawinfo, true, false, forcerawtype);
+			if (rawblock->errorcode < 0)
+				Print("warning: cound not extract raw %s: %s\n", entry->name, RawStringForResult(rawblock->errorcode));
+			else
+			{
+				sprintf(outfile, "%s/%s", dstdir, entry->name);
+				TGAfromRAW(rawblock, entry->rawinfo, outfile, rawnoalign, false, (rawblock->chunks > 1) ? true : false); 
+				// unpack tail files
+				if (rawblock->errorcode > 0 && rawblock->errorcode < (int)entry->size)
+					RawExtractTGATailFiles((byte *)entry->data + rawblock->errorcode, entry->size - rawblock->errorcode, entry->rawinfo, outfile, false, (rawblock->chunks > 1) ? true : false, rawnoalign);
+			}
+			FreeRawBlock(rawblock);
+			break;
+		case BIGENTRY_RIFF_WAVE:
+			// extract normal wave file
+			StripFileExtension(entry->name, basename);
+			sprintf(entry->name, "%s.wav", basename);
+			break;
+		default:
 			BigFileUnpackOriginalEntry(entry, dstdir, false, false);
-		}
-
-		// for VAG, unpack original anyway
-		// fixme: make backwards conversion
-		if (entry->type == BIGENTRY_VAG)
-			BigFileUnpackOriginalEntry(entry, dstdir, true, true);
-
-		if (data != entry->data)
-			qfree(data);
-		qfree(entry->data);
-		entry->data = NULL;
-		return;
+			break;
 	}
-
-	// convert raw file
-	if (rawconvert && entry->type == BIGENTRY_SPRITE)
-	{
-		rawblock = RawExtract(entry->data, entry->size, entry->rawinfo, true, false, forcerawtype);
-		if (rawblock->errorcode < 0)
-			Print("warning: cound not extract raw %s: %s\n", entry->name, RawStringForResult(rawblock->errorcode));
-		else
-		{
-			sprintf(outfile, "%s/%s", dstdir, entry->name);
-			TGAfromRAW(rawblock, entry->rawinfo, outfile, rawnoalign, false, (rawblock->chunks > 1) ? true : false); 
-			// unpack tail files
-			if (rawblock->errorcode > 0 && rawblock->errorcode < (int)entry->size)
-				RawExtractTGATailFiles((byte *)entry->data + rawblock->errorcode, entry->size - rawblock->errorcode, entry->rawinfo, outfile, false, (rawblock->chunks > 1) ? true : false, rawnoalign);
-		}
-		FreeRawBlock(rawblock);
-		// unpack original
-		BigFileUnpackOriginalEntry(entry, dstdir, true, true);
-		qfree(entry->data);
-		entry->data = NULL;
-		return;
-	}
-
-	// convert wave file
-	if (entry->type == BIGENTRY_RIFF_WAVE)
-	{
-		// change file extension to wav and write original
-		StripFileExtension(entry->name, basename);
-		sprintf(entry->name, "%s.wav", basename);
-	}
-
-	// unpack original
-	BigFileUnpackOriginalEntry(entry, dstdir, false, false);
 	qfree(entry->data);
 	entry->data = NULL;
 }
@@ -1330,14 +1314,20 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 			else
 				sprintf(entry->name, "%s%s.%s", autopath, name, ext);
 		}
-		// check klist and pick rawinfo anyway
+		// check klist and pick rawinfo and path anyway
 		kentry = BigfileSearchKList(entry->hash);
 		if (kentry != NULL)
 		{
 			entry->adpcmrate = (int)kentry->adpcmrate;
 			if (entry->type == BIGENTRY_SPRITE)
 				entry->rawinfo = kentry->rawinfo;
+			if (kentry->path[0] && kentry->pathonly)
+			{
+				ExtractFileName(entry->name, name);
+				sprintf(entry->name, "%s/%s", kentry->path, name);
+			}
 		}
+
 	}
 	// check listfile
 	else
@@ -1352,11 +1342,14 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 			// check custom path
 			if (allow_auto_naming)
 			{
-				ExtractFileName(entry->name, name);
+				
 				if (kentry->path[0])
 				{
 					if (kentry->pathonly)
+					{
+						ExtractFileName(entry->name, name);
 						sprintf(entry->name, "%s/%s", kentry->path, name);
+					}
 					else
 						sprintf(entry->name, "%s", kentry->path);
 				}

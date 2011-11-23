@@ -452,6 +452,8 @@ static cachepic_t *CachePic(char *entryname)
 	
 	// load entry
 	pixels = NULL;
+	width = 0;
+	height = 0;
 	FlushRawInfo(&rawinfo);
 	rawblock = RawExtract(filedata, filesize, &rawinfo, false, false, RAW_TYPE_UNKNOWN);
 	memset(avg, 0, sizeof(avg));
@@ -583,16 +585,19 @@ static cachepic_t *CachePic(char *entryname)
 	pic->r = 128;
 	pic->g = 128;
 	pic->b = 128;
-	avg[0] = (byte)(avg[0] / (width * height));
-	avg[1] = (byte)(avg[1] / (width * height));
-	avg[2] = (byte)(avg[2] / (width * height));
-	stepx = 0.0f + max(max(avg[0], avg[1]), avg[2]);
-	if (stepx)
+	if (width && height)
 	{
-		stepx = 64.0f / stepx;
-		pic->r = min(255, max(0, (byte)(avg[0] * stepx)));
-		pic->g = min(255, max(0, (byte)(avg[1] * stepx)));
-		pic->b = min(255, max(0, (byte)(avg[2] * stepx)));
+		avg[0] = (byte)(avg[0] / (width * height));
+		avg[1] = (byte)(avg[1] / (width * height));
+		avg[2] = (byte)(avg[2] / (width * height));
+		stepx = 0.0f + max(max(avg[0], avg[1]), avg[2]);
+		if (stepx)
+		{
+			stepx = 64.0f / stepx;
+			pic->r = min(255, max(0, (byte)(avg[0] * stepx)));
+			pic->g = min(255, max(0, (byte)(avg[1] * stepx)));
+			pic->b = min(255, max(0, (byte)(avg[2] * stepx)));
+		}
 	}
 	return pic;
 }
@@ -822,12 +827,12 @@ static void MapDrawBorder(byte *map_image, int row, int col, byte r, byte g, byt
 }
 
 // draw a picture (sprite or tim)
-static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, byte subpic, qboolean solid, boolean align_center)
+static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, byte subpic, qboolean solid, qboolean align_center)
 {
 	int i, j, x, y, startx, starty, width, height;
 	byte *out, *in;
 
-	if (!pic)
+	if (!pic || !pic->pixels || !pic->width || !pic->height)
 		return;
 
 	// get whole pic or subpic

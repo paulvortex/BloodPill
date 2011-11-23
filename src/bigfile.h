@@ -90,13 +90,12 @@ bigfileheader_t;
 // knowledge base
 typedef struct
 {
-	unsigned int hash;
-
-	int adpcmrate; // adpcm rate
-	char path[MAX_BLOODPATH]; // a path to extract
-	qboolean pathonly; // only define path, not filename
-	bigentrytype_t type; // a type of entry
-	rawinfo_t *rawinfo; // raw format info
+	unsigned int   hash;
+	int            adpcmrate; // adpcm rate
+	char           path[MAX_BLOODPATH]; // a path to extract
+	qboolean       pathonly;  // only define path, not filename
+	bigentrytype_t type;      // a type of entry
+	rawinfo_t      *rawinfo;  // raw format info
 }
 bigkentry_t;
 
