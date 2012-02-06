@@ -1099,6 +1099,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 			// extract normal wave file
 			StripFileExtension(entry->name, basename);
 			sprintf(entry->name, "%s.wav", basename);
+			BigFileUnpackOriginalEntry(entry, dstdir, false, false);
 			break;
 		default:
 			BigFileUnpackOriginalEntry(entry, dstdir, false, false);
@@ -2418,7 +2419,6 @@ int BigFile_Unpack(int argc, char **argv)
 	forcerawtype = RAW_TYPE_UNKNOWN;
 	rawnoalign = false;
 	hashnamesonly = false;
-	map2tga = false;
 	map_show_triggers = false;
 	map_show_contents = false;
 	map_toggled_objects = false;

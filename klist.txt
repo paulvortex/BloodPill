@@ -416,7 +416,7 @@ path=sound/people
 [5B6B790A]
 type=adpcm
 rate=11025
-path=sound/people
+path=sound/moebius
 
 [5B6B7009]
 type=adpcm
@@ -526,7 +526,7 @@ path=sound/people
 [5B6E720B]
 type=adpcm
 rate=11025
-path=sound/people
+path=sound/bane
 
 [5B6E7009]
 type=adpcm
@@ -606,7 +606,7 @@ path=sound/people
 [5B64790A]
 type=adpcm
 rate=11025
-path=sound/people
+path=sound/moebius
 
 [5B647009]
 type=adpcm
@@ -776,7 +776,7 @@ path=sound/people
 [5B6D720B]
 type=adpcm
 rate=11025
-path=sound/people
+path=sound/bane
 
 [5B687209]
 type=adpcm

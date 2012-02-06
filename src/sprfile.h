@@ -48,11 +48,11 @@ typedef enum
 // sprite header
 typedef struct
 { 
-	char	name[4];	// 4 "IDSP"
-	long	ver1;		// 4 Version = 1
-	long	type;		// 4 See bove
-	float	radius;		// 4 Bounding Radius
-	long	maxwidth;	// 4 Width of the largest frame
+	char	name[4];	// 4 (+0) "IDSP"
+	long	ver1;		// 4 (+4) Version = 1
+	long	type;		// 4 (+8) See bove
+	float	radius;		// 4 (+12) Bounding Radius
+	long	maxwidth;	// 4 (+16) Width of the largest frame
 	long	maxheight;	// 4 Height of the largest frame
 	long	nframes;	// 4 Number of frames
 	float	beamlength;	// 4 pushs the sprite away, strange legacy from DOOM?
