@@ -240,7 +240,7 @@ void Script_Parse(char *filename, char *basepath)
 					Error("export: error parsing parm 1 on line %i\n", n);
 				else
 				{
-					if (!strcmp(com_token, "legacyscripts"))
+					if (!strcmp(com_token, "legacy.nsx"))
 					{
 						// Blood Omnicide - write legacy.nsx
 						sprintf(outfile, "%slegacy.nsx", path);
@@ -261,6 +261,9 @@ void Script_Parse(char *filename, char *basepath)
 						for (i = 0; i < legacymodelsubs->num; i++)
 							fprintf(f, "%s=%s,%.2f,%i\n", legacymodelsubs->subs[i].name, legacymodelsubs->subs[i].orient, legacymodelsubs->subs[i].scale, legacymodels->models[legacymodelsubs->subs[legacymodelsubs->num].basemodel].colormapid);
 						WriteClose(f);
+					}
+					else if (!strcmp(com_token, "colormaps.nsx"))
+					{
 						// Blood Omnicide - write colormaps.nsx
 						sprintf(outfile, "%scolormaps.nsx", path);
 						f =	SafeOpenWrite(outfile);

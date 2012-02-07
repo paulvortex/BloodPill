@@ -2215,7 +2215,7 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 	switch(entry->type)
 	{
 		case BIGENTRY_UNKNOWN:
-			Error("unknown entry type, bad format '%s'\n", format);
+			Error("unknown entry %s type, bad format '%s'\n", entry->name, format);
 			break;
 		case BIGENTRY_TIM:
 			// TIM extraction is simple
