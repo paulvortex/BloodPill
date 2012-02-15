@@ -1,5 +1,8 @@
 #include "cmdlib.h"
 
+#ifndef _RAWFILE_H_
+#define _RAWFILE_H_
+
 // raw types
 typedef enum
 {
@@ -51,11 +54,11 @@ typedef struct rawchunk_s
 	byte flagbit; 
 
 	byte *colormap;
-	qboolean colormapExternal; // set externally, don't free
+	bool colormapExternal; // set externally, don't free
 	byte *alphamap; // alpha component of colormap
-	qboolean alphamapExternal; 
+	bool alphamapExternal; 
 	byte *pixels;
-	qboolean pixelsExternal; // set externally, don't free
+	bool pixelsExternal; // set externally, don't free
 }rawchunk_t;
 
 #define MAX_RAW_CHUNKS	1024
@@ -63,20 +66,20 @@ typedef struct rawchunk_s
 // returned extracted raw block
 typedef struct rawblock_s
 {
-	rawextractresult_t errorcode;
+	int errorcode;
 	// global position
 	int posx;
 	int posy; 
 	// shared colormap
 	byte *colormap;
-	qboolean colormapExternal; // set externally, don't free
+	bool colormapExternal; // set externally, don't free
 	byte *alphamap; // alpha component of colormap
-	qboolean alphamapExternal; 
+	bool alphamapExternal; 
 	// chunks data
 	int chunks;
 	rawchunk_t chunk[MAX_RAW_CHUNKS];
 	// set when chunk is readed, but it's not a end of file
-	qboolean notEOF;
+	bool notEOF;
 }rawblock_t;
 
 // raw information
@@ -85,7 +88,7 @@ typedef struct rawinfo_s
 	rawtype_t type;		// type of RAW file
 
 	// dynamic only
-	qboolean usecompression;
+	bool usecompression;
 	byte compressionpixels[4];
 
 	// type 0
@@ -99,16 +102,15 @@ typedef struct rawinfo_s
 	// common
 	int chunknum; // if set, only extract this chunk number
 	rawswitch_t	doubleres;	// double the width & height
-	qboolean	disableCLUT; // disable writing of clut, write indexes as grayscale instead
-	qboolean	dontSwapBgr; // disable swapping of BGR->RGB, for images that are initially BGR
+	bool	disableCLUT; // disable writing of clut, write indexes as grayscale instead
+	bool	dontSwapBgr; // disable swapping of BGR->RGB, for images that are initially BGR
 	int			shadowpixel;
 	byte		shadowalpha;
 }rawinfo_t;
 
 // util functions
 void FlushRawInfo(rawinfo_t *rawinfo);
-rawinfo_t *NewRawInfo();
-qboolean ReadRawInfo(char *line, rawinfo_t *rawinfo);
+bool ReadRawInfo(char *line, rawinfo_t *rawinfo);
 void WriteRawInfo(FILE *f, rawinfo_t *rawinfo);
 rawswitch_t ParseRawSwitch(char *str);
 char *UnparseRawSwitch(rawswitch_t rawswitch);
@@ -118,8 +120,8 @@ char *RawStringForResult(int rescode);
 char *PathForRawType(rawtype_t rawtype);
 
 // rawblock tools
-void RawblockFlip(rawblock_t *rawblock, qboolean flipoffset);
-rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margin);
+void RawblockFlip(rawblock_t *rawblock, bool flipoffset);
+rawblock_t *RawblockCrop(rawblock_t *rawblock, bool cropeachchunk, int margin);
 rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin);
 rawblock_t *RawblockPerturbate(rawblock_t *rawblock, list_t *includelist);
 rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock);
@@ -127,12 +129,14 @@ rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock);
 // raw blocks
 char *RawStringForResult(int rescode);
 rawblock_t *EmptyRawBlock(int numchunks);
-rawblock_t *RawErrorBlock(rawblock_t *block, rawextractresult_t errorcode);
+rawblock_t *RawErrorBlock(rawblock_t *block, int errorcode);
 void FreeRawBlock(rawblock_t *block);
 
 // TGS tools
-void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay, const char *colormapdata, const char *pixeldata, int bpp, rawinfo_t *rawinfo);
+void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay, const byte *colormapdata, const byte *pixeldata, int bpp, rawinfo_t *rawinfo);
 void RawTGAColormap(char *outfile, const byte *colormapdata, byte bytes, int width, int height);
 void ColormapFromTGA(char *filename, byte *colormap);
-rawblock_t *RawExtract(byte *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype);
-void RawExtractTGATailFiles(byte *filedata, int filelen, rawinfo_t *rawinfo, char *outfile, qboolean verbose, qboolean usesubpaths, qboolean rawnoalign);
+rawblock_t *RawExtract(byte *filedata, int filelen, rawinfo_t *rawinfo, bool testonly, bool verbose, rawtype_t forcetype);
+void RawExtractTGATailFiles(byte *filedata, int filelen, rawinfo_t *rawinfo, char *outfile, bool verbose, bool usesubpaths, bool rawnoalign);
+
+#endif

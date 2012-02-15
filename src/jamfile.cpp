@@ -90,7 +90,7 @@ void Jam_DecodeToFiles(char *infile, char *outpath)
 {
 	byte jamHead[16], jamColormap[768], frameHead[16], *compressed, *framedata, *prevframedata, *b;
 	int i, width, height, numframes, framesize, outsize, compsize;
-	char file[MAX_BLOODPATH];
+	char file[MAX_OSPATH];
 	FILE *f;
 
 	f = SafeOpen(infile, "rb");
@@ -111,9 +111,9 @@ void Jam_DecodeToFiles(char *infile, char *outpath)
 	// parse file
 	memset(jamColormap, 0, 768);
 	memset(jamHead, 0, 16);
-	compressed = qmalloc(framesize);
-	framedata = qmalloc(framesize * 2);
-	prevframedata = qmalloc(framesize * 2);
+	compressed = (byte *)mem_alloc(framesize);
+	framedata = (byte *)mem_alloc(framesize * 2);
+	prevframedata = (byte *)mem_alloc(framesize * 2);
 	for(i = 0; i < numframes; )
 	{
 		// frame header
@@ -149,15 +149,15 @@ void Jam_DecodeToFiles(char *infile, char *outpath)
 	}
 
 	PacifierEnd();
-	qfree(compressed);
-	qfree(framedata);
-	qfree(prevframedata);
+	mem_free(compressed);
+	mem_free(framedata);
+	mem_free(prevframedata);
 	fclose(f);
 }
 
 int Jam_Main(int argc, char **argv)
 {
-	char infile[MAX_BLOODPATH], outpath[MAX_BLOODPATH];
+	char infile[MAX_OSPATH], outpath[MAX_OSPATH];
 
 	Verbose("=== Jam Video ===\n");
 

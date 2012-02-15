@@ -1,5 +1,9 @@
 #include "cmdlib.h"
 #include "dll.h"
+#include <vector>
+#include "math.h"
+
+using namespace std;
 
 #ifndef BLOODPILL_VERSION
 #define BLOODPILL_VERSION "v1.01"
@@ -15,20 +19,20 @@ static char *BLOODPILL_WELCOME =
 "JAM decoder by MisterGrim\n"
 "----------------------------------------\n"
 ;
-#define MAX_BLOODPATH 1024
+#define MAX_OSPATH 1024
 #endif
 
 // global switches
-qboolean waitforkey;
-qboolean error_waitforkey;
-qboolean memstats;
-qboolean verbose;
-qboolean noprint;
-qboolean solidpacifier;
-qboolean errorlog;
+extern bool waitforkey;
+extern bool error_waitforkey;
+extern bool memstats;
+extern bool verbose;
+extern bool noprint;
+extern bool solidpacifier;
+extern bool errorlog;
 
-char progname[MAX_BLOODPATH];
-char progpath[MAX_BLOODPATH];
+extern char progname[MAX_OSPATH];
+extern char progpath[MAX_OSPATH];
 
 // printing
 void Print (char *str, ...);

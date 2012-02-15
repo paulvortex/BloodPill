@@ -54,7 +54,7 @@ static dllfunction_t zlib_funcs[] =
 };
 
 // deflating
-#define PK3_MAX_FILESIZE 67108864 // 64 megs
+#define PK3_MAX_FILESIZE 1024*1024*100 // 100 megs
 unsigned char pk3buf[PK3_MAX_FILESIZE];
 
 /*
@@ -72,7 +72,7 @@ pk3_file_t *PK3_Create(char *filepath)
 	if (!PK3_Enabled())
 		Error("PK3_Create: zlib not enabled!");
 
-	pk3 = qmalloc(sizeof(pk3_file_t));
+	pk3 = (pk3_file_t *)mem_alloc(sizeof(pk3_file_t));
 	CreatePath(filepath);
 	pk3->file = SafeOpen(filepath, "wb");
 	pk3->numfiles = 0;
@@ -91,7 +91,7 @@ pk3_entry_t *PK3_CreateFile(pk3_file_t *pk3, char *filename)
 	// allocate file
 	if (pk3->numfiles >= MAX_PK3_FILES)
 		Error("PK3_CreateFile: MAX_PK3_FILES exceeded!");
-	entry = qmalloc(sizeof(pk3_entry_t));
+	entry = (pk3_entry_t *)mem_alloc(sizeof(pk3_entry_t));
 	memset(entry, 0, sizeof(pk3_entry_t));
 	pk3->files[pk3->numfiles] = entry;
 	pk3->numfiles++;
@@ -180,8 +180,8 @@ void PK3_AddExternalFile(pk3_file_t *pk3, char *filename, char *externalfile)
 
 	datasize = LoadFile(externalfile, &filedata);
 	entry = PK3_CreateFile(pk3, filename);
-	PK3_CompressFileData(pk3, entry, filedata, datasize);
-	qfree(filedata);
+	PK3_CompressFileData(pk3, entry, (byte *)filedata, datasize);
+	mem_free(filedata);
 }
 
 #ifdef __CMDLIB_WRAPFILES__
@@ -190,7 +190,8 @@ void PK3_AddWrappedFiles(pk3_file_t *pk3)
 {
 	int i, numfiles;
 	pk3_entry_t *entry;
-	byte *filedata, *filename;
+	char *filename;
+	byte *filedata;
 	unsigned int datasize;
 
 	numfiles = CountWrappedFiles();
@@ -198,8 +199,8 @@ void PK3_AddWrappedFiles(pk3_file_t *pk3)
 	{
 		datasize = LoadWrappedFile(i, &filedata, &filename);
 		entry = PK3_CreateFile(pk3, filename);
-		PK3_CompressFileData(pk3, entry, filedata, datasize);
-		qfree(filedata);
+		PK3_CompressFileData(pk3, entry, (byte *)filedata, datasize);
+		mem_free(filedata);
 	}
 	FreeWrappedFiles();
 }
@@ -242,7 +243,7 @@ void PK3_Close(pk3_file_t *pk3)
 		fwrite(entry->filename, entry->filenamelen, 1, pk3->file);
 		if (ferror(pk3->file))
 			Error("PK3_Close: failed write pk3");
-		qfree(entry);
+		mem_free(entry);
 	}
 	cdsize = ftell(pk3->file) - cdofs;
 
@@ -261,7 +262,7 @@ void PK3_Close(pk3_file_t *pk3)
 		Error("PK3_Close: failed write pk3");
 
 	fclose(pk3->file);
-	qfree(pk3);
+	mem_free(pk3);
 }
 
 
@@ -286,7 +287,7 @@ Try to load the Zlib DLL
 ====================
 */
 
-qboolean PK3_OpenLibrary(qboolean verbose)
+bool PK3_OpenLibrary(bool verbose)
 {
 	if (zlib_dll)
 		return true;
@@ -301,7 +302,7 @@ See if zlib (and pk3 routines) is available
 ====================
 */
 
-qboolean PK3_Enabled(void)
+bool PK3_Enabled(void)
 {
 	PK3_OpenLibrary(false); // to be safe
 	return (zlib_dll != 0);

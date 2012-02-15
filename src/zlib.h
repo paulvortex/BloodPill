@@ -126,5 +126,5 @@ void PK3_AddWrappedFiles(pk3_file_t *pk3);
 
 // functions to use
 void PK3_CloseLibrary(void);
-qboolean PK3_OpenLibrary(qboolean verbose);
-qboolean PK3_Enabled(void);
+bool PK3_OpenLibrary(bool verbose);
+bool PK3_Enabled(void);

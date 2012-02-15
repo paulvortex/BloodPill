@@ -120,7 +120,7 @@ void VAG_Unpack(byte *data, int offset, int databytes, byte **bufferptr, int *ou
 	// decode
 	in = data + offset;
 	datasize = databytes - offset;
-	*bufferptr = qmalloc(size);
+	*bufferptr = (byte *)mem_alloc(size);
 	out = *bufferptr;
 	while(1)
 	{

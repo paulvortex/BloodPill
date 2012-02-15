@@ -14,7 +14,6 @@
 
 #ifndef __BYTEBOOL__
 #define __BYTEBOOL__
-typedef enum {false, true} qboolean;
 typedef unsigned char byte;
 #endif
 
@@ -80,8 +79,8 @@ extern FILE *SafeOpen (char *filename, char mode[]);
 extern void SafeRead (FILE *f, void *buffer, int count);
 extern void SafeWrite (FILE *f, void *buffer, int count);
 
-extern int LoadFile (char *filename, void **bufferptr);
-extern int LoadFileUnsafe (char *filename, void **bufferptr);
+extern int LoadFile (char *filename, byte **bufferptr);
+extern int LoadFileUnsafe (char *filename, byte **bufferptr);
 extern void SaveFile (char *filename, void *buffer, int count);
 
 extern void DefaultPath (char *path, char *basepath);
@@ -94,7 +93,7 @@ extern void ExtractFileName (char *path, char *dest);
 extern void StripFileExtension (char *path, char *dest);
 extern void ExtractFileExtension (char *path, char *dest);
 void AddSuffix(char *outpath, char *inpath, char *suffix);
-extern qboolean FileExists(char *filename);
+extern bool FileExists(char *filename);
 
 extern int ParseNum (char *str);
 int ParseHex(char *hex);
@@ -102,7 +101,7 @@ int ParseHex(char *hex);
 extern char *COM_Parse (char *data);
 
 extern char com_token[MAXTOKEN];
-extern qboolean com_eof;
+extern bool com_eof;
 
 extern char *copystring(char *s);
 
@@ -116,7 +115,7 @@ int ReadShort(byte *buffer);
 int ReadSignedByte(byte *buffer);
 
 void StartTokenParsing (char *data);
-qboolean GetToken (qboolean crossline);
+bool GetToken (bool crossline);
 void UngetToken (void);
 
 extern void CRC_Init(unsigned short *crcvalue);
@@ -131,7 +130,7 @@ extern void COM_CreatePath (char *path);
 #define __CMDLIB_WRAPFILES__
 void FreeWrappedFiles();
 int CountWrappedFiles();
-int LoadWrappedFile(int wrapnum, void **bufferptr, void **realfilename);
+int LoadWrappedFile(int wrapnum, byte **bufferptr, char **realfilename);
 void WrapFileWritesToMemory();
 FILE *SafeOpenWrite (char *filename);
 FILE *OpenReadWrite(char *filename);

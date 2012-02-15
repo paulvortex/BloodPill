@@ -184,115 +184,59 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
-				RelativePath="bigfile.c"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="bloodpill.c"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="cmdlib.c"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\dll.c"
+				RelativePath=".\bigfile.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\jamfile.c"
+				RelativePath=".\bloodpill.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\mapfile.c"
+				RelativePath=".\cmdlib.cpp"
 				>
 			</File>
 			<File
-				RelativePath="mem.c"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="rawfile.c"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\script.c"
+				RelativePath=".\dll.cpp"
 				>
 			</File>
 			<File
-				RelativePath="soxsupp.c"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\sprfile.c"
+				RelativePath=".\jamfile.cpp"
 				>
 			</File>
 			<File
-				RelativePath="timfile.c"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\vagfile.c"
+				RelativePath=".\mapfile.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\zlib.c"
+				RelativePath=".\mem.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\rawfile.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\script.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\soxsupp.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\sprfile.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\timfile.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\vagfile.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\zlib.cpp"
 				>
 			</File>
 		</Filter>

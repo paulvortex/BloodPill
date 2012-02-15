@@ -104,17 +104,7 @@ void FlushRawInfo(rawinfo_t *rawinfo)
 	rawinfo->compressionpixels[3] = 0;
 }
 
-rawinfo_t *NewRawInfo()
-{
-	rawinfo_t *rawinfo;
-
-	rawinfo = qmalloc(sizeof(rawinfo_t));
-	FlushRawInfo(rawinfo);
-
-	return rawinfo;
-}
-
-qboolean ReadRawInfo(char *line, rawinfo_t *rawinfo)
+bool ReadRawInfo(char *line, rawinfo_t *rawinfo)
 {
 	char temp[256];
 	int num;
@@ -265,7 +255,7 @@ rawblock_t *EmptyRawBlock(int numchunks)
 	rawblock_t *block;
 	int i;
 
-	block = qmalloc(sizeof(rawblock_t));
+	block = (rawblock_t *)mem_alloc(sizeof(rawblock_t));
 	memset(block, 0, sizeof(rawblock_t));
 	block->chunks = numchunks;
 	block->colormap = NULL;
@@ -283,7 +273,7 @@ rawblock_t *EmptyRawBlock(int numchunks)
 	return block;
 }
 
-rawblock_t *RawErrorBlock(rawblock_t *block, rawextractresult_t errorcode)
+rawblock_t *RawErrorBlock(rawblock_t *block, int errorcode)
 {
 	if (block == NULL)
 		block = EmptyRawBlock(0);
@@ -291,7 +281,7 @@ rawblock_t *RawErrorBlock(rawblock_t *block, rawextractresult_t errorcode)
 	return block;
 }
 
-void RawBlockAllocateChunkSimple(rawblock_t *block, int chunknum, qboolean pixelsExternal)
+void RawBlockAllocateChunkSimple(rawblock_t *block, int chunknum, bool pixelsExternal)
 {
 	if (chunknum < 0 || chunknum >= block->chunks)
 		Error("RawBlockAllocateChunk: bad chunk number %i", chunknum);
@@ -301,7 +291,7 @@ void RawBlockAllocateChunkSimple(rawblock_t *block, int chunknum, qboolean pixel
 	block->chunk[chunknum].pixels = NULL;
 	if (pixelsExternal == false)
 	{
-		block->chunk[chunknum].pixels = qmalloc(block->chunk[chunknum].width*block->chunk[chunknum].height);
+		block->chunk[chunknum].pixels = (byte *)mem_alloc(block->chunk[chunknum].width*block->chunk[chunknum].height);
 		memset(block->chunk[chunknum].pixels, 0, block->chunk[chunknum].width*block->chunk[chunknum].height);
 	}
 	block->chunk[chunknum].colormap = NULL;
@@ -309,7 +299,7 @@ void RawBlockAllocateChunkSimple(rawblock_t *block, int chunknum, qboolean pixel
 	block->chunk[chunknum].pixelsExternal = pixelsExternal;
 }
 
-void RawBlockAllocateChunk(rawblock_t *block, int chunknum, int width, int height, int x, int y, qboolean pixelsExternal)
+void RawBlockAllocateChunk(rawblock_t *block, int chunknum, int width, int height, int x, int y, bool pixelsExternal)
 {
 	block->chunk[chunknum].width = width;
 	block->chunk[chunknum].height = height;
@@ -322,16 +312,16 @@ void RawBlockAllocateChunk(rawblock_t *block, int chunknum, int width, int heigh
 void RawBlockFreeChunk(rawblock_t *block, int chunknum)
 {
 	if (block->chunk[chunknum].colormap != NULL && block->chunk[chunknum].colormapExternal == false)
-		qfree(block->chunk[chunknum].colormap);
+		mem_free(block->chunk[chunknum].colormap);
 	if (block->chunk[chunknum].alphamap != NULL && block->chunk[chunknum].alphamapExternal == false)
-		qfree(block->chunk[chunknum].alphamap);
+		mem_free(block->chunk[chunknum].alphamap);
 
 	block->chunk[chunknum].colormap = NULL;
 	block->chunk[chunknum].colormapExternal = false;
 	block->chunk[chunknum].alphamap = NULL;
 	block->chunk[chunknum].alphamapExternal = false;
 	if (block->chunk[chunknum].pixelsExternal == false)
-		qfree(block->chunk[chunknum].pixels);
+		mem_free(block->chunk[chunknum].pixels);
 	block->chunk[chunknum].pixels = NULL;
 	block->chunk[chunknum].pixelsExternal = false;
 }
@@ -341,16 +331,16 @@ void FreeRawBlock(rawblock_t *block)
 	int i;
 
 	if (block->colormap != NULL && block->colormapExternal == false)
-		qfree(block->colormap);
+		mem_free(block->colormap);
 	if (block->alphamap != NULL && block->alphamapExternal == false)
-		qfree(block->alphamap);
+		mem_free(block->alphamap);
 	for (i = 0; i < block->chunks; i++)
 		RawBlockFreeChunk(block, i);
-	qfree(block);
+	mem_free(block);
 }
 
 // flip all chunks in rawblock, do not return new rawblock but update current
-void RawblockFlip(rawblock_t *rawblock, qboolean flipoffset)
+void RawblockFlip(rawblock_t *rawblock, bool flipoffset)
 {
 	rawchunk_t *chunk;
 	int i, start, end, p, w;
@@ -382,7 +372,7 @@ void RawblockFlip(rawblock_t *rawblock, qboolean flipoffset)
 
 // crop black pixels on raw blocl
 // returns completely new rawblock (only colormap are derived)
-rawblock_t *RawblockCrop(rawblock_t *rawblock, qboolean cropeachchunk, int margin)
+rawblock_t *RawblockCrop(rawblock_t *rawblock, bool cropeachchunk, int margin)
 {
 	int i, r, cropx[2], cropy[2], mincropx[2], mincropy[2], halfwidth, halfheight;
 	rawblock_t *cropblock;
@@ -771,10 +761,10 @@ rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock)
 ==========================================================================================
 */
 
-void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay, const char *colormapdata, const char *pixeldata, int bpp, rawinfo_t *rawinfo)
+void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay, const byte *colormapdata, const byte *pixeldata, int bpp, rawinfo_t *rawinfo)
 {
-	unsigned char *buffer, *out;
-	const unsigned char *in, *end;
+	byte *buffer, *out;
+	const byte *in, *end;
 	int i, j, pixelbytes, realwidth, realheight, cropwidth, cropheight, skipwidth, skipheight;
 	FILE *f;
 
@@ -805,7 +795,7 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 	#define skiprows3(rows) { for (j = 0; j < rows; j++) { *out++ = 0; *out++ = 0; *out++ = 0; } }
 
 	// create targa header
-	buffer = qmalloc(pixelbytes*(int)(bpp / 8) + ((bpp == 8) ? 768 : 0) + 18);
+	buffer = (byte *)mem_alloc(pixelbytes*(int)(bpp / 8) + ((bpp == 8) ? 768 : 0) + 18);
 	memset(buffer, 0, 18);
 	f = SafeOpenWrite(outfile);
 	if (bpp == 8)
@@ -978,7 +968,7 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 		fwrite(buffer, pixelbytes*4 + 18, 1, f);
 	}
 	WriteClose(f);
-	qfree(buffer);
+	mem_free(buffer);
 
 	#undef skiplines1
 	#undef skiplines2
@@ -1037,7 +1027,7 @@ byte *ReadColormap(unsigned char *buffer, int filelen, int offset, int palbytes)
 		return NULL;
 
 	// read colormapdata
-	colormap = qmalloc(palbytes);
+	colormap = (byte *)mem_alloc(palbytes);
 	memset(colormap, 0, palbytes);
 	if (palbytes == 768)
 	{
@@ -1065,7 +1055,7 @@ byte *RawMakeAlphamap(byte *colormap, byte shadowpixel, byte shadowalpha)
 {
 	byte *alphamap;
 
-	alphamap = qmalloc(256);
+	alphamap = (byte *)mem_alloc(256);
 	memset(alphamap, 255, 256);
 	alphamap[0] = 0; // null pixel always transparent
 	if (shadowpixel >= 0)
@@ -1083,7 +1073,7 @@ void ColormapFromTGA(char *filename, byte *colormap)
 	int i;
 	
 	f = SafeOpen(filename, "rb");
-	buf = qmalloc(18+768);
+	buf = (byte *)mem_alloc(18+768);
 	if (fread(buf, 18+768, 1, f) < 1)
 		Error("ColormapFromTGA: %s - file is too small", filename);
 	if (!LoadFile(filename, &buf))
@@ -1099,12 +1089,12 @@ void ColormapFromTGA(char *filename, byte *colormap)
 		*colormap++ = buf[18 + i*3 + 1];
 		*colormap++ = buf[18 + i*3];
 	}
-	qfree(buf);
+	mem_free(buf);
 	fclose(f);
 }
 
 // read run-lenght encoded stream, return startpos, error codes are < 0
-int ReadRLCompressedStream(byte *outbuf, byte *inbuf, int startpos, int buflen, int readpixels, qboolean decomress255, qboolean usehalfwidthcompression, qboolean forced)
+int ReadRLCompressedStream(byte *outbuf, byte *inbuf, int startpos, int buflen, int readpixels, bool decomress255, bool usehalfwidthcompression, bool forced)
 {
 	int pixelpos, nullpixels;
 	byte pixel, nullpixelsi;
@@ -1149,7 +1139,7 @@ int ReadRLCompressedStream(byte *outbuf, byte *inbuf, int startpos, int buflen, 
 }
 
 // same as above, test-only, no writes
-int ReadRLCompressedStreamTest(byte *outbuf, byte *inbuf, int startpos, int buflen, int readpixels, qboolean decomress255, qboolean usehalfwidthcompression, qboolean forced)
+int ReadRLCompressedStreamTest(byte *outbuf, byte *inbuf, int startpos, int buflen, int readpixels, bool decomress255, bool usehalfwidthcompression, bool forced)
 {
 	int pixelpos, nullpixels;
 	byte pixel, nullpixelsi;
@@ -1202,7 +1192,7 @@ int ReadRLCompressedStreamTest(byte *outbuf, byte *inbuf, int startpos, int bufl
 ==========================================================================================
 */
 
-rawblock_t *RawExtract_Type0(unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type0(unsigned char *buffer, int filelen, rawinfo_t *rawinfo, bool testonly, bool verbose, bool forced)
 {
 	int outputsize, i, chunkpos;
 	byte pixel, nullpixels, nullpixelsi;
@@ -1349,7 +1339,7 @@ rawblock_t *RawExtract_Type0(unsigned char *buffer, int filelen, rawinfo_t *rawi
 //  787: 1 byte y
 //  788: pixels width*height
 
-rawblock_t *RawExtract_Type1(unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type1(unsigned char *buffer, int filelen, rawinfo_t *rawinfo, bool testonly, bool verbose, bool forced)
 {
 	rawblock_t *rawblock;
 
@@ -1403,7 +1393,7 @@ rawblock_t *RawExtract_Type1(unsigned char *buffer, int filelen, rawinfo_t *rawi
 //      1 byte - y
 //   <object pixels>
 //     width*height bytes - indexes into colormap
-rawblock_t *RawExtract_Type2(unsigned char *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type2(unsigned char *buffer, int filelen, rawinfo_t *rawinfo, bool testonly, bool verbose, bool forced)
 {
 	int numobjects, i, pos1, pos2, chunkpos, resmult;
 	rawblock_t *rawblock;
@@ -1546,11 +1536,11 @@ rawblock_t *RawExtract_Type2(unsigned char *buffer, int filelen, rawinfo_t *rawi
 //    1 byte - y
 // <zero-length compressed pixels data>
 //    read pixel, if it's 0 - read next pixel and make this number of black pixels, otherwise write as normal pixel
-rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, bool testonly, bool verbose, bool forced)
 {
 	int numobjects, filesize, i, chunkpos, last;
 	unsigned char *chunk;
-	qboolean decompress255, halfres;
+	bool decompress255, halfres;
 	rawchunk_t *rawchunk;
 	rawblock_t *rawblock;
 
@@ -1728,12 +1718,12 @@ rawblock_t *RawExtract_Type3(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 //    1 byte - y
 // <zero-length compressed pixels data>
 //    read pixel, if it's 0 - read next pixel and make this number of black pixels, otherwise write as normal pixel
-rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, bool testonly, bool verbose, bool forced)
 {
 	int numobjects, filesize, i, objbitssize, chunkpos, last;
 	rawchunk_t *rawchunk;
 	rawblock_t *rawblock;
-	qboolean halfres, decompress255;
+	bool halfres, decompress255;
 	byte *chunk;
 
 	if (!testonly && verbose)
@@ -1815,7 +1805,7 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 		objbitssize = numobjects;
 
 		// re-read colormap
-		qfree(rawblock->colormap);
+		mem_free(rawblock->colormap);
 		rawblock->colormap = ReadColormap(buffer, filelen, 8 + objbitssize, 3);
 		if (rawblock->colormap == NULL)
 			return RawErrorBlock(rawblock, RAWX_ERROR_BAD_COLORMAP);
@@ -1944,11 +1934,11 @@ rawblock_t *RawExtract_Type4(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 //    1 byte - y
 // <zero-length compressed pixels data>
 //    read pixel, if it's 0 - read next pixel and make this number of black pixels, otherwise write as normal pixel
-rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, qboolean forced)
+rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, bool testonly, bool verbose, bool forced)
 {
 	int numobjects, filesize, i, chunkpos, last, resmult;
 	signed int minx, miny;
-	qboolean decompress255, halfres;
+	bool decompress255, halfres;
 	rawchunk_t *rawchunk;
 	rawblock_t *rawblock;
 	byte *chunk;
@@ -2033,7 +2023,7 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 
 	// read object headers, test them
 	last = -1;
-	resmult = (rawinfo->doubleres == true) ? 2 : 1;
+	resmult = (rawinfo->doubleres == rtrue) ? 2 : 1;
 	for (i = 0; i < numobjects; i++)
 	{
 		chunk = buffer + 776 + i*8;
@@ -2112,7 +2102,7 @@ rawblock_t *RawExtract_Type5(byte *buffer, int filelen, rawinfo_t *rawinfo, qboo
 ==========================================================================================
 */
 
-rawblock_t *RawExtract(byte *filedata, int filelen, rawinfo_t *rawinfo, qboolean testonly, qboolean verbose, rawtype_t forcetype)
+rawblock_t *RawExtract(byte *filedata, int filelen, rawinfo_t *rawinfo, bool testonly, bool verbose, rawtype_t forcetype)
 {
 	rawtype_t rawtype, testtype;
 	rawblock_t *rawblock;
@@ -2139,10 +2129,10 @@ end:
 }
 
 // nasty nasty hack to handle multifile files like vortout.htm
-void RawExtractTGATailFiles(byte *filedata, int filelen, rawinfo_t *rawinfo, char *outfile, qboolean verbose, qboolean usesubpaths, qboolean rawnoalign)
+void RawExtractTGATailFiles(byte *filedata, int filelen, rawinfo_t *rawinfo, char *outfile, bool verbose, bool usesubpaths, bool rawnoalign)
 {
 	rawblock_t *rawblock;
-	char outfile2[MAX_BLOODPATH], suffix[16];
+	char outfile2[MAX_OSPATH], suffix[16];
 	int i, numtries, maxtries;
 	rawtype_t oldtype;
 	byte *in;
@@ -2186,10 +2176,10 @@ void RawExtractTGATailFiles(byte *filedata, int filelen, rawinfo_t *rawinfo, cha
 	
 int Raw_Main(int argc, char **argv)
 {
-	char filename[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], outfile[MAX_BLOODPATH], *c;
+	char filename[MAX_OSPATH], basefilename[MAX_OSPATH], outfile[MAX_OSPATH], *c;
 	byte *filedata;
 	int filelen;
-	qboolean forced, rawnoalign;
+	bool forced, rawnoalign;
 	rawinfo_t rawinfo;
 	rawblock_t *rawblock;
 	int i;
@@ -2350,7 +2340,7 @@ int Raw_Main(int argc, char **argv)
 			RawExtractTGATailFiles(filedata + rawblock->errorcode, filelen - rawblock->errorcode, &rawinfo, outfile, true, false, rawnoalign);
 		FreeRawBlock(rawblock);
 	}
-	qfree(filedata);
+	mem_free(filedata);
 	Print("done.\n");
 	return 0;
 }

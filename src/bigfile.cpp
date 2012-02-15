@@ -33,7 +33,7 @@
 #define DEFAULT_BIGFILENAME	"pill.big"
 #define DEFAULT_PACKPATH	"bigfile"
 
-char bigfile[MAX_BLOODPATH];
+char bigfile[MAX_OSPATH];
 bigklist_t *bigklist = NULL;
 
 /*
@@ -56,7 +56,7 @@ bigentrytype_t ParseBigentryTypeFromExtension(char *ext)
 	// find type
 	for (i = 0; i < BIGFILE_NUM_FILETYPES; i++)
 		if (!memcmp(bigentryext[i], ext, numbytes))
-			return i;
+			return (bigentrytype_t)i;
 	return BIGENTRY_UNKNOWN;
 }
 
@@ -96,7 +96,7 @@ char *UnparseBigentryType(bigentrytype_t bigtype)
 // $type
 // wildcard - *
 // whether to match include-exclude list
-qboolean MatchIXList(bigfileentry_t *entry, list_t *list, qboolean matchtypes, qboolean matchnames)
+bool MatchIXList(bigfileentry_t *entry, list_t *list, bool matchtypes, bool matchnames)
 {
 	char *buf, *name;
 	unsigned int hash;
@@ -179,19 +179,19 @@ qboolean MatchIXList(bigfileentry_t *entry, list_t *list, qboolean matchtypes, q
 ==========================================================================================
 */
 
-bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
+bigklist_t *BigfileLoadKList(char *filename, bool stopOnError)
 {
 	bigklist_t *klist;
 	bigkentry_t *entry;
 	int linenum = 0;
 	char line[1024], temp[256], ext[15];
 	unsigned int hash;
-	qboolean options;
+	bool options;
 	int val, i;
 	FILE *f;
 
 	// create empty klist
-	klist = qmalloc(sizeof(bigklist_t));
+	klist = (bigklist_t *)mem_alloc(sizeof(bigklist_t));
 	klist->entries = NULL;
 	klist->numentries = 0;
 
@@ -213,7 +213,7 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 	}
 
 	// allocate
-	klist->entries = qmalloc(linenum * sizeof(bigkentry_t));
+	klist->entries = (bigkentry_t *)mem_alloc(linenum * sizeof(bigkentry_t));
 
 	// seconds pass - parse klist
 	fseek(f, 0, SEEK_SET);
@@ -239,7 +239,7 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 				entry->hash = hash;
 				entry->adpcmrate = 11025; // default ADPCM sampling rate
 				entry->type = BIGENTRY_UNKNOWN;
-				entry->rawinfo = NULL;
+				FlushRawInfo(&entry->rawinfo);
 				entry->pathonly = false;
 				strcpy(entry->path, "");
 
@@ -267,12 +267,12 @@ bigklist_t *BigfileLoadKList(char *filename, qboolean stopOnError)
 		{
 			entry->type = ParseBigentryType(temp);
 			if (entry->type == BIGENTRY_SPRITE)
-				entry->rawinfo = NewRawInfo();
+				FlushRawInfo(&entry->rawinfo);
 			continue;
 		}
 		if (entry->type == BIGENTRY_SPRITE)
 		{
-			if (ReadRawInfo(line, entry->rawinfo) == true)
+			if (ReadRawInfo(line, &entry->rawinfo) == true)
 				continue;
 		}
 	
@@ -325,6 +325,14 @@ bigkentry_t *BigfileSearchKList(unsigned int hash)
 	return NULL;
 }
 
+void BigfileFreeKList(bigklist_t *klist)
+{
+	if (klist->entries)
+		mem_free(klist->entries);
+	klist->entries = NULL;
+	mem_free(klist);
+}
+
 /*
 ==========================================================================================
 
@@ -337,7 +345,7 @@ void BigfileEmptyEntry(bigfileentry_t *entry)
 {
 	entry->data = NULL;
 	entry->adpcmrate = 11025;
-	entry->rawinfo = NULL;
+	FlushRawInfo(&entry->rawinfo);
 }
 
 void BigfileSeekFile(FILE *f, bigfileentry_t *entry)
@@ -391,7 +399,7 @@ void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 				fprintf(f, "adpcm.rate=%i\n", entry->adpcmrate);
 				break;
 			case BIGENTRY_SPRITE:
-				WriteRawInfo(f, entry->rawinfo);
+				WriteRawInfo(f, &entry->rawinfo);
 				break;
 			default:
 				break;
@@ -400,7 +408,7 @@ void BigfileWriteListfile(FILE *f, bigfileheader_t *data)
 }
 
 // retrieves entry hash from name
-unsigned int BigfileEntryHashFromString(char *string, qboolean casterror)
+unsigned int BigfileEntryHashFromString(char *string, bool casterror)
 {
 	unsigned int hash;
 	int i;
@@ -449,7 +457,7 @@ bigfileentry_t *ReadBigfileHeaderOneEntry(FILE *f, unsigned int hash)
 	if (!numentries)
 		Error("BigfileHeader: funny entries count, perhaps file is broken\n");
 
-	read = qmalloc(numentries * 3 * sizeof(unsigned int));
+	read = (unsigned int *)mem_alloc(numentries * 3 * sizeof(unsigned int));
 	if (fread(read, numentries * 3 * sizeof(unsigned int), 1, f) < 1)
 		Error("BigfileHeader: error reading header %s\n", strerror(errno));
 	
@@ -458,7 +466,7 @@ bigfileentry_t *ReadBigfileHeaderOneEntry(FILE *f, unsigned int hash)
 		if (read[i] != hash)
 			continue;
 		// make entry
-		entry = qmalloc(sizeof(bigfileentry_t));
+		entry = (bigfileentry_t *)mem_alloc(sizeof(bigfileentry_t));
 		BigfileEmptyEntry(entry);
 		
 		entry->hash = read[i];
@@ -481,11 +489,11 @@ bigfileentry_t *ReadBigfileHeaderOneEntry(FILE *f, unsigned int hash)
 		break;
 	}
 
-	qfree(read);
+	mem_free(read);
 	return entry;
 }
 
-bigfileheader_t *ReadBigfileHeader(FILE *f, qboolean loadfilecontents, qboolean hashnamesonly)
+bigfileheader_t *ReadBigfileHeader(FILE *f, bool loadfilecontents, bool hashnamesonly)
 {	
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
@@ -495,7 +503,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, qboolean loadfilecontents, qboolean 
 	unsigned int hash;
 	int i, linenum, namesloaded;
 
-	data = qmalloc(sizeof(bigfileheader_t));
+	data = (bigfileheader_t *)mem_alloc(sizeof(bigfileheader_t));
 
 	// read header
 	fseek(f, SEEK_SET, 0);
@@ -503,10 +511,10 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, qboolean loadfilecontents, qboolean 
 		Error("BigfileHeader: wrong of broken file\n");
 	if (!data->numentries)
 		Error("BigfileHeader: funny entries count, perhaps file is broken\n");
-	Verbose("%i entries in bigfile", data->numentries);
+	Verbose("%u entries in bigfile", data->numentries);
 
 	// read entries
-	data->entries = qmalloc(data->numentries * sizeof(bigfileentry_t));
+	data->entries = (bigfileentry_t *)mem_alloc(data->numentries * sizeof(bigfileentry_t));
 	for (i = 0; i < (int)data->numentries; i++)
 	{
 		entry = &data->entries[i];
@@ -622,13 +630,21 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, qboolean loadfilecontents, qboolean 
 
 			Pacifier("loading entry %i of %i...", i + 1, data->numentries);
 
-			entry->data = qmalloc(entry->size);
+			entry->data = (byte *)mem_alloc(entry->size);
 			BigfileSeekContents(f, entry->data, entry);
 		}
 		PacifierEnd();
 	} 
 
 	return data;
+}
+
+void FreeBigfileHeader(bigfileheader_t *bigfile)
+{
+	if (bigfile->entries)
+		mem_free(bigfile->entries);
+	bigfile->entries = NULL;
+	mem_free(bigfile);
 }
 
 // recalculate all file offsets
@@ -678,7 +694,7 @@ void BigfileEmitStats(bigfileheader_t *data)
 					timstats[3]++;
 			}
 			else if (entry->type == BIGENTRY_SPRITE)
-				rawstats[entry->rawinfo->type]++;
+				rawstats[entry->rawinfo.type]++;
 			stats[entry->type]++;
 		}
 	}
@@ -734,7 +750,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 {
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
-	char line[256], temp[128], filename[MAX_BLOODPATH];
+	char line[256], temp[128], filename[MAX_OSPATH];
 	int numentries, linenum, val, num;
 	unsigned int uval;
 	short valshort;
@@ -745,7 +761,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 	f = SafeOpen(filename, "r");
 
 	// read number of entries
-	data = qmalloc(sizeof(bigfileheader_t));
+	data = (bigfileheader_t *)mem_alloc(sizeof(bigfileheader_t));
 	if (fscanf(f, "numentries=%i\n", &numentries) != 1)
 		Error("broken numentries record");
 	Verbose("%s: %i entries\n", filename, numentries);
@@ -753,7 +769,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 	// read all entries
 	linenum = 1;
 	entry = NULL;
-	data->entries = qmalloc(numentries * sizeof(bigfileentry_t));
+	data->entries = (bigfileentry_t *)mem_alloc(numentries * sizeof(bigfileentry_t));
 	data->numentries = 0;
 	while(!feof(f))
 	{
@@ -790,7 +806,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 		{
 			entry->type = (bigentrytype_t)val;
 			if (entry->type == BIGENTRY_SPRITE)
-				entry->rawinfo = NewRawInfo();
+				FlushRawInfo(&entry->rawinfo);
 		}
 		else if (sscanf(line, "size=%i", &val))
 			entry->size = (int)val;
@@ -812,7 +828,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 			entry->adpcmrate = val;
 		// for raw
 		else if (entry->type == BIGENTRY_SPRITE)
-			ReadRawInfo(line, entry->rawinfo);
+			ReadRawInfo(line, &entry->rawinfo);
 	}
 	PacifierEnd();
 
@@ -830,9 +846,9 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 ==========================================================================================
 */
 
-void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16to24)
+void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, bool bpp16to24)
 {
-	char name[MAX_BLOODPATH], maskname[MAX_BLOODPATH], suffix[21];
+	char name[MAX_OSPATH], maskname[MAX_OSPATH], suffix[21];
 	tim_image_t *tim;
 	int i;
 
@@ -865,9 +881,9 @@ void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, qboolean bpp16
 	}
 }
 
-void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolean rawnoalign, qboolean verbose, qboolean usesubpaths)
+void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, bool rawnoalign, bool verbose, bool usesubpaths)
 {
-	char name[MAX_BLOODPATH], suffix[8], path[MAX_BLOODPATH], basename[MAX_BLOODPATH], filename[MAX_BLOODPATH];
+	char name[MAX_OSPATH], suffix[8], path[MAX_OSPATH], basename[MAX_OSPATH], filename[MAX_OSPATH];
 	int maxwidth, maxheight, i;
 
 	// detect maxwidth/maxheight for alignment
@@ -915,9 +931,9 @@ void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, qboolea
 }
 
 // unpack entry to 'original' dir, assumes that entity is already loaded
-void BigFileUnpackOriginalEntry(bigfileentry_t *entry, char *dstdir, qboolean place_separate, qboolean correct_listfile)
+void BigFileUnpackOriginalEntry(bigfileentry_t *entry, char *dstdir, bool place_separate, bool correct_listfile)
 {
-	char filename[MAX_BLOODPATH], savefile[MAX_BLOODPATH];
+	char filename[MAX_OSPATH], savefile[MAX_OSPATH];
 
 	if (place_separate)
 	{
@@ -939,14 +955,14 @@ void BigFileUnpackOriginalEntry(bigfileentry_t *entry, char *dstdir, qboolean pl
 	SaveFile(savefile, entry->data, entry->size);
 }
 
-int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, qboolean with_solid, qboolean with_triggers, qboolean toggled_objects, qboolean developer, int devnum, qboolean group_sections_by_path);
-void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry_t *entry, char *dstdir, qboolean tim2tga, qboolean bpp16to24, qboolean nopaths, int adpcmconvert, int vagconvert, qboolean rawconvert, rawtype_t forcerawtype, qboolean rawnoalign, qboolean map2tga, qboolean map_show_contents, qboolean map_show_triggers, qboolean map_toggled_objects)
+int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, bool with_solid, bool with_triggers, byte toggled_objects, bool developer, int devnum, bool group_sections_by_path);
+void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry_t *entry, char *dstdir, bool tim2tga, bool bpp16to24, bool nopaths, int adpcmconvert, int vagconvert, bool rawconvert, rawtype_t forcerawtype, bool rawnoalign, bool map2tga, bool map_show_contents, bool map_show_triggers, bool map_toggled_objects)
 {
-	char savefile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], basename[MAX_BLOODPATH], path[MAX_BLOODPATH];
+	char savefile[MAX_OSPATH], outfile[MAX_OSPATH], basename[MAX_OSPATH], path[MAX_OSPATH];
 	char inputcmd[512], outputcmd[512];
 	rawblock_t *rawblock;
 	byte *data, *outdata;
-	qboolean oldprint;
+	bool oldprint;
 	int c, size, outsize;
 
 	// nopaths, clear path
@@ -971,7 +987,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 	// load file contents
 	if (entry->data == NULL)
 	{
-		entry->data = qmalloc(entry->size);
+		entry->data = (byte *)mem_alloc(entry->size);
 		BigfileSeekContents(bigf, entry->data, entry);
 	}
 
@@ -988,14 +1004,18 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 				sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
 				TGAfromTIM(bigf, entry, outfile, bpp16to24);
 			}
+			else
+			{
+				BigFileUnpackOriginalEntry(entry, dstdir, false, false);
+			}
 			break;
 		case BIGENTRY_TILEMAP:
 			// extract tilemap
 			if (tim2tga)
 			{
 				outsize = entry->size;
-				data = LzDec(&size, entry->data, 0, outsize, true);
-				qfree(entry->data);
+				data = (byte *)LzDec(&size, entry->data, 0, outsize, true);
+				mem_free(entry->data);
 				entry->timlayers = 1;
 				entry->data = data;
 				entry->size = size;
@@ -1004,6 +1024,10 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 				TGAfromTIM(bigf, entry, outfile, bpp16to24);
 				entry->timlayers = 0;
 				entry->size = outsize;
+			}
+			else
+			{
+				BigFileUnpackOriginalEntry(entry, dstdir, false, false);
 			}
 			break;
 		case BIGENTRY_MAP:
@@ -1015,6 +1039,10 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 				sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
 				MapExtract(basename, entry->data, entry->size, outfile, bigfileheader, bigf, "", map_show_contents, map_show_triggers, map_toggled_objects, false, 0, nopaths ? false : true);
 				noprint = oldprint;
+			}
+			else
+			{
+				BigFileUnpackOriginalEntry(entry, dstdir, false, false);
 			}
 			break;
 		case BIGENTRY_RAW_ADPCM:
@@ -1038,7 +1066,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 				{
 					sprintf(entry->name, (c == 3) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.txt
 					SaveFile(savefile, outdata, outsize);
-					qfree(outdata);
+					mem_free(outdata);
 				}
 				else
 				{
@@ -1046,7 +1074,11 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 					BigFileUnpackOriginalEntry(entry, dstdir, false, false);
 				}
 				if (data != entry->data)
-					qfree(data);
+					mem_free(data);
+			}
+			else
+			{
+				BigFileUnpackOriginalEntry(entry, dstdir, false, false);
 			}
 			break;
 		case BIGENTRY_VAG:
@@ -1069,7 +1101,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 				{
 					sprintf(entry->name, (c == 3) ? "%s.ogg" : "%s.wav", basename);  // write correct listfile.txt
 					SaveFile(savefile, outdata, outsize);
-					qfree(outdata);
+					mem_free(outdata);
 				}
 				else
 				{
@@ -1077,23 +1109,34 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 					BigFileUnpackOriginalEntry(entry, dstdir, false, false);
 				}
 				if (data != entry->data)
-					qfree(data);
+					mem_free(data);
+			}
+			else
+			{
+				BigFileUnpackOriginalEntry(entry, dstdir, false, false);
 			}
 			break;
 		case BIGENTRY_SPRITE:
-			// extract sprite
-			rawblock = RawExtract(entry->data, entry->size, entry->rawinfo, true, false, forcerawtype);
-			if (rawblock->errorcode < 0)
-				Print("warning: cound not extract raw %s: %s\n", entry->name, RawStringForResult(rawblock->errorcode));
+			if (rawconvert)
+			{
+				// extract sprite
+				rawblock = RawExtract(entry->data, entry->size, &entry->rawinfo, true, false, forcerawtype);
+				if (rawblock->errorcode < 0)
+					Print("warning: cound not extract raw %s: %s\n", entry->name, RawStringForResult(rawblock->errorcode));
+				else
+				{
+					sprintf(outfile, "%s/%s", dstdir, entry->name);
+					TGAfromRAW(rawblock, &entry->rawinfo, outfile, rawnoalign, false, (rawblock->chunks > 1) ? true : false); 
+					// unpack tail files
+					if (rawblock->errorcode > 0 && rawblock->errorcode < (int)entry->size)
+						RawExtractTGATailFiles((byte *)entry->data + rawblock->errorcode, entry->size - rawblock->errorcode, &entry->rawinfo, outfile, false, (rawblock->chunks > 1) ? true : false, rawnoalign);
+				}
+				FreeRawBlock(rawblock);
+			}
 			else
 			{
-				sprintf(outfile, "%s/%s", dstdir, entry->name);
-				TGAfromRAW(rawblock, entry->rawinfo, outfile, rawnoalign, false, (rawblock->chunks > 1) ? true : false); 
-				// unpack tail files
-				if (rawblock->errorcode > 0 && rawblock->errorcode < (int)entry->size)
-					RawExtractTGATailFiles((byte *)entry->data + rawblock->errorcode, entry->size - rawblock->errorcode, entry->rawinfo, outfile, false, (rawblock->chunks > 1) ? true : false, rawnoalign);
+				BigFileUnpackOriginalEntry(entry, dstdir, false, false);
 			}
-			FreeRawBlock(rawblock);
 			break;
 		case BIGENTRY_RIFF_WAVE:
 			// extract normal wave file
@@ -1105,7 +1148,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 			BigFileUnpackOriginalEntry(entry, dstdir, false, false);
 			break;
 	}
-	qfree(entry->data);
+	mem_free(entry->data);
 	entry->data = NULL;
 }
 
@@ -1117,7 +1160,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 ==========================================================================================
 */
 
-qboolean BigFileScanTIM(FILE *f, bigfileentry_t *entry)
+bool BigFileScanTIM(FILE *f, bigfileentry_t *entry)
 {
 	tim_image_t *tim;
 	fpos_t fpos;
@@ -1176,7 +1219,7 @@ qboolean BigFileScanTIM(FILE *f, bigfileentry_t *entry)
 	return true;
 }
 
-qboolean BigFileScanRiffWave(FILE *f, bigfileentry_t *entry)
+bool BigFileScanRiffWave(FILE *f, bigfileentry_t *entry)
 {
 	byte tag[4];
 
@@ -1192,7 +1235,7 @@ qboolean BigFileScanRiffWave(FILE *f, bigfileentry_t *entry)
 	return true;
 }
 
-qboolean BigFileScanVAG(FILE *f, bigfileentry_t *entry)
+bool BigFileScanVAG(FILE *f, bigfileentry_t *entry)
 {
 	byte tag[4];
 
@@ -1207,72 +1250,68 @@ qboolean BigFileScanVAG(FILE *f, bigfileentry_t *entry)
 }
 
 // extensive scan for headerless VAG (by parsing file)
-qboolean BigFileScanVAG_PS1(FILE *f, bigfileentry_t *entry)
+bool BigFileScanVAG_PS1(FILE *f, bigfileentry_t *entry)
 {
 	unsigned int readpos;
 	byte *data;
 
-	data = qmalloc(entry->size);
+	data = (byte *)mem_alloc(entry->size);
 	BigfileSeekContents(f, data, entry);
 	readpos = VAG_UnpackTest(data, entry->size, 64);
-	qfree(data);
+	mem_free(data);
 	//if (readpos == entry->size)
 	//	printf("%.8X______________\n", entry->hash);
 	return (readpos == entry->size) ? true : false;
 }
 
-qboolean BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
+bool BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
 {
-	unsigned char *filedata;
-	rawinfo_t *rawinfo;
+	byte *filedata;
 	rawblock_t *rawblock;
 
 	// load file contents
 	BigfileSeekFile(f, entry);
-	filedata = qmalloc(entry->size);
+	filedata = (byte *)mem_alloc(entry->size);
 	if (fread(filedata, entry->size, 1, f) < 1)
 	{
-		qfree(filedata);
+		mem_free(filedata);
 		return false;
 	}
 
 	// check all raw types
-	rawinfo = NewRawInfo();
-	rawblock = RawExtract(filedata, entry->size, rawinfo, true, false, forcerawtype);
+	rawblock = RawExtract(filedata, entry->size, &entry->rawinfo, true, false, forcerawtype);
 	if (rawblock->errorcode >= 0)
 	{
 		FreeRawBlock(rawblock);
-		entry->rawinfo = rawinfo;
-		qfree(filedata);
+		mem_free(filedata);
 		return true;
 	}
 	// not found
 	FreeRawBlock(rawblock);
-	qfree(filedata);
-	qfree(rawinfo);
+	mem_free(filedata);
 	return false;
 }
 
 bigentrytype_t BigFileScanMapOrTile(FILE *f, bigfileentry_t *entry)
 {
-	unsigned char *filedata;
+	byte *filedata;
 	int m;
 
 	// load file
 	BigfileSeekFile(f, entry);
-	filedata = qmalloc(entry->size);
+	filedata = (byte *)mem_alloc(entry->size);
 	if (fread(filedata, entry->size, 1, f) < 1)
 	{
-		qfree(filedata);
+		mem_free(filedata);
 		return BIGENTRY_UNKNOWN;
 	}
 	// scan and return
 	m = MapScan(filedata, entry->size);
-	qfree(filedata);
+	mem_free(filedata);
 	return m == 1 ? BIGENTRY_MAP : (m == 2) ? BIGENTRY_TILEMAP : BIGENTRY_UNKNOWN;
 }
 
-bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawtype_t forcerawtype)
+bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry, bool scanraw, rawtype_t forcerawtype)
 {
 	if (BigFileScanTIM(f, entry))
 		return BIGENTRY_TIM;
@@ -1288,9 +1327,9 @@ bigentrytype_t BigfileDetectFiletype(FILE *f, bigfileentry_t *entry, qboolean sc
 	return BigFileScanMapOrTile(f, entry);
 }
 
-void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawtype_t forcerawtype, qboolean allow_auto_naming)
+void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, bool scanraw, rawtype_t forcerawtype, bool allow_auto_naming)
 {
-	char name[MAX_BLOODPATH], ext[MAX_BLOODPATH];
+	char name[MAX_OSPATH], ext[MAX_OSPATH];
 	bigentrytype_t autotype;
 	bigkentry_t *kentry;
 	char *autopath;
@@ -1307,7 +1346,7 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 			ExtractFileExtension(entry->name, ext);
 			autopath = NULL;
 			if (autotype == BIGENTRY_SPRITE)
-				autopath = PathForRawType(entry->rawinfo->type);
+				autopath = PathForRawType(entry->rawinfo.type);
 			if (autopath == NULL)
 				autopath = bigentryautopaths[autotype];
 			if (!strcmp(ext, bigentryext[BIGENTRY_UNKNOWN]))
@@ -1321,7 +1360,7 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 		{
 			entry->adpcmrate = (int)kentry->adpcmrate;
 			if (entry->type == BIGENTRY_SPRITE)
-				entry->rawinfo = kentry->rawinfo;
+				memcpy(&entry->rawinfo, &kentry->rawinfo, sizeof(entry->rawinfo));
 			if (kentry->path[0] && kentry->pathonly)
 			{
 				ExtractFileName(entry->name, name);
@@ -1339,7 +1378,7 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 			entry->type = (bigentrytype_t)kentry->type;
 			entry->adpcmrate = (int)kentry->adpcmrate;
 			if (entry->type == BIGENTRY_SPRITE)
-				entry->rawinfo = kentry->rawinfo;
+				memcpy(&entry->rawinfo, &kentry->rawinfo, sizeof(entry->rawinfo));
 			// check custom path
 			if (allow_auto_naming)
 			{
@@ -1361,7 +1400,7 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 					// automatic path
 					autopath = NULL;
 					if (entry->type == BIGENTRY_SPRITE)
-						autopath = PathForRawType(entry->rawinfo->type);
+						autopath = PathForRawType(entry->rawinfo.type);
 					if (autopath == NULL)
 						autopath = bigentryautopaths[autotype];
 					if (!strcmp(ext, bigentryext[BIGENTRY_UNKNOWN]))
@@ -1374,7 +1413,7 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, qboolean scanraw, rawty
 	}
 }
 
-void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, qboolean scanraw, list_t *ixlist, rawtype_t forcerawtype)
+void BigfileScanFiletypes(FILE *f, bigfileheader_t *data, bool scanraw, list_t *ixlist, rawtype_t forcerawtype)
 {
 	fpos_t fpos;
 	bigfileentry_t *entry;
@@ -1451,8 +1490,8 @@ int BigFile_List(int argc, char **argv)
 	FILE *f, *f2;
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
-	char name[MAX_BLOODPATH], listfile[MAX_BLOODPATH], exportcsv[MAX_BLOODPATH], typestr[128], extrainfo[128];
-	qboolean hashnamesonly;
+	char name[MAX_OSPATH], listfile[MAX_OSPATH], exportcsv[MAX_OSPATH], typestr[128], extrainfo[128];
+	bool hashnamesonly;
 	int i;
 
 	// check parms
@@ -1511,7 +1550,7 @@ int BigFile_List(int argc, char **argv)
 			entry = &data->entries[i];
 			// base info
 			if (entry->type == BIGENTRY_SPRITE)
-				sprintf(typestr, "%s.%s", bigentryext[entry->type], UnparseRawType(entry->rawinfo->type));
+				sprintf(typestr, "%s.%s", bigentryext[entry->type], UnparseRawType(entry->rawinfo.type));
 			else
 				sprintf(typestr, "%s", bigentryext[entry->type]);
 			// extra info
@@ -1519,7 +1558,7 @@ int BigFile_List(int argc, char **argv)
 				sprintf(extrainfo, "%i", entry->adpcmrate);
 			else if (entry->type == BIGENTRY_SPRITE)
 			{
-				if (entry->rawinfo->type == RAW_TYPE_2 && entry->rawinfo->doubleres == true)
+				if (entry->rawinfo.type == RAW_TYPE_2 && entry->rawinfo.doubleres == rtrue)
 					sprintf(extrainfo, "doubleres");
 				else
 					sprintf(extrainfo, "");
@@ -1533,24 +1572,8 @@ int BigFile_List(int argc, char **argv)
 		WriteClose(f2);
 	}
 
-/*
-	f2 = SafeOpenWrite("list.log");
-	for (i = 0; i < (int)data->numentries; i++)
-	{
-		entry = &data->entries[i];
-		if (entry->type == BIGENTRY_SPRITE)
-		{
-			if (entry->rawinfo->type ==
-				sprintf(typestr, "%s.%s", bigentryext[entry->type], UnparseRawType(entry->rawinfo->type));
-
-		else if (entry->type == BIGENTRY_SPRITE)
-			sprintf(eypestr, "%s.%s", bigentryext[entry->type], UnparseRawType(entry->rawinfo->type));
-
-	}
-	fclose(f);
-*/
-
 	Print("done.\n");
+	FreeBigfileHeader(data);
 	fclose (f);
 	return 0;
 }
@@ -1570,7 +1593,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	int i, num, minp, maxp, margin, aver, diff, spritex, spritey, spriteflags;
 	sprtype_t spritetype = SPR_VP_PARALLEL;
 	rawblock_t *tb1, *tb2, *tb3, *tb4;
-	qboolean noalign, nocrop, flip, scale, merge;
+	bool noalign, nocrop, flip, scale, merge;
 	byte pix, shadowpix;
 	byte c[3], oldcolormap[768], oldalphamap[256], loadedcolormap[768];
 	double colorscale, cscale, alphascale;
@@ -1959,10 +1982,10 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	}
 	else if (!stricmp(format, "tga"))
 	{
-		TGAfromRAW(rawblock, entry->rawinfo, outfile, noalign, true, false);
+		TGAfromRAW(rawblock, &entry->rawinfo, outfile, noalign, true, false);
 		// extract tail files
 		if (rawblock->errorcode > 0 && (int)rawblock->errorcode < (int)entry->size)
-			RawExtractTGATailFiles((byte *)entry->data + rawblock->errorcode, entry->size - rawblock->errorcode, entry->rawinfo, outfile, true, false, noalign);	
+			RawExtractTGATailFiles((byte *)entry->data + rawblock->errorcode, entry->size - rawblock->errorcode, &entry->rawinfo, outfile, true, false, noalign);	
 	}
 	else
 		Error("unknown sprite format '%s'!\n", format);
@@ -1979,13 +2002,14 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	if (tb2) FreeRawBlock(tb2);
 	if (tb3) FreeRawBlock(tb3);
 	if (tb4) FreeRawBlock(tb4);
+	FreeList(includelist);
 }
 
 void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *entry, char *infileformat, int defaultinputrate, char *format)
 {
 	char informat[1024], outformat[1024], effects[1024], temp[1024];
 	byte *outdata;
-	unsigned int outsize;
+	int outsize;
 	int i, ir;
 
 	if (!soxfound)
@@ -2126,14 +2150,14 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 	if (!SoX_DataToData(entry->data, entry->size, "--no-dither", informat, outformat, &outdata, &outsize, effects))
 		Error("SoX error\n");
 	SaveFile(outfile, outdata, outsize);
-	qfree(outdata);
+	mem_free(outdata);
 	Print("done.\n");
 }
 
 void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *entry, char *outfile)
 {
-	char filename[MAX_BLOODPATH], basename[MAX_BLOODPATH], format[512], last;
-	qboolean with_solid, with_triggers, toggled_objects;
+	char filename[MAX_OSPATH], basename[MAX_OSPATH], format[512], last;
+	bool with_solid, with_triggers, toggled_objects;
 	bigfileheader_t *bigfileheader;
 	rawblock_t *rawblock;
 	byte *data;
@@ -2187,11 +2211,11 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 	if (!stricmp(format, "raw"))
 	{
 		// load file contents
-		entry->data = qmalloc(entry->size);
+		entry->data = (byte *)mem_alloc(entry->size);
 		BigfileSeekContents(bigfile, entry->data, entry);
 		// save file
 		SaveFile(outfile, entry->data, entry->size);
-		qfree(entry->data);
+		mem_free(entry->data);
 		entry->data = NULL;
 		return;
 	}
@@ -2235,7 +2259,7 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			break;
 		case BIGENTRY_RAW_ADPCM:
 			// load file contents
-			entry->data = qmalloc(entry->size);
+			entry->data = (byte *)mem_alloc(entry->size);
 			BigfileSeekContents(bigfile, entry->data, entry);
 			// process
 			if (!stricmp(format, "wav") || !format[0])
@@ -2250,12 +2274,12 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			}
 			else Error("unknown format '%s'\n", format);
 			// close
-			qfree(entry->data);
+			mem_free(entry->data);
 			entry->data = NULL;
 			break;
 		case BIGENTRY_RIFF_WAVE:
 			// load file contents
-			entry->data = qmalloc(entry->size);
+			entry->data = (byte *)mem_alloc(entry->size);
 			BigfileSeekContents(bigfile, entry->data, entry);
 			// process
 			if (!stricmp(format, "wav") || !format[0])
@@ -2270,16 +2294,16 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			}
 			else Error("unknown format '%s'\n", format);
 			// close
-			qfree(entry->data);
+			mem_free(entry->data);
 			entry->data = NULL;
 			break;
 		case BIGENTRY_VAG:
 			// load file contents
-			entry->data = qmalloc(entry->size);
+			entry->data = (byte *)mem_alloc(entry->size);
 			BigfileSeekContents(bigfile, entry->data, entry);
 			// unpack vag
 			VAG_Unpack(entry->data, 64, entry->size, &data, &size);
-			qfree(entry->data);
+			mem_free(entry->data);
 			entry->data = data;
 			entry->size = size;
 			// extract as normal sound then
@@ -2295,14 +2319,14 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			}
 			else Error("unknown format '%s'\n", format);
 			// close
-			qfree(entry->data);
+			mem_free(entry->data);
 			entry->data = NULL;
 			break;
 		case BIGENTRY_SPRITE:
 			// read file contents and convert to rawblock, then pass to extraction func
-			entry->data = qmalloc(entry->size);
+			entry->data = (byte *)mem_alloc(entry->size);
 			BigfileSeekContents(bigfile, entry->data, entry);
-			rawblock = RawExtract(entry->data, entry->size, entry->rawinfo, false, false, RAW_TYPE_UNKNOWN);
+			rawblock = RawExtract(entry->data, entry->size, &entry->rawinfo, false, false, RAW_TYPE_UNKNOWN);
 			if (!stricmp(format, "tga") || !format[0])
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
@@ -2315,14 +2339,14 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			}
 			else Error("unknown format '%s'\n", format);
 			FreeRawBlock(rawblock);
-			qfree(entry->data);
+			mem_free(entry->data);
 			entry->data = NULL;
 			break;
 		case BIGENTRY_TILEMAP:
-			data = qmalloc(entry->size);
+			data = (byte *)mem_alloc(entry->size);
 			size = entry->size;
 			BigfileSeekContents(bigfile, data, entry);
-			entry->data = LzDec(&entry->size, data, 0, size, true);
+			entry->data = (byte *)LzDec((int *)&entry->size, data, 0, size, true);
 			// extract as TIM
 			if (!stricmp(format, "tga"))
 			{
@@ -2337,14 +2361,14 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 				TGAfromTIM(bigfile, entry, filename, true); 
 			}
 			else Error("unknown format '%s'\n", format);
-			qfree(data);
-			qfree(entry->data);
+			mem_free(data);
+			mem_free(entry->data);
 			entry->data = NULL;
 			entry->size = size;
 			break;
 		case BIGENTRY_MAP:
 			bigfileheader = ReadBigfileHeader(bigfile, false, false);
-			entry->data = qmalloc(entry->size);
+			entry->data = (byte *)mem_alloc(entry->size);
 			BigfileSeekContents(bigfile, entry->data, entry);
 			if (!stricmp(format, "tga"))
 			{
@@ -2352,8 +2376,8 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 				MapExtract(entry->name, entry->data, entry->size, filename, bigfileheader, bigfile, "", with_solid, with_triggers, toggled_objects, false, 0, false);
 			}
 			else Error("unknown format '%s'\n", format);
-			qfree(entry->data);
-			qfree(bigfileheader);
+			mem_free(entry->data);
+			FreeBigfileHeader(bigfileheader);
 			entry->data = NULL;
 			break;
 		default:
@@ -2365,7 +2389,7 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 // "-bigfile c:/pill.big -extract 0AD312F45 0AD312F45.tga"
 int BigFile_Extract(int argc, char **argv)
 {
-	char outfile[MAX_BLOODPATH];
+	char outfile[MAX_OSPATH];
 	unsigned int hash;
 	bigfileentry_t *entry;
 	FILE *f;
@@ -2382,6 +2406,7 @@ int BigFile_Extract(int argc, char **argv)
 		Error("Failed to find entry %.8X\n", hash);
 	BigfileScanFiletype(f, entry, true, RAW_TYPE_UNKNOWN, true);
 	BigFile_ExtractEntry(argc-2, argv+2, f, entry, outfile);
+	mem_free(entry);
 	fclose(f);
 	return 0;
 }
@@ -2399,8 +2424,8 @@ int BigFile_Extract(int argc, char **argv)
 int BigFile_Unpack(int argc, char **argv)
 {
 	FILE *f, *f2;
-	char savefile[MAX_BLOODPATH], dstdir[MAX_BLOODPATH];
-	qboolean tim2tga, bpp16to24, nopaths, rawconvert, rawnoalign, hashnamesonly, map2tga, map_show_triggers, map_show_contents, map_toggled_objects;
+	char savefile[MAX_OSPATH], dstdir[MAX_OSPATH];
+	bool tim2tga, bpp16to24, nopaths, rawconvert, rawnoalign, hashnamesonly, map2tga, map_show_triggers, map_show_contents, map_toggled_objects;
 	rawtype_t forcerawtype;
 	bigfileheader_t *data;
 	list_t *ixlist;
@@ -2575,6 +2600,8 @@ int BigFile_Unpack(int argc, char **argv)
 	WriteClose(f2);
 	Print("wrote %s\ndone.\n", savefile);
 
+	FreeBigfileHeader(data);
+	FreeList(ixlist);
 	fclose (f);
 	return 0;
 }
@@ -2585,7 +2612,7 @@ int BigFile_Pack(int argc, char **argv)
 	bigfileheader_t *data;
 	bigfileentry_t *entry;
 	tim_image_t *tim;
-	char savefile[MAX_BLOODPATH], basename[MAX_BLOODPATH], srcdir[MAX_BLOODPATH], ext[128];
+	char savefile[MAX_OSPATH], basename[MAX_OSPATH], srcdir[MAX_OSPATH], ext[128];
 	byte *contents;
 	int i, k, size;
 
@@ -2636,10 +2663,10 @@ int BigFile_Pack(int argc, char **argv)
 		if (!strcmp(ext, "tga") && entry->type == BIGENTRY_TIM)
 		{
 			sprintf(savefile, "%s/%s", srcdir, entry->name);
-			entry->data = TIM_LoadFromTarga(savefile, entry->timtype[0]);
+			entry->data = (byte *)TIM_LoadFromTarga(savefile, entry->timtype[0]);
 			size = ((tim_image_t *)entry->data)->filelen;
-			TIM_WriteToStream(entry->data, f);
-			FreeTIM(entry->data);
+			TIM_WriteToStream((tim_image_t *)entry->data, f);
+			FreeTIM((tim_image_t *)entry->data);
 			// add sublayers
 			StripFileExtension(entry->name, basename);
 			for (k = 1; k < entry->timlayers; k++)
@@ -2662,7 +2689,7 @@ int BigFile_Pack(int argc, char **argv)
 			entry->size = size;
 			// write
 			SafeWrite(f, entry->data, entry->size);
-			qfree(entry->data);
+			mem_free(entry->data);
 		}
 		// just write
 		else
@@ -2670,7 +2697,7 @@ int BigFile_Pack(int argc, char **argv)
 			sprintf(savefile, "%s/%s", srcdir, entry->name);
 			entry->size = LoadFile(savefile, &entry->data);
 			SafeWrite(f, entry->data, entry->size);
-			qfree(entry->data);
+			mem_free(entry->data);
 		}
 	}
 	PacifierEnd();
@@ -2690,6 +2717,7 @@ int BigFile_Pack(int argc, char **argv)
 	PacifierEnd();
 
 	WriteClose(f);
+	FreeBigfileHeader(data);
 	Print("done.\n");
 	return 0;
 }
@@ -2726,19 +2754,20 @@ typedef struct
 unsigned char chunkdata[chunksize];
 int BigFile_Patch(int argc, char **argv)
 {
-	char patchfile[MAX_BLOODPATH], outfile[MAX_BLOODPATH], entryname[MAX_BLOODPATH], convtype[1024], line[1024], *l;
+	char patchfile[MAX_OSPATH], outfile[MAX_OSPATH], entryname[MAX_OSPATH], convtype[1024], line[1024], *l;
 	int i, num_patchfiles, linenum, linebytes, linebytes_total, progress[4], patchedbytes, patchsize_total, chunkbytes;
 	patchfile_t patchfiles[MAX_PATCHFILES], *pfile;
 	bigfileheader_t *bigfilehead;
 	bigfileentry_t *entry;
 	int entries_new = 0, entries_changesize = 0, entries_total = 0;
-	qboolean overwriting;
+	bool overwriting;
 	unsigned int num_entries, written_entries, ofs;
 	float p;
 	FILE *f, *bigf, *tmp;
 
 	if (argc < 1)
 		Error("not enough parms");
+
 	// check parms
 	strcpy(patchfile, argv[0]);
 	strcpy(outfile, bigfile);
@@ -2874,7 +2903,7 @@ int BigFile_Patch(int argc, char **argv)
 
 	// most simple patch - if size is not changed
 	patchedbytes = 0;
-	if (!entries_new && !entries_changesize)
+	if (!entries_new && !entries_changesize && !strcmp(bigfile, outfile))
 	{
 		Verbose("Applying simple patch...\n");
 		for (i = 0; i < num_patchfiles; i++)
@@ -3004,9 +3033,10 @@ int BigFile_Patch(int argc, char **argv)
 	{
 		pfile = &patchfiles[num_patchfiles];
 		if (pfile->data)
-			qfree(pfile->data);
+			mem_free(pfile->data);
 	}
 
+	FreeBigfileHeader(bigfilehead);
 	Print("done.\n");
 
 	return 0;
@@ -3024,7 +3054,7 @@ int BigFile_Patch(int argc, char **argv)
 int BigFile_Main(int argc, char **argv)
 {
 	int i = 1, returncode = 0;
-	char knownfiles[MAX_BLOODPATH], *c;
+	char knownfiles[MAX_OSPATH], *c;
 
 	Verbose("=== BigFile ===\n");
 	if (i < 1)
@@ -3057,6 +3087,7 @@ int BigFile_Main(int argc, char **argv)
 
 	// load up knowledge base
 	// FIXME: stupid code, rewrite
+	bigklist = NULL;
 	if (knownfiles[0] == '-')
 		bigklist = BigfileLoadKList("klist.txt", false);
 	else
@@ -3080,6 +3111,9 @@ int BigFile_Main(int argc, char **argv)
 		returncode = BigFile_Patch(argc-i-1, argv+i+1);
 	else
 		Warning("unknown action %s", argv[i]);
+
+	if (bigklist)
+		BigfileFreeKList(bigklist);
 
 	return returncode;
 }

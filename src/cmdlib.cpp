@@ -19,7 +19,7 @@ int myargc;
 char **myargv;
 
 char		com_token[MAXTOKEN];
-qboolean	com_eof;
+bool	com_eof;
 
 //========================================================
 // strlcat and strlcpy, from OpenBSD
@@ -113,7 +113,7 @@ list_t *NewList()
 {
 	list_t *list;
 
-	list = qmalloc(sizeof(list_t));
+	list = (list_t *)mem_alloc(sizeof(list_t));
 	memset(list, 0, sizeof(list_t));
 	return list;
 }
@@ -126,8 +126,8 @@ void FreeList(list_t *list)
 		return;
 	if (list->items)
 		for (i = 0; i < list->items; i++)
-			qfree(list->item[i]);
-	qfree(list);
+			mem_free(list->item[i]);
+	mem_free(list);
 }
 
 void ListAdd(list_t *list, const char *str, unsigned char x)
@@ -136,7 +136,7 @@ void ListAdd(list_t *list, const char *str, unsigned char x)
 		return;
 	if (list->items >= MAX_LIST_ITEMS)
 		return;
-	list->item[list->items] = qmalloc(strlen(str)+1);
+	list->item[list->items] = (char *)mem_alloc(strlen(str)+1);
 	list->x[list->items] = x;
 	strcpy(list->item[list->items], str);
 	list->items++;
@@ -152,7 +152,7 @@ For abnormal program terminations
 void Error (char *error, ...)
 {
 	va_list argptr;
-	char logfile[MAX_BLOODPATH], err[10384];
+	char logfile[MAX_OSPATH], err[10384];
 	FILE *f;
 
 	va_start(argptr, error);
@@ -199,7 +199,7 @@ gamedir will hold qdir + the game directory (id1, id2, etc)
 char *copystring(char *s)
 {
   char	*b;
-  b = qmalloc(strlen(s)+1);
+  b = (char *)mem_alloc(strlen(s)+1);
   strcpy (b, s);
   return b;
 }
@@ -215,7 +215,7 @@ double I_DoubleTime (void)
 {
 #if defined(WIN32) || defined(_WIN64)
 	static DWORD starttime;
-	static qboolean first = true;
+	static bool first = true;
 	DWORD now;
 
 	if (first)
@@ -312,8 +312,8 @@ void GetDirectory(char *path, int size_bytes)
 }
 void GetRealPath(char *outpath, char *inpath)
 {
-	char cdir[MAX_BLOODPATH];
-	_getcwd(cdir, MAX_BLOODPATH);
+	char cdir[MAX_OSPATH];
+	_getcwd(cdir, MAX_OSPATH);
 	if (cdir[strlen(cdir)-1] == '/' || cdir[strlen(cdir)-1] == '\\' )
 		sprintf(outpath, "%s%s", cdir, inpath);
 	else
@@ -328,11 +328,11 @@ get temp directory
 */
 void TempFileName(char *out)
 {
-	char tempdir[MAX_BLOODPATH], tempfile[MAX_BLOODPATH];
+	char tempdir[MAX_OSPATH], tempfile[MAX_OSPATH];
 	int l;
 
 #ifdef WIN32
-	l = GetTempPath(MAX_BLOODPATH, tempdir);
+	l = GetTempPath(MAX_OSPATH, tempdir);
 	tmpnam(tempfile);
 	if (!l)
 		Error("TempFileName: error %s", strerror(GetLastError()));
@@ -676,15 +676,15 @@ LoadFile
 ==============
 */
 
-int    LoadFile (char *filename, void **bufferptr)
+int LoadFile (char *filename, byte **bufferptr)
 {
-  FILE	*f;
-  int    length;
-  void    *buffer;
+  FILE *f;
+  int length;
+  byte *buffer;
 
   f = SafeOpen(filename, "rb");
   length = Q_filelength (f);
-  buffer = qmalloc (length+1);
+  buffer = (byte *)mem_alloc (length+1);
   ((char *)buffer)[length] = 0;
   SafeRead (f, buffer, length);
   fclose (f);
@@ -700,17 +700,17 @@ LoadFileUnsafe
 ==============
 */
 
-int LoadFileUnsafe(char *filename, void **bufferptr)
+int LoadFileUnsafe(char *filename, byte **bufferptr)
 {
-  FILE	*f;
-  int    length;
-  void    *buffer;
+  FILE *f;
+  int length;
+  byte *buffer;
 
   f = fopen(filename, "rb");
   if (!f)
 	  return -1;
   length = Q_filelength (f);
-  buffer = qmalloc (length+1);
+  buffer = (byte *)mem_alloc (length+1);
   ((char *)buffer)[length] = 0;
   SafeRead (f, buffer, length);
   fclose (f);
@@ -883,7 +883,7 @@ void ExtractFileExtension (char *path, char *dest)
 
 void AddSuffix(char *outpath, char *inpath, char *suffix)
 {
-	char basename[MAX_BLOODPATH], ext[128];
+	char basename[MAX_OSPATH], ext[128];
 
 	StripFileExtension(inpath, basename);
 	ExtractFileExtension(inpath, ext);
@@ -893,7 +893,7 @@ void AddSuffix(char *outpath, char *inpath, char *suffix)
 		sprintf(outpath, "%s%s", basename, suffix);
 }
 
-qboolean FileExists(char *filename) 
+bool FileExists(char *filename) 
 {
 	struct stat fileinfo;
 	int statsucc;
@@ -1164,7 +1164,7 @@ unsigned short CRC_Value(unsigned short crcvalue)
 
 /* Return a 32-bit CRC of the contents of the buffer. */
 unsigned int crc_tab[256];
-qboolean crc_initialized = false;
+bool crc_initialized = false;
 
 void crc32_init()
 {
@@ -1216,12 +1216,12 @@ unsigned int crc32(unsigned char *block, unsigned int length)
 */
 
 #define FILE_START_SIZE 1048576 // 1 meg
-qboolean wrapfilestomem;
+bool wrapfilestomem;
 
 // wrapped file struct
 typedef struct wrapfile_s
 {
-	char realname[MAX_BLOODPATH];
+	char realname[MAX_OSPATH];
 	unsigned int filesize;
 	struct wrapfile_s *next;
 	FILE *f;
@@ -1240,7 +1240,7 @@ void FreeWrappedFiles()
 	{
 		next = current->next;
 		fclose(current->f);
-		qfree(current);
+		mem_free(current);
 		current = next;
 	}
 	wrapfiles = NULL;
@@ -1258,10 +1258,10 @@ int CountWrappedFiles()
 }
 
 // retrieve contents of wrapped file
-int LoadWrappedFile(int wrapnum, void **bufferptr, void **realfilename)
+int LoadWrappedFile(int wrapnum, byte **bufferptr, char **realfilename)
 {
 	wrapfile_t *wrapf;
-	void *buffer;
+	byte *buffer;
 	int c = 0;
 
 	// find wrapfile
@@ -1274,12 +1274,12 @@ int LoadWrappedFile(int wrapnum, void **bufferptr, void **realfilename)
 		Error("LoadWrappedFile: can open file on index %i", wrapnum);
 
 	// open file
-	buffer = qmalloc(wrapf->filesize+1);
+	buffer = (byte *)mem_alloc(wrapf->filesize+1);
 	fseek(wrapf->f, 0, SEEK_SET);
 	SafeRead(wrapf->f, buffer, wrapf->filesize);
 	((char *)buffer)[wrapf->filesize] = 0;
 	*bufferptr = buffer;
-	*realfilename = &wrapf->realname;
+	*realfilename = wrapf->realname;
 	return wrapf->filesize;
 }
 
@@ -1295,7 +1295,7 @@ FILE *SafeOpenWrite (char *filename)
 {
 	FILE		*f;
 	wrapfile_t	*wrapf, *current;
-	char path[MAX_BLOODPATH];
+	char path[MAX_OSPATH];
 
 	// check if opening file that was wrapped
 	for (wrapf = wrapfiles; wrapf != NULL; wrapf = wrapf->next)
@@ -1315,7 +1315,7 @@ FILE *SafeOpenWrite (char *filename)
 	else
 	{
 		// link to chain
-		wrapf = qmalloc(sizeof(wrapfile_t));
+		wrapf = (wrapfile_t *)mem_alloc(sizeof(wrapfile_t));
 		wrapf->filesize = 0;
 		wrapf->next = NULL;
 		strcpy(wrapf->realname, filename);

@@ -64,10 +64,10 @@ unsigned char tiletestcolors[20*3] =
 #define LZ_MAX_ITERATIONS 4096000
 #define LZ_MAX_OUTPUT 1048576
 byte lzbuf[LZ_MAX_OUTPUT];
-void *LzDec(int *outbufsize, byte *inbuf, int startpos, int buflen, qboolean leading_filesize)
+void *LzDec(int *outbufsize, byte *inbuf, int startpos, int buflen, bool leading_filesize)
 {
 	int filesize;
-	qboolean done = false;
+	bool done = false;
 	int numIterations, bytesWritten;
 	unsigned short tempIndex, command;
 	short offset;
@@ -340,7 +340,8 @@ long              cached_usecounter;
 #define CachePic_Globals(tp, bfh, bf) cachepic_tilespath = tp; cachepic_bigfileheader = bfh; cachepic_bigfile = bf;
 static cachepic_t *CachePic(char *entryname)
 {
-	char filename[MAX_BLOODPATH], *filedata, *dec, *pixels, *load_entryname;
+	char filename[MAX_OSPATH], *load_entryname;
+	byte *filedata, *pixels, *dec;
 	int i, j, e, filesize, decSize, posx, posy, width, height;
 	unsigned int hash;
 	cachepic_t *pic;
@@ -380,7 +381,7 @@ static cachepic_t *CachePic(char *entryname)
 			if (cachedpics[i].used < cachedpics[e].used)
 				e = i;
 		if (cachedpics[e].pixels != NULL)
-			qfree(cachedpics[e].pixels);
+			mem_free(cachedpics[e].pixels);
 		cachedpics[e].pixels = NULL;
 		memset(&cachedpics[e], 0, sizeof(cachepic_t));
 	}
@@ -413,10 +414,10 @@ static cachepic_t *CachePic(char *entryname)
 				}
 				else
 				{
-					filedata = qmalloc(entry->size);
+					filedata = (byte *)mem_alloc(entry->size);
 					if (fseek(cachepic_bigfile, (long int)entry->offset, SEEK_SET))
 					{
-						qfree(filedata);
+						mem_free(filedata);
 						Print("failed (cannot seek entry)\n");
 						entry = NULL;
 					}
@@ -424,7 +425,7 @@ static cachepic_t *CachePic(char *entryname)
 					{
 						if (fread(filedata, filesize, 1, cachepic_bigfile) < 1)
 						{
-							qfree(filedata);
+							mem_free(filedata);
 							Print("failed (cannot read entry)\n");
 							entry = NULL;
 						}
@@ -464,7 +465,7 @@ static cachepic_t *CachePic(char *entryname)
 		height = rawblock->chunk[0].height;
 		posx = rawblock->posx - rawblock->chunk[0].x;
 		posy = rawblock->posy - rawblock->chunk[0].y;
-		pixels = qmalloc(width * height * 3);
+		pixels = (byte *)mem_alloc(width * height * 3);
 		for (i = 0; i < width*height; i++)
 		{
 			pixel = rawblock->chunk[0].pixels[i];
@@ -484,7 +485,7 @@ static cachepic_t *CachePic(char *entryname)
 		posy = 0;
 
 		// try load as tile/TIM
-		dec = LzDec(&decSize, filedata, 0, filesize, true);
+		dec = (byte *)LzDec(&decSize, filedata, 0, filesize, true);
 		if (dec == NULL)
 		{
 			dec = filedata;
@@ -514,7 +515,7 @@ static cachepic_t *CachePic(char *entryname)
 				Print("failed (not a 8 or 24-bit TIM)\n");
 			else
 			{
-				pixels = qmalloc(width * height * 3);
+				pixels = (byte *)mem_alloc(width * height * 3);
 				if (tim->type == TIM_8Bit)
 				{
 					for (i = 0; i < height; i++)
@@ -567,7 +568,7 @@ static cachepic_t *CachePic(char *entryname)
 			Print("failed (not a TIM)\n");
 	}
 	FreeRawBlock(rawblock);
-	qfree(filedata);
+	mem_free(filedata);
 
 	// write into array
 	pic = &cachedpics[e];
@@ -617,7 +618,7 @@ int MapScan(byte *buffer, int filelen)
 	int decSize;
 
 	// map or tile are compressed, decompress it
-	dec = LzDec(&decSize, buffer, 0, filelen, true);
+	dec = (byte *)LzDec(&decSize, buffer, 0, filelen, true);
 	if (dec == NULL)
 		return 0;
 	// maps are dumped structs and have fixed file length
@@ -630,7 +631,7 @@ int MapScan(byte *buffer, int filelen)
 	return 0;
 }
 
-void DeveloperData(char *caption, byte *data, int per_line, int num_lines, int line_skipstart, int line_skipend, qboolean developer)
+void DeveloperData(char *caption, byte *data, int per_line, int num_lines, int line_skipstart, int line_skipend, bool developer)
 {
 	int i, j;
 
@@ -827,7 +828,7 @@ static void MapDrawBorder(byte *map_image, int row, int col, byte r, byte g, byt
 }
 
 // draw a picture (sprite or tim)
-static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, byte subpic, qboolean solid, qboolean align_center)
+static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, byte subpic, bool solid, bool align_center)
 {
 	int i, j, x, y, startx, starty, width, height;
 	byte *out, *in;
@@ -933,7 +934,7 @@ static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, b
 }
 
 // draws a string
-static void MapDrawString(byte *map_image, float row, float col, char *str, qboolean center_align)
+static void MapDrawString(byte *map_image, float row, float col, char *str, bool center_align)
 {
 	float stringwidth, stringheight;
 	cachepic_t *fontmap;
@@ -1010,7 +1011,7 @@ static void MapDrawString(byte *map_image, float row, float col, char *str, qboo
 */
 
 // draw a contents color block
-static void Draw_Contents(byte *map_image, int row, int col, int contents, qboolean with_solid, qboolean with_triggers)
+static void Draw_Contents(byte *map_image, int row, int col, int contents, bool with_solid, bool with_triggers)
 {
 	byte color[3];
 
@@ -1096,7 +1097,7 @@ static void Draw_Contents(byte *map_image, int row, int col, int contents, qbool
 }
 
 // draw a trigger line to objects that can be activated
-static void Draw_TriggerLine(bo_map_t *map, byte *map_image, int row, int col, unsigned short t, qboolean toggled_objects)
+static void Draw_TriggerLine(bo_map_t *map, byte *map_image, int row, int col, unsigned short t, byte toggled_objects)
 {
 	int i;
 	cachepic_t *pic;
@@ -1187,7 +1188,7 @@ static void Draw_NoTrigger(bo_map_t *map, byte *map_image, int row, int col, uns
 }
 
 // draw a path line
-static void Draw_Path(byte *map_image, int row1, int col1, int row2, int col2, byte r, byte g, byte b, qboolean drawarrow)
+static void Draw_Path(byte *map_image, int row1, int col1, int row2, int col2, byte r, byte g, byte b, bool drawarrow)
 {
 	float start[2], end[2], dir[2], nd[2], n[2], yaw;
 
@@ -1229,13 +1230,13 @@ static void Draw_Path(byte *map_image, int row1, int col1, int row2, int col2, b
 ==========================================================================================
 */
 				
-int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, qboolean with_solid, qboolean with_triggers, qboolean toggled_objects, qboolean developer, int devnum, qboolean group_sections_by_path)
+int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, bool with_solid, bool with_triggers, byte toggled_objects, bool developer, int devnum, bool group_sections_by_path)
 {
 	int i, j, decSize;
 	int map_mincol, map_minrow, map_maxcol, map_maxrow;
 	unsigned short tilepix, tilegroup, map_num, map_section;
-	char filename[MAX_BLOODPATH], path[MAX_BLOODPATH], mapname[32];
-	byte *dec, *map_image, *picname, contents, subpic, color[3];
+	char filename[MAX_OSPATH], path[MAX_OSPATH], mapname[32],  *picname;
+	byte *dec, *map_image, contents, subpic, color[3];
 	cachepic_t *pic;
 	float f;
 	bo_map_t map;
@@ -1262,7 +1263,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 	Print("section %i\n", map_section);
 
 	// decompress
-	dec = LzDec(&decSize, fileData, 0, fileDataSize, true);
+	dec = (byte *)LzDec(&decSize, fileData, 0, fileDataSize, true);
 	if (dec == NULL)
 		return 0;
 	// should have fixed size
@@ -1274,7 +1275,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 	map_minrow = 80;
 	map_maxcol = 0;
 	map_maxrow = 0;
-	map_image = qmalloc(80 * 32 * 3 * 32 * 80);
+	map_image = (byte *)mem_alloc(80 * 32 * 3 * 32 * 80);
 	memset(map_image, 0,  80 * 32 * 3 * 32 * 80);
 
 	// draw world
@@ -1935,12 +1936,12 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 	}
 	else
 	{
-		strncpy(filename, outfile, MAX_BLOODPATH);
-		DefaultExtension(filename, ".tga", MAX_BLOODPATH);
+		strncpy(filename, outfile, MAX_OSPATH);
+		DefaultExtension(filename, ".tga", MAX_OSPATH);
 	}
 	Print("Writing map %s...\n", filename);
 	RawTGA(filename, 80 * 32, 80 * 32, map_mincol, map_minrow, map_maxcol, map_maxrow, NULL, map_image, 24, NULL);
-	qfree(map_image);
+	mem_free(map_image);
 
 	// write layers
 	/*
@@ -1977,8 +1978,8 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 int MapConvert_Main(int argc, char **argv)
 {
 	int i = 1, devnum;
-	char filename[MAX_BLOODPATH], tilespath[MAX_BLOODPATH], ext[5], outfile[MAX_BLOODPATH], *c;
-	qboolean with_solid, with_triggers, toggled_objects, developer;
+	char filename[MAX_OSPATH], tilespath[MAX_OSPATH], ext[5], outfile[MAX_OSPATH], *c;
+	bool with_solid, with_triggers, toggled_objects, developer;
 	byte *fileData;
 	int fileSize;
 

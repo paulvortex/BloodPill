@@ -51,7 +51,7 @@ dllfunction_t;
  * \param handle
  * \param fcts
  */
-qboolean LoadDll (const char** dllnames, dllhandle_t* handle, const dllfunction_t *fcts, qboolean verbose);
+bool LoadDll (const char** dllnames, dllhandle_t* handle, const dllfunction_t *fcts, bool verbose);
 void UnloadDll (dllhandle_t* handle);
 void* DllGetProcAddress (dllhandle_t handle, const char* name);
 

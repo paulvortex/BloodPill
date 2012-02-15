@@ -332,4 +332,4 @@ typedef struct
 
 // functions
 int MapScan(byte *buffer, int filelen);
-void *LzDec(int *outbufsize, byte *inbuf, int startpos, int buflen, qboolean leading_filesize);
+void *LzDec(int *outbufsize, byte *inbuf, int startpos, int buflen, bool leading_filesize);

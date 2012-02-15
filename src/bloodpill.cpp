@@ -26,6 +26,18 @@
 #include "soxsupp.h"
 #include "zlib.h"
 
+// global switches
+bool waitforkey;
+bool error_waitforkey;
+bool memstats;
+bool verbose;
+bool noprint;
+bool solidpacifier;
+bool errorlog;
+
+char progname[MAX_OSPATH];
+char progpath[MAX_OSPATH];
+
 // bigfile.c
 int BigFile_Main(int argc, char **argv);
 
@@ -327,12 +339,12 @@ int Help_Main()
 int main(int argc, char **argv)
 {
 	int i, j, returncode = 0;
-	char customsoxpath[MAX_BLOODPATH];
-	qboolean printcap;
+	char customsoxpath[MAX_OSPATH];
+	bool printcap;
 
 	// get program name
-	memset(progname, 0, MAX_BLOODPATH);
-	memset(progpath, 0, MAX_BLOODPATH);
+	memset(progname, 0, MAX_OSPATH);
+	memset(progpath, 0, MAX_OSPATH);
 	ExtractFileBase(argv[0], progname);
 	ExtractFilePath(argv[0], progpath);
 
@@ -447,7 +459,7 @@ int main(int argc, char **argv)
 	}
 
 	// init memory
-	Q_InitMem();
+	Mem_Init();
 
 	// do the action
 	if (!strcmp(argv[i], "-bigfile"))
@@ -475,7 +487,7 @@ int main(int argc, char **argv)
 	Print("\n");
 
 	// free allocated memory
-	Q_ShutdownMem(memstats);
+	Mem_Shutdown();
 	PK3_CloseLibrary();
 
 #if _MSC_VER

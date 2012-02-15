@@ -39,7 +39,7 @@ tim_image_t *EmptyTIM(unsigned int type)
 {
 	tim_image_t *tim;
 
-	tim = qmalloc(sizeof(tim_image_t));
+	tim = (tim_image_t *)mem_alloc(sizeof(tim_image_t));
 	memset(tim, 0, sizeof(tim_image_t));
 	tim->tag = TIM_TAG;
 	tim->type = type;
@@ -58,14 +58,14 @@ void FreeTIM(tim_image_t *tim)
 	if (!tim)
 		return;
 	if (tim->CLUT != NULL ) 
-		qfree(tim->CLUT); 
+		mem_free(tim->CLUT); 
 	if (tim->pixels != NULL)
-		qfree(tim->pixels); 
+		mem_free(tim->pixels); 
 	if (tim->pixelmask != NULL) 
-		qfree(tim->pixelmask); 
+		mem_free(tim->pixelmask); 
 	if (tim->maskfile != NULL)
-		qfree(tim->maskfile);
-	qfree(tim); 
+		mem_free(tim->maskfile);
+	mem_free(tim); 
 }
 
 tim_image_t *TimError(tim_image_t *tim, char *error, ...)
@@ -74,7 +74,7 @@ tim_image_t *TimError(tim_image_t *tim, char *error, ...)
 
 	va_start(argptr, error);
 	tim->error = true;
-	tim->errorstr = qmalloc(strlen(error)+1);
+	tim->errorstr = (char *)mem_alloc(strlen(error)+1);
 	vsprintf(tim->errorstr, error, argptr);
 	va_end(argptr);
 
@@ -128,7 +128,7 @@ tim_image_t *TIM_LoadFromBuffer(byte *buf, int buflen)
 	// load CLUT if presented
 	if (tim->type == TIM_4Bit || tim->type == TIM_8Bit)
 	{
-		tim->CLUT = qmalloc(sizeof(tim_clutinfo_t));
+		tim->CLUT = (tim_clutinfo_t *)mem_alloc(sizeof(tim_clutinfo_t));
 		memcpy(tim->CLUT, buf, nextobjlen-4);
 		buf += nextobjlen-4;
 		buflen -= nextobjlen-4;
@@ -172,7 +172,7 @@ tim_image_t *TIM_LoadFromBuffer(byte *buf, int buflen)
 	// read pixels
 	if (buflen < tim->pixelbytes)
 		return TimError(tim, "unexpected EOF at pixel data (%i bytes)", tim->pixelbytes);
-	tim->pixels = qmalloc(tim->pixelbytes);
+	tim->pixels = (byte *)mem_alloc(tim->pixelbytes);
 	memcpy(tim->pixels, buf, tim->pixelbytes);
 	buf += tim->pixelbytes;
 	buflen -= tim->pixelbytes;
@@ -180,7 +180,7 @@ tim_image_t *TIM_LoadFromBuffer(byte *buf, int buflen)
 	// extract pixel mask for 16-bit TIM
 	if (tim->type == TIM_16Bit)
 	{
-		tim->pixelmask = qmalloc(tim->dim.xsize*tim->dim.ysize);
+		tim->pixelmask = (byte *)mem_alloc(tim->dim.xsize*tim->dim.ysize);
 		out = tim->pixelmask;
 		for (y = 0; y < tim->dim.xsize*tim->dim.ysize; y++)
 		{
@@ -234,7 +234,7 @@ tim_image_t *TIM_LoadFromStream(FILE *f)
 	// load CLUT if presented
 	if (tim->type == TIM_4Bit || tim->type == TIM_8Bit)
 	{
-		tim->CLUT = qmalloc(sizeof(tim_clutinfo_t));
+		tim->CLUT = (tim_clutinfo_t *)mem_alloc(sizeof(tim_clutinfo_t));
 		fread(tim->CLUT, nextobjlen-4, 1, f);
 		fread(&nextobjlen, 4, 1, f);
 	}	
@@ -269,14 +269,14 @@ tim_image_t *TIM_LoadFromStream(FILE *f)
 	}
 
 	// read pixels
-	tim->pixels = qmalloc(tim->pixelbytes);
+	tim->pixels = (byte *)mem_alloc(tim->pixelbytes);
 	if (fread(tim->pixels, tim->pixelbytes, 1, f) < 1)
 		return TimError(tim, feof(f) ? "unexpected EOF at pixel data (%i bytes)" : "unable to read pixel data (%i bytes)", tim->pixelbytes);
 
 	// extract pixel mask for 16-bit TIM
 	if (tim->type == TIM_16Bit)
 	{
-		tim->pixelmask = qmalloc(tim->dim.xsize*tim->dim.ysize);
+		tim->pixelmask = (byte *)mem_alloc(tim->dim.xsize*tim->dim.ysize);
 		out = tim->pixelmask;
 		for (y = 0; y < tim->dim.xsize*tim->dim.ysize; y++)
 		{
@@ -328,7 +328,7 @@ void TIM_WriteToStream(tim_image_t *tim, FILE *f)
 	if (tim->type == TIM_16Bit)
 	{
 		// interleave pixelmask into tim
-		data = qmalloc(tim->pixelbytes);
+		data = (byte *)mem_alloc(tim->pixelbytes);
 		if (tim->pixelmask != NULL)
 		{
 			for (i = 0; i < tim->pixelbytes; i += 2)
@@ -349,7 +349,7 @@ void TIM_WriteToStream(tim_image_t *tim, FILE *f)
 			}
 		}
 		fwrite(data, tim->pixelbytes, 1, f);
-		qfree(data);
+		mem_free(data);
 	}
 	else
 		fwrite(tim->pixels, tim->pixelbytes, 1, f);
@@ -390,11 +390,11 @@ tim_image_t *TIM_LoadPixelmaskFromTargaStream(FILE *f, tim_image_t *tim)
 		return TimError(tim, "image height do not match");
 
 	// load pixel data
-	pixeldata = qmalloc(width * height);
+	pixeldata = (byte *)mem_alloc(width * height);
 	if (fread(pixeldata, width * height, 1, f) < 1)
 		return TimError(tim, feof(f) ? "unexpected EOF at maskfile pixeldata" : "unable to read TGA pixeldata");
 
-	tim->pixelmask = qmalloc(width * height);
+	tim->pixelmask = (byte *)mem_alloc(width * height);
 	// fill pixels, flip upside down
 	out = tim->pixelmask;
 	for (y = height - 1;y >= 0;y--)
@@ -404,7 +404,7 @@ tim_image_t *TIM_LoadPixelmaskFromTargaStream(FILE *f, tim_image_t *tim)
 		for (;in < end; in++)
 			*out++ = (in[0]) ? 1 : 0;
 	}
-	qfree(pixeldata);
+	mem_free(pixeldata);
 
 	return tim;
 }
@@ -459,12 +459,12 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type)
 				return TimError(tim, "8-bit TIM only supports 8-bit TGA");
 	
 			// load colormap data
-			colormapdata = qmalloc(colormaplen * ((targaheader[7] == 16) ? 2 : 3));
+			colormapdata = (byte *)mem_alloc(colormaplen * ((targaheader[7] == 16) ? 2 : 3));
 			if (fread(colormapdata, colormaplen * ((targaheader[7] == 16) ? 2 : 3), 1, f) < 1)
 				return TimError(tim, feof(f) ? "unexpected EOF at TGA colormap" : "unable to read TGA colormap");
 
 			// load pixel data
-			pixeldata = qmalloc(width * height);
+			pixeldata = (byte *)mem_alloc(width * height);
 			if (fread(pixeldata, width * height, 1, f) < 1)
 				return TimError(tim, feof(f) ? "unexpected EOF at TGA pixeldata" : "unable to read TGA pixeldata");
 
@@ -474,10 +474,10 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type)
 			tim->dim.ypos = targaheader[10] + targaheader[11]*256;
 			tim->dim.xsize = width;
 			tim->dim.ysize = height;
-			tim->CLUT = qmalloc(sizeof(tim_clutinfo_t));
+			tim->CLUT = (tim_clutinfo_t *)mem_alloc(sizeof(tim_clutinfo_t));
 			memset(tim->CLUT, 0, sizeof(tim_clutinfo_t));
 			tim->pixelbytes = tim->dim.xsize*tim->dim.ysize;
-			tim->pixels = qmalloc(tim->pixelbytes);
+			tim->pixels = (byte *)mem_alloc(tim->pixelbytes);
 			tim->bpp = 8;
 			tim->filelen = 20 + sizeof(tim_clutinfo_t) + 4 + tim->pixelbytes;
 
@@ -512,8 +512,8 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type)
 					*out++ = in[0];
 			}
 
-			qfree(colormapdata);
-			qfree(pixeldata);
+			mem_free(colormapdata);
+			mem_free(pixeldata);
 			break;
 		case TIM_16Bit:
 			// check header
@@ -525,7 +525,7 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type)
 				return TimError(tim, "16-bit TIM require 16 or 24-bit TGA");
 
 			// load pixel data
-			pixeldata = qmalloc(width * height * ((targaheader[16] == 16) ? 2 : 3));
+			pixeldata = (byte *)mem_alloc(width * height * ((targaheader[16] == 16) ? 2 : 3));
 			if (fread(pixeldata, width * height * ((targaheader[16] == 16) ? 2 : 3), 1, f) < 1)
 				return TimError(tim, feof(f) ? "unexpected EOF at TGA pixeldata" : "unable to read TGA pixeldata");
 
@@ -537,7 +537,7 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type)
 			tim->dim.ysize = height;
 			tim->CLUT = NULL;
 			tim->pixelbytes = tim->dim.xsize*tim->dim.ysize*2;
-			tim->pixels = qmalloc(tim->pixelbytes);
+			tim->pixels = (byte *)mem_alloc(tim->pixelbytes);
 			tim->bpp = 16;
 			tim->filelen = 20 + tim->pixelbytes;
 
@@ -570,7 +570,7 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type)
 				}
 			}
 
-			qfree(pixeldata);
+			mem_free(pixeldata);
 			break;
 		// VorteX: pretty same as 24 bit
 		case TIM_24Bit:
@@ -583,7 +583,7 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type)
 				return TimError(tim, "24-bit TIM require 16 or 24-bit TGA");
 
 			// load pixel data
-			pixeldata = qmalloc(width * height * ((targaheader[16] == 16) ? 2 : 3));
+			pixeldata = (byte *)mem_alloc(width * height * ((targaheader[16] == 16) ? 2 : 3));
 			if (fread(pixeldata, width * height * ((targaheader[16] == 16) ? 2 : 3), 1, f) < 1)
 				return TimError(tim, feof(f) ? "unexpected EOF at TGA pixeldata" : "unable to read TGA pixeldata");
 
@@ -595,7 +595,7 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type)
 			tim->dim.ysize = height;
 			tim->CLUT = NULL;
 			tim->pixelbytes = tim->dim.xsize*tim->dim.ysize*3;
-			tim->pixels = qmalloc(tim->pixelbytes);
+			tim->pixels = (byte *)mem_alloc(tim->pixelbytes);
 			tim->bpp = 24;
 			tim->filelen = 20 + tim->pixelbytes;
 
@@ -629,7 +629,7 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type)
 					}
 				}
 			}
-			qfree(pixeldata);
+			mem_free(pixeldata);
 			break;
 		default:
 			return TimError(tim, "unknown TIM type %.8X requested", type);
@@ -641,7 +641,7 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type)
 tim_image_t *TIM_LoadFromTarga(char *filename, unsigned int type)
 {
 	tim_image_t *tim;
-	char basename[MAX_BLOODPATH], ext[15], maskfile[MAX_BLOODPATH];
+	char basename[MAX_OSPATH], ext[15], maskfile[MAX_OSPATH];
 	FILE *f;
 
 	// open base TIM
@@ -662,7 +662,7 @@ tim_image_t *TIM_LoadFromTarga(char *filename, unsigned int type)
 	if (!f)
 		Error("Error loading %s: mask file %s not found", filename, maskfile);
 
-	tim->maskfile = qmalloc(MAX_BLOODPATH);
+	tim->maskfile = (char *)mem_alloc(MAX_OSPATH);
 	strcpy(tim->maskfile, maskfile);
 	TIM_LoadPixelmaskFromTargaStream(f, tim);
 	if (tim->error)
@@ -672,15 +672,15 @@ tim_image_t *TIM_LoadFromTarga(char *filename, unsigned int type)
 	return tim;
 }
 
-void TIM_WriteTargaGrayscale(char *data, short width, short height, char *savefile)
+void TIM_WriteTargaGrayscale(byte *data, short width, short height, char *savefile)
 {
-	unsigned char *buffer, *out;
-	const unsigned char *in, *end;
+	byte *buffer, *out;
+	byte *in, *end;
 	int i;
 	FILE *f;
 
 	// create grayscale targa header
-	buffer = qmalloc(width*height + 18);
+	buffer = (byte *)mem_alloc(width*height + 18);
 	memset(buffer, 0, 18);
 	buffer[2] = 2;
 	buffer[12] = (width >> 0) & 0xFF;
@@ -703,10 +703,10 @@ void TIM_WriteTargaGrayscale(char *data, short width, short height, char *savefi
 	f = SafeOpenWrite(savefile);
 	fwrite(buffer, width*height + 18, 1, f);
 	WriteClose(f);
-	qfree(buffer);
+	mem_free(buffer);
 }
 
-void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
+void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24)
 {
 	unsigned char *buffer, *out;
 	const unsigned char *in, *end;
@@ -723,7 +723,7 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
 		case TIM_4Bit:
 			break;
 		case TIM_8Bit:
-			buffer = qmalloc(tim->dim.xsize*tim->dim.ysize + (bpp16to24 ? 768 : 512) + 18);
+			buffer = (byte *)mem_alloc(tim->dim.xsize*tim->dim.ysize + (bpp16to24 ? 768 : 512) + 18);
 			memset(buffer, 0, 18);
 			buffer[1] = 1; // colormapped
 			buffer[2] = 1; // uncompressed, colormapped
@@ -769,7 +769,7 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
 			fwrite(buffer, tim->dim.xsize*tim->dim.ysize + (bpp16to24 ? 768 : 512) + 18, 1, f);
 			break;
 		case TIM_16Bit:
-			buffer = qmalloc(tim->dim.xsize*tim->dim.ysize*(bpp16to24 ? 3 : 2) + 18);
+			buffer = (byte *)mem_alloc(tim->dim.xsize*tim->dim.ysize*(bpp16to24 ? 3 : 2) + 18);
 			memset(buffer, 0, 18);
 			buffer[2] = 2; // uncompressed
 			buffer[8] = (tim->dim.xpos >> 0) & 0xFF;
@@ -805,7 +805,7 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24)
 			fwrite(buffer, tim->dim.xsize*tim->dim.ysize*(bpp16to24 ? 3 : 2) + 18, 1, f);
 			break;
 		case TIM_24Bit:
-			buffer = qmalloc(tim->dim.xsize*tim->dim.ysize*3 + 18);
+			buffer = (byte *)mem_alloc(tim->dim.xsize*tim->dim.ysize*3 + 18);
 			memset(buffer, 0, 18);
 			buffer[2] = 2; // uncompressed
 			buffer[8] = (tim->dim.xpos >> 0) & 0xFF;
@@ -867,9 +867,9 @@ void TimEmitStats(tim_image_t *tim)
 int Tim2Targa_Main(int argc, char **argv)
 {
 	int i = 1;
-	char filename[MAX_BLOODPATH], ext[5], outfile[MAX_BLOODPATH], *c;
+	char filename[MAX_OSPATH], ext[5], outfile[MAX_OSPATH], *c;
 	tim_image_t *tim;
-	qboolean bpp16to24;
+	bool bpp16to24;
 	FILE *f; 
 
 	Print("=== Tim2Tga ===\n");
@@ -933,7 +933,7 @@ int Tim2Targa_Main(int argc, char **argv)
 
 int Targa2Tim_Main(int argc, char **argv)
 {
-	char filename[MAX_BLOODPATH], basefilename[MAX_BLOODPATH], ext[5], outfile[MAX_BLOODPATH], maskfile[MAX_BLOODPATH], *c;
+	char filename[MAX_OSPATH], basefilename[MAX_OSPATH], ext[5], outfile[MAX_OSPATH], maskfile[MAX_OSPATH], *c;
 	short ofsx = -1, ofsy = -1;
 	unsigned int type;
 	tim_image_t *tim;

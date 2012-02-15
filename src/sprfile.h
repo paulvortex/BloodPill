@@ -21,6 +21,8 @@
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ////////////////////////////////
 
+#include "rawfile.h"
+
 // sprite formats
 typedef enum
 {
@@ -60,6 +62,6 @@ typedef struct
 } spr_t;
 
 // functions
-void SPR_WriteFromRawblock(void *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, int flags, qboolean mergeintoexistingfile);
-void SPR_Merge(list_t *mergelist, char *outfile, qboolean delmerged);
+void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, int flags, bool mergeintoexistingfile);
+void SPR_Merge(list_t *mergelist, char *outfile, bool delmerged);
 

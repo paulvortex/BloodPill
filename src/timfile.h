@@ -46,7 +46,7 @@ typedef struct
 	int bpp;
 	int pixelbytes; 
 	int filelen;
-	qboolean error;
+	bool error;
 	char *errorstr;
 
 }tim_image_t;
@@ -70,8 +70,8 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type);
 
 tim_image_t *TIM_LoadFromTarga(char *filename, unsigned int type);
 
-void TIM_WriteTarga(tim_image_t *tim, char *savefile, qboolean bpp16to24);
+void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24);
 
-void TIM_WriteTargaGrayscale(char *data, short width, short height, char *savefile);
+void TIM_WriteTargaGrayscale(byte *data, short width, short height, char *savefile);
 
 

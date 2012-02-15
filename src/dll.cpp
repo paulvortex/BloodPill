@@ -46,7 +46,7 @@
 # endif
 #endif
 
-static qboolean LoadDllFunctions(dllhandle_t dllhandle, const dllfunction_t *fcts, qboolean complain, qboolean has_next)
+static bool LoadDllFunctions(dllhandle_t dllhandle, const dllfunction_t *fcts, bool complain, bool has_next)
 {
 	const dllfunction_t *func;
 	if(dllhandle)
@@ -71,12 +71,12 @@ static qboolean LoadDllFunctions(dllhandle_t dllhandle, const dllfunction_t *fct
 	return false;
 }
 
-qboolean LoadDll (const char** dllnames, dllhandle_t* handle, const dllfunction_t *fcts, qboolean verbose)
+bool LoadDll (const char** dllnames, dllhandle_t* handle, const dllfunction_t *fcts, bool verbose)
 {
 #ifdef SUPPORTDLL
 	const dllfunction_t *func;
 	dllhandle_t dllhandle = 0;
-	char dllpath[MAX_BLOODPATH];
+	char dllpath[MAX_OSPATH];
 	unsigned int i;
 
 	if (handle == NULL)

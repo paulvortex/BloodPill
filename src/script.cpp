@@ -78,17 +78,17 @@ typedef struct
 legacymodelsubs_t *legacymodelsubs;
 
 double scriptstarted;
-char path[MAX_BLOODPATH] = { 0 };
-char bigfilepath[MAX_BLOODPATH] = { 0 };
-char spr_parms[MAX_BLOODPATH] = { 0 };
-char extract_parms[MAX_BLOODPATH] = { 0 };
+char path[MAX_OSPATH] = { 0 };
+char bigfilepath[MAX_OSPATH] = { 0 };
+char spr_parms[MAX_OSPATH] = { 0 };
+char extract_parms[MAX_OSPATH] = { 0 };
 bigfileentry_t *entry = NULL;
 bigfileheader_t *bigfile = NULL;
 FILE *bigfilehandle;
 
 void SpriteLitFileName(char *in)
 {
-	char name[MAX_BLOODPATH], path[MAX_BLOODPATH];
+	char name[MAX_OSPATH], path[MAX_OSPATH];
 
 	ExtractFilePath(in, path);
 	ExtractFileName(in, name);
@@ -98,14 +98,15 @@ void SpriteLitFileName(char *in)
 void Script_Parse(char *filename, char *basepath)
 {
 	double cscale, aver, diff;
-	byte *scriptstring, *s, *t, *data;
-	size_t scriptsize, n, len;
-	qboolean bloodomnicide = false, bigfileinstall = false, litsprites = false, allowdebug = true, writingpk3 = false;
+	byte *data, *scriptstring;
+	char *t, *s;
+	int scriptsize, n, len;
+	bool bloodomnicide = false, bigfileinstall = false, litsprites = false, allowdebug = true, writingpk3 = false;
 	int i, currentmodel = -1, minp, maxp, sargc, stt = 0, stt_total = 0, c[3], is_adpcm;
-	char tempchar, **sargv, outfile[MAX_BLOODPATH], infile[MAX_BLOODPATH], cs[32];
+	char tempchar, **sargv, outfile[MAX_OSPATH], infile[MAX_OSPATH], cs[32];
 	char soxparm1[1024], soxparm2[1024], soxparm3[1024], soxparm4[1024];
 	bigfileentry_t *oldentry;
-	rawinfo_t *newrawinfo;
+	rawinfo_t rawinfo;
 	rawblock_t *rawblock;
 	FILE *f;
 	pk3_file_t *pk3;
@@ -113,11 +114,11 @@ void Script_Parse(char *filename, char *basepath)
 	
 	// read file
 	Verbose("%s:\n", filename);
-	sargv = qmalloc(sizeof(char *)*32);
+	sargv = (char **)mem_alloc(sizeof(char *)*32);
 	for (sargc = 0; sargc < 32; sargc++)
-		sargv[sargc] = qmalloc(128);
+		sargv[sargc] = (char *)mem_alloc(128);
 	scriptsize = LoadFile(filename, &scriptstring);
-	newrawinfo = NewRawInfo();
+	FlushRawInfo(&rawinfo);
 
 	// init
 	strcpy(soxparm1, "");
@@ -126,7 +127,7 @@ void Script_Parse(char *filename, char *basepath)
 	strcpy(soxparm4, "");
 
 	// parse file
-	s = scriptstring;
+	s = (char *)scriptstring;
 	n = 1;
 	while (*s)
 	{
@@ -313,8 +314,8 @@ void Script_Parse(char *filename, char *basepath)
 								i = 1; // pacifier cost
 								sargc = 0;
 								// add extract_parms first
-								data = extract_parms;
-								while (data = COM_Parse(data))
+								data = (byte *)extract_parms;
+								while(data = (byte *)COM_Parse((char *)data))
 								{
 									if (sargc >= 32)
 										Error("extract: too many arguments!\n", n);
@@ -426,7 +427,7 @@ void Script_Parse(char *filename, char *basepath)
 								stt += i;
 							else
 								stt += (int)max(1, len / 1024 / 1024);
-							qfree(data);
+							mem_free(data);
 						}
 					}
 				}
@@ -463,7 +464,7 @@ void Script_Parse(char *filename, char *basepath)
 						{
 							len = LoadFile(infile, &data);
 							PK3_AddFile(pk3, outfile, data, len);
-							qfree(data);
+							mem_free(data);
 						}
 						else
 						{
@@ -499,7 +500,7 @@ void Script_Parse(char *filename, char *basepath)
 							PK3_AddFile(pk3, outfile, data, len);
 						else
 							SaveFile(outfile, data, len);
-						qfree(data);
+						mem_free(data);
 					}
 					stt += 1;
 				}
@@ -551,8 +552,6 @@ void Script_Parse(char *filename, char *basepath)
 					printf("script execution time: %f\n", I_DoubleTime() - scriptstarted);
 					printf("%i statements\n", stt);
 					printf("break statement\n");
-					printf("=== MemStats ===\n");
-					Q_PrintMem();
 					break;
 				}
 			}
@@ -784,8 +783,8 @@ void Script_Parse(char *filename, char *basepath)
 											sargc++;
 										}
 									}
-									data = spr_parms;
-									while (data = COM_Parse(data))
+									data = (byte *)spr_parms;
+									while (data = (byte *)COM_Parse((char *)data))
 									{
 										if (sargc >= 32)
 											Error("spr: too many arguments!\n", n);
@@ -798,9 +797,9 @@ void Script_Parse(char *filename, char *basepath)
 									// load rawblock
 									if (!entry->data)
 									{
-										data = qmalloc(entry->size);
+										data = (byte *)mem_alloc(entry->size);
 										BigfileSeekContents(bigfilehandle, data, entry);
-										entry->data = RawExtract(data, entry->size, newrawinfo, false, false, RAW_TYPE_UNKNOWN);
+										entry->data = (byte *)RawExtract(data, entry->size, &rawinfo, false, false, RAW_TYPE_UNKNOWN);
 									}
 									// do extract
 									BigFile_ExtractRawImage(sargc, sargv, outfile, entry, (rawblock_t *)entry->data, "spr32");
@@ -887,27 +886,28 @@ void Script_Parse(char *filename, char *basepath)
 		PK3_Close(pk3);
 		writingpk3 = false;
 	}
-	qfree(scriptstring);
-	qfree(newrawinfo);
+	mem_free(scriptstring);
 }
 
 int Script_Main(int argc, char **argv)
 {
-	char basepath[MAX_BLOODPATH];
-	qboolean debugon, oldverbose, oldnoprint;
+	char basepath[MAX_OSPATH];
+	bool debugon, oldverbose, oldnoprint;
 	int i;
 
 	Verbose("=== Script ===\n");
 
 	// init
-	legacycolormaps = qmalloc(sizeof(colormaps_t));
-	legacymodels = qmalloc(sizeof(legacymodels_t));
-	legacymodelsubs = qmalloc(sizeof(legacymodelsubs_t));
+	legacycolormaps = (colormaps_t *)mem_alloc(sizeof(colormaps_t));
+	legacymodels = (legacymodels_t *)mem_alloc(sizeof(legacymodels_t));
+	legacymodelsubs = (legacymodelsubs_t *)mem_alloc(sizeof(legacymodelsubs_t));
 	if (argc < 2)
 		Error("not enough parms");
 
 	// cmdline
 	debugon = false;
+	bigfile = NULL;
+	bigklist = NULL;
 	for (i = 2; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-debug"))
@@ -958,13 +958,13 @@ int Script_Main(int argc, char **argv)
 	Script_Parse(argv[1], basepath);
 
 	// deinit
-	qfree(legacycolormaps);
-	qfree(legacymodels);
-	qfree(legacymodelsubs);
+	mem_free(legacycolormaps);
+	mem_free(legacymodels);
+	mem_free(legacymodelsubs);
 	if (bigfilehandle)
 		fclose(bigfilehandle);
 	if (bigfile)
-		qfree(bigfile);
+		FreeBigfileHeader(bigfile);
 
 	return 0;
 }

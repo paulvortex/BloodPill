@@ -25,6 +25,7 @@
 #include "sprfile.h"
 #include "rawfile.h"
 #include "mem.h"
+#include <math.h>
 
 /*
 ==========================================================================================
@@ -44,9 +45,9 @@ void fput_littleint(int num, FILE* file)
 
 void fput_littlefloat(float num, FILE* file)
 {
-	int *data;
-	data = (void*) &num; // note: this is *NOT* byte order dependent
-	fput_littleint(*data, file);
+	union {int i; float f;} in;
+	in.f = num;
+	fput_littleint(in.i, file);
 }
 
 int LittleInt(byte *buffer)
@@ -74,7 +75,7 @@ float LittleFloat (byte *buffer)
 ==========================================================================================
 */
 
-qboolean SPR_ReadHeader(byte *buf, int bufsize, spr_t *sprheader) 
+bool SPR_ReadHeader(byte *buf, int bufsize, spr_t *sprheader) 
 {
 	memset(sprheader, 0, sizeof(spr_t));
 	if (buf[0] != 'I' || buf[1] != 'D' || buf[2] != 'S' || buf[3] != 'P')
@@ -92,14 +93,14 @@ qboolean SPR_ReadHeader(byte *buf, int bufsize, spr_t *sprheader)
 	return true;
 }
 
-FILE *SPR_BeginFile(char *outfile, sprversion_t version, sprtype_t type, int maxwidth, int maxheight, int numframes, qboolean mergeintoexistingfile)
+FILE *SPR_BeginFile(char *outfile, sprversion_t version, sprtype_t type, int maxwidth, int maxheight, int numframes, bool mergeintoexistingfile)
 {
 	spr_t mergespr;
 	byte mergedata[36];
 	float boundradius;
 	FILE *f;
 
-	boundradius = (float) sqrt((maxwidth*0.5)*(maxwidth*0.5)+(maxheight*0.5)*(maxheight*0.5));
+	boundradius = (float)sqrt((maxwidth*0.5)*(maxwidth*0.5)+(maxheight*0.5)*(maxheight*0.5));
 
 	// check if need to rewrite file
 	if (mergeintoexistingfile)
@@ -167,7 +168,7 @@ void SPR_WriteFrameHeader(FILE *f, sprframetype_t frametype, int width, int heig
 	fput_littleint(height, f);
 }
 
-void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, int flags, qboolean mergeintoexistingfile)
+void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, int flags, bool mergeintoexistingfile)
 {
 	int i, d, r, w, h, maxwidth, maxheight, cropx[2], cropy[2], addx[2], addy[2], cropwidth, cropheight, realwidth, realheight;
 	byte *colormap, *buf, normalalpha, color[4];
@@ -201,7 +202,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			// create initial image
 			// in Blood Omen, black pixels (0) were transparent
 			// also we optionally threating shadow pixel as transparent
-			buf = qmalloc(chunk->size * 4);
+			buf = (byte *)mem_alloc(chunk->size * 4);
 			for (h = 0; h < chunk->height; h++)
 			for (w = 0; w < chunk->width; w++)
 			{
@@ -329,7 +330,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			// test TGA output
 			char *out, *fin, *fout;
 			char sn[1024];
-			out = qmalloc(cropwidth*cropheight*4);
+			out = (byte *)mem_alloc(cropwidth*cropheight*4);
 			for (r = 0; r < cropheight; r++)
 			{
 				fin = buf + (cropy[0] + r)*chunk->width*4 + cropx[0]*4;
@@ -339,7 +340,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			}
 			sprintf(sn, "%s_%i.tga", outfile, i);
 			RawTGA(sn, cropwidth, cropheight, 0, 0, 0, 0, NULL, out, 32, NULL);
-			qfree(out);
+			mem_free(out);
 			*/
 
 			// write added/cropped pic
@@ -349,7 +350,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 				byte *e;
 				int es;
 				es = max( (addx[0] + addx[1]) * 4 , realwidth * max(addy[0], addy[1]) * 4);
-				e = qmalloc(es);
+				e = (byte *)mem_alloc(es);
 				memset(e, 0, es);
 				if (addy[0] > 0)
 					fwrite(e, realwidth * addy[0] * 4, 1, f);
@@ -363,14 +364,14 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 				}
 				if (addy[1] > 0)
 					fwrite(e, realwidth * addy[1] * 4, 1, f);
-				qfree(e);
+				mem_free(e);
 			}
 			else 
 			{
 				for (r = 0; r < cropheight; r++)
 					fwrite(buf + (cropy[0] + r)*chunk->width*4 + cropx[0]*4, cropwidth * 4, 1, f);
 			}
-			qfree(buf);
+			mem_free(buf);
 		}
 		else
 		{
@@ -384,7 +385,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 void SPR32_DecompileSprite(char *file)
 {
 	int bufsize, i, framehead[5], y;
-	char scriptfile[MAX_BLOODPATH], framepic[MAX_BLOODPATH], outfolder[MAX_BLOODPATH];
+	char scriptfile[MAX_OSPATH], framepic[MAX_OSPATH], outfolder[MAX_OSPATH];
 	byte *b, *buf, *buffer, *out, *in, *end;
 	spr_t sprheader;
 	FILE *f, *f2;
@@ -432,7 +433,7 @@ void SPR32_DecompileSprite(char *file)
 		sprintf(framepic, "frame%04i.tga", i);
 		Verbose("writing frame %s\n", framepic);
 		f2 = SafeOpenWrite(framepic);
-		buffer = qmalloc(framehead[3]*framehead[4]*4 + 18);
+		buffer = (byte *)mem_alloc(framehead[3]*framehead[4]*4 + 18);
 		memset(buffer, 0, 18);
 		buffer[2] = 2; // uncompressed
 		buffer[12] = (framehead[3] >> 0) & 0xFF;
@@ -454,20 +455,20 @@ void SPR32_DecompileSprite(char *file)
 			}
 		}
 		fwrite(buffer, framehead[3]*framehead[4]*4 + 18, 1, f2);
-		qfree(buffer);
+		mem_free(buffer);
 		WriteClose(f2);
 		// advance
 		buf+=framehead[3]*framehead[4]*4;
 		bufsize-=framehead[3]*framehead[4]*4;
 	}
 	WriteClose(f);
-	qfree(b);
+	mem_free(b);
 }
 
 int Spr32_Main(int argc, char **argv)
 {
-	char infile[MAX_BLOODPATH];
-	qboolean delmerged;
+	char infile[MAX_OSPATH];
+	bool delmerged;
 	list_t *mergelist;
 	int i;
 
