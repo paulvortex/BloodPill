@@ -52,6 +52,7 @@ typedef struct
 	char name[MAX_COLORMAP_NAME];
 	int colormapid; // index of colormap in colormaps array
 	int speechoffset;
+	char feedoffsets[128];
 	char bloodoffsets[128];
 	char spelloffsets[128];
 }legacymodel_t;
@@ -250,11 +251,15 @@ void Script_Parse(char *filename, char *basepath)
 						fputs("\n[macromodels]name=colormap,speechofs\n", f);
 						for (i = 0; i < legacymodels->num; i++)
 							fprintf(f, "%s=%i,%i\n", legacymodels->models[i].name, legacymodels->models[i].colormapid, legacymodels->models[i].speechoffset);
-						fputs("\n[macromodels.bloodofs]name=offsets\n", f);
+						fputs("\n[feed_tags]name=offsets\n", f);
+						for (i = 0; i < legacymodels->num; i++)
+							if (legacymodels->models[i].feedoffsets[0])
+								fprintf(f, "%s=%s\n", legacymodels->models[i].name, legacymodels->models[i].feedoffsets);
+						fputs("\n[blood_tags]name=offsets\n", f);
 						for (i = 0; i < legacymodels->num; i++)
 							if (legacymodels->models[i].bloodoffsets[0])
 								fprintf(f, "%s=%s\n", legacymodels->models[i].name, legacymodels->models[i].bloodoffsets);
-						fputs("\n[macromodels.spellofs]name=offsets\n", f);
+						fputs("\n[spell_tags]name=offsets\n", f);
 						for (i = 0; i < legacymodels->num; i++)
 							if (legacymodels->models[i].spelloffsets[0])
 								fprintf(f, "%s=%s\n", legacymodels->models[i].name, legacymodels->models[i].spelloffsets);
@@ -652,6 +657,20 @@ void Script_Parse(char *filename, char *basepath)
 							Error("speech: error parsing parm 1 on line %i\n", n);
 						else
 							legacymodels->models[currentmodel].speechoffset = atoi(com_token);
+					}
+					goto next;
+				}
+				//  feed 'offsets'
+				if (!strcmp(com_token, "feed")) 
+				{
+					if (currentmodel < 0)
+						Error("feed: requires model to be set first on line %i\n", n);
+					else
+					{
+						if (!(t = COM_Parse(t)))
+							Error("feed: error parsing parm 1 on line %i\n", n);
+						else
+							strncpy(legacymodels->models[currentmodel].feedoffsets, com_token, 128);
 					}
 					goto next;
 				}
