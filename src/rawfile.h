@@ -125,6 +125,18 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, bool cropeachchunk, int margin);
 rawblock_t *RawblockAlign(rawblock_t *rawblock, int margin);
 rawblock_t *RawblockPerturbate(rawblock_t *rawblock, list_t *includelist);
 rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock);
+typedef struct
+{
+	float x;
+	float y;
+	float width;
+	float height;
+	float centerx;
+	float centery;
+}
+rawblockslice_t;
+rawblock_t *RawblockSlice(rawblock_t *rawblock, rawblockslice_t *slices, int numslices);
+rawblock_t *RawblockSliceRecenter(rawblock_t *rawblock, rawblockslice_t *slices, int numslices);
 
 // raw blocks
 char *RawStringForResult(int rescode);

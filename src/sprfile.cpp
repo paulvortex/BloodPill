@@ -323,7 +323,20 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			cropheight = chunk->height - cropy[0] - cropy[1];
 			realwidth = cropwidth + addx[0] + addx[1];
 			realheight = cropheight + addy[0] + addy[1];
-			// printf(" frame %i cropped from %ix%i to %ix%i (saving %.2f kb)\n", i, chunk->width, chunk->height, cropwidth, cropheight, (float)(chunk->width*chunk->height - cropwidth*cropheight)/256);
+
+			// show sprite center
+			/*
+			printf("chunk origin %i %i %i %i\n", chunk->width, chunk->height, chunk->x + rawblock->posx + cx + cropx[1] - addx[1], chunk->y + rawblock->posy + cy - cropy[0] + addy[0]);
+			if (chunk->x <= 0 && abs(chunk->x) < chunk->width && chunk->y >= 0 && chunk->y < chunk->height)
+			{
+				buf[chunk->width * chunk->y * 4 + abs(chunk->x) * 4]     = 255;
+				buf[chunk->width * chunk->y * 4 + abs(chunk->x) * 4 + 1] = 0;
+				buf[chunk->width * chunk->y * 4 + abs(chunk->x) * 4 + 2] = 255;
+				buf[chunk->width * chunk->y * 4 + abs(chunk->x) * 4 + 3] = 255;
+			}
+			*/
+
+			//printf(" frame %i cropped from %ix%i to %ix%i (saving %.2f kb)\n", i, chunk->width, chunk->height, cropwidth, cropheight, (float)(chunk->width*chunk->height - cropwidth*cropheight)/256);
 			SPR_WriteFrameHeader(f, SPR_FRAME_SINGLE, realwidth, realheight, chunk->x + rawblock->posx + cx + cropx[1] - addx[1], chunk->y + rawblock->posy + cy - cropy[0] + addy[0]);
 			
 			/*

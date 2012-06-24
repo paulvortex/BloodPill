@@ -281,7 +281,7 @@ rawblock_t *RawErrorBlock(rawblock_t *block, int errorcode)
 	return block;
 }
 
-void RawBlockAllocateChunkSimple(rawblock_t *block, int chunknum, bool pixelsExternal)
+rawchunk_t *RawBlockAllocateChunkSimple(rawblock_t *block, int chunknum, bool pixelsExternal)
 {
 	if (chunknum < 0 || chunknum >= block->chunks)
 		Error("RawBlockAllocateChunk: bad chunk number %i", chunknum);
@@ -297,16 +297,18 @@ void RawBlockAllocateChunkSimple(rawblock_t *block, int chunknum, bool pixelsExt
 	block->chunk[chunknum].colormap = NULL;
 	block->chunk[chunknum].alphamap = NULL;
 	block->chunk[chunknum].pixelsExternal = pixelsExternal;
+
+	return &block->chunk[chunknum];
 }
 
-void RawBlockAllocateChunk(rawblock_t *block, int chunknum, int width, int height, int x, int y, bool pixelsExternal)
+rawchunk_t *RawBlockAllocateChunk(rawblock_t *block, int chunknum, int width, int height, int x, int y, bool pixelsExternal)
 {
 	block->chunk[chunknum].width = width;
 	block->chunk[chunknum].height = height;
 	block->chunk[chunknum].size = width*height;
 	block->chunk[chunknum].x = x;
 	block->chunk[chunknum].y = y;
-	RawBlockAllocateChunkSimple(block, chunknum, pixelsExternal);
+	return RawBlockAllocateChunkSimple(block, chunknum, pixelsExternal);
 }
 
 void RawBlockFreeChunk(rawblock_t *block, int chunknum)
@@ -523,7 +525,7 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, bool cropeachchunk, int margin)
 			{
 				for (r = 0; r < rawblock->chunk[i].width; r++)
 				{
-					ind = rawblock->chunk[i].pixels[(rawblock->chunk[i].height - cropy[0] - 1)*rawblock->chunk[i].width + r];
+					ind = rawblock->chunk[i].pixels[(rawblock->chunk[i].height - cropy[1] - 1)*rawblock->chunk[i].width + r];
 					if (ind != 0)
 						break;
 				}
@@ -727,12 +729,11 @@ rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock)
 	for (i = 0; i < rawblock->chunks; i++)
 	{
 		chunk = &rawblock->chunk[i];
-		RawBlockAllocateChunk(newrawblock, i, chunk->width*2, chunk->height*2, chunk->x*2, chunk->y*2, false);
+		newchunk = RawBlockAllocateChunk(newrawblock, i, chunk->width*2, chunk->height*2, chunk->x*2, chunk->y*2, false);
 		newrawblock->chunk[i].colormap = rawblock->chunk[i].colormap;
 		newrawblock->chunk[i].colormapExternal = true;
 		newrawblock->chunk[i].alphamap = rawblock->chunk[i].alphamap;
 		newrawblock->chunk[i].alphamapExternal = true;
-		newchunk = &newrawblock->chunk[i];
 		// simple 2x nearest scale
 		// fixme: optimize
 		out = newchunk->pixels;
@@ -751,6 +752,82 @@ rawblock_t *RawblockScale2x_Nearest(rawblock_t *rawblock)
 		}
 	}
 	return newrawblock;
+}
+
+// returns new "sliced" rawblock based on existing rawblock and slice info
+rawblock_t *RawblockSlice(rawblock_t *rawblock, rawblockslice_t *slices, int numslices)
+{
+	rawblock_t *newrawblock;
+	rawchunk_t *chunk, *newchunk;
+	rawblockslice_t *slice;
+	int i, j, r, num, sizex, sizey, x, y;
+	byte *in, *out;
+
+	newrawblock = EmptyRawBlock(rawblock->chunks * numslices);
+	newrawblock->colormap = rawblock->colormap;
+	newrawblock->colormapExternal = true;
+	newrawblock->alphamap = rawblock->alphamap;
+	newrawblock->alphamapExternal = true;
+	newrawblock->posx = 0;
+	newrawblock->posy = 0;
+	newrawblock->errorcode = rawblock->errorcode;
+	newrawblock->notEOF = rawblock->notEOF;
+
+	num = 0;
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		chunk = &rawblock->chunk[i];
+		for (j = 0; j < numslices; j++)
+		{	
+			slice = &slices[j];
+			x = min((int)((float)chunk->width * (float)slice->x), chunk->width - 1);
+			y = min((int)((float)chunk->height * (float)slice->y), chunk->height - 1);
+			sizex = min((int)((float)chunk->width * (float)slice->width), chunk->width - x);
+			sizey = min((int)((float)chunk->height * (float)slice->height), chunk->height - y);
+			newchunk = RawBlockAllocateChunk(newrawblock, num, sizex, sizey, 0, 0, false);
+			newchunk->colormap = chunk->colormap;
+			newchunk->colormapExternal = true;
+			newchunk->alphamap = chunk->alphamap;
+			newchunk->alphamapExternal = true;
+			// copy pixels
+			for (r = 0; r < newchunk->height; r++)
+			{
+				in = chunk->pixels + (chunk->width * (y + r)) + x;
+				out = newchunk->pixels + newchunk->width * r;
+				memcpy(out, in, newchunk->width);
+			}
+			num++;
+		}
+	}
+
+	return newrawblock;
+}
+
+// recenter chunks for raw block
+rawblock_t *RawblockSliceRecenter(rawblock_t *rawblock, rawblockslice_t *slices, int numslices)
+{
+	rawchunk_t *chunk;
+	rawblockslice_t *slice;
+	int i, j, num;
+
+	rawblock = RawblockCrop(rawblock, true, 0);
+	rawblock->posx = 0;
+	rawblock->posy = 0;
+
+	num = 0;
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		chunk = &rawblock->chunk[i];
+		for (j = 0; j < numslices; j++)
+		{	
+			slice = &slices[j];
+			chunk->x = (int)(0 - (chunk->width * slice->centerx));
+			chunk->y = (int)(chunk->height * slice->centerx);
+			num++;
+		}
+	}
+
+	return rawblock;
 }
 
 /*

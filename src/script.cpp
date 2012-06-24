@@ -115,8 +115,8 @@ void Script_Parse(char *filename, char *basepath)
 	
 	// read file
 	Verbose("%s:\n", filename);
-	sargv = (char **)mem_alloc(sizeof(char *)*32);
-	for (sargc = 0; sargc < 32; sargc++)
+	sargv = (char **)mem_alloc(sizeof(char *)*256);
+	for (sargc = 0; sargc < 256; sargc++)
 		sargv[sargc] = (char *)mem_alloc(128);
 	scriptsize = LoadFile(filename, &scriptstring);
 	FlushRawInfo(&rawinfo);
@@ -322,7 +322,7 @@ void Script_Parse(char *filename, char *basepath)
 								data = (byte *)extract_parms;
 								while(data = (byte *)COM_Parse((char *)data))
 								{
-									if (sargc >= 32)
+									if (sargc >= 256)
 										Error("extract: too many arguments!\n", n);
 									else
 										strncpy(sargv[sargc], com_token, 128);
@@ -345,7 +345,7 @@ void Script_Parse(char *filename, char *basepath)
 										continue;
 									}
 									// add
-									if (sargc >= 32)
+									if (sargc >= 256)
 										Error("extract: too many arguments!\n", n);
 									else
 										strncpy(sargv[sargc], com_token, 128);
@@ -794,7 +794,7 @@ void Script_Parse(char *filename, char *basepath)
 									sargc = 0;
 									while (t = COM_Parse(t))
 									{
-										if (sargc >= 32)
+										if (sargc >= 256)
 											Error("spr: too many arguments!\n", n);
 										else
 										{
@@ -805,7 +805,7 @@ void Script_Parse(char *filename, char *basepath)
 									data = (byte *)spr_parms;
 									while (data = (byte *)COM_Parse((char *)data))
 									{
-										if (sargc >= 32)
+										if (sargc >= 256)
 											Error("spr: too many arguments!\n", n);
 										else
 										{

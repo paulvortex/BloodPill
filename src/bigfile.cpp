@@ -1590,13 +1590,14 @@ int BigFile_List(int argc, char **argv)
 
 void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_t *entry, rawblock_t *rawblock, char *format)
 {
-	int i, num, minp, maxp, margin, aver, diff, spritex, spritey, spriteflags;
+	int i, num, minp, maxp, margin, aver, diff, spritex, spritey, spriteflags, numslices;
 	sprtype_t spritetype = SPR_VP_PARALLEL;
-	rawblock_t *tb1, *tb2, *tb3, *tb4;
-	bool noalign, nocrop, flip, scale, merge;
+	rawblock_t *tb1, *tb2, *tb3, *tb4, *tb5, *tb6;
+	bool noalign, nocrop, flip, scale, merge, slice;
 	byte pix, shadowpix;
 	byte c[3], oldcolormap[768], oldalphamap[256], loadedcolormap[768];
 	double colorscale, cscale, alphascale;
+	rawblockslice_t slices[16];
 	list_t *includelist;
 	FILE *f;
 
@@ -1613,6 +1614,8 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	alphascale = 1.0f;
 	scale = false;
 	merge = false;
+	slice = false;
+	numslices = 0;
 	// copy out colormap & alphamap
 	if (rawblock->colormap)
 		memcpy(oldcolormap, rawblock->colormap, 768);
@@ -1658,6 +1661,32 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			{
 				ListAdd(includelist, argv[i], true);
 				Verbose("Option: include chunks '%s'\n", argv[i]);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-slice"))
+		{
+			slice = true;
+			if (numslices >= 15)
+				Warning("-slice: MAX_SLICES 16 reached");
+			else if (i+6 >= argc)
+				Warning("-slice: not enough parameters");
+			else
+			{
+				i++;
+				slices[numslices].x = (float)(atof(argv[i]) / 100.0f);
+				i++;
+				slices[numslices].y = (float)(atof(argv[i]) / 100.0f);
+				i++;
+				slices[numslices].width = (float)(atof(argv[i]) / 100.0f);
+				i++;
+				slices[numslices].height = (float)(atof(argv[i]) / 100.0f);
+				i++;
+				slices[numslices].centerx = (float)(atof(argv[i]) / 100.0f);
+				i++;
+				slices[numslices].centery = (float)(atof(argv[i]) / 100.0f);
+				Verbose("Option: slice chunk %i%%x%i%% at pos %i%%x%i%% with center at %i%%x%i%%\n", (int)(slices[numslices].width * 100), (int)(slices[numslices].height * 100), (int)(slices[numslices].x * 100), (int)(slices[numslices].y * 100), (int)(slices[numslices].centerx * 100), (int)(slices[numslices].centery * 100));
+				numslices++;
 			}
 			continue;
 		}
@@ -1924,10 +1953,18 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	tb2 = NULL;
 	tb3 = NULL;
 	tb4 = NULL;
+	tb5 = NULL;
+	tb6 = NULL;
 	if (includelist->items)
 	{
 		Print("Perturbating...\n");
 		rawblock = tb1 = RawblockPerturbate(rawblock, includelist);
+	}
+	// slice
+	if (slice && numslices)
+	{
+		Print("Slicing...\n");
+		rawblock = tb5 = RawblockSlice(rawblock, slices, numslices);
 	}
 	// aligning/cropping/flipping (alternate offsetting) or just flipping (original offsetting)
 	if (!noalign)
@@ -1952,6 +1989,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 		Print("Flipping...\n");
 		RawblockFlip(rawblock, true);
 	}
+
 	// scaling
 	if (scale)
 	{
@@ -1959,6 +1997,13 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 		spritex = spritex * 2;
 		spritey = spritey * 2;
 		rawblock = tb4 = RawblockScale2x_Nearest(rawblock);
+	}
+
+	// recenter if slicing
+	if (slice && numslices)
+	{
+		Print("Recenter sliced chunks...\n");
+		rawblock = tb6 = RawblockSliceRecenter(rawblock, slices, numslices);
 	}
 
 	// write file
@@ -2002,6 +2047,8 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	if (tb2) FreeRawBlock(tb2);
 	if (tb3) FreeRawBlock(tb3);
 	if (tb4) FreeRawBlock(tb4);
+	if (tb5) FreeRawBlock(tb5);
+	if (tb6) FreeRawBlock(tb6);
 	FreeList(includelist);
 }
 
@@ -2028,6 +2075,17 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 				strcpy(temp, effects);
 				sprintf(effects, "%s trim %s", temp, argv[i]);
 				Verbose("Option: trim start by %s seconds\n", argv[i]);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-fadein"))
+		{
+			i++;
+			if (i < argc)
+			{
+				strcpy(temp, effects);
+				sprintf(effects, "%s fade h %s", temp, argv[i]);
+				Verbose("Option: fade in %s seconds\n", argv[i]);
 			}
 			continue;
 		}
