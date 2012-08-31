@@ -1221,6 +1221,7 @@ bool wrapfilestomem;
 // wrapped file struct
 typedef struct wrapfile_s
 {
+	char tempname[MAX_OSPATH];
 	char realname[MAX_OSPATH];
 	unsigned int filesize;
 	struct wrapfile_s *next;
@@ -1240,6 +1241,7 @@ void FreeWrappedFiles()
 	{
 		next = current->next;
 		fclose(current->f);
+		remove(current->tempname);
 		mem_free(current);
 		current = next;
 	}
@@ -1316,6 +1318,7 @@ FILE *SafeOpenWrite (char *filename)
 	{
 		// link to chain
 		wrapf = (wrapfile_t *)mem_alloc(sizeof(wrapfile_t));
+		memset(wrapf, 0, sizeof(wrapfile_t));
 		wrapf->filesize = 0;
 		wrapf->next = NULL;
 		strcpy(wrapf->realname, filename);
@@ -1329,10 +1332,12 @@ FILE *SafeOpenWrite (char *filename)
 			current->next = wrapf;
 		}
 		// return a tempfile
-		wrapf->f = tmpfile();
+		TempFileName(wrapf->tempname);
+		printf("tmpname: %s\n", wrapf->tempname);
+		wrapf->f = fopen(wrapf->tempname, "wb+");
 		f = wrapf->f;
 		if (!f)
-			Error("Error opening temp file %s: %s",filename,strerror(errno));
+			Error("Error opening temp file %s: %s", filename, strerror(errno));
 	}
 	return f;
 }
