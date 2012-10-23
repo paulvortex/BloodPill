@@ -1333,7 +1333,7 @@ FILE *SafeOpenWrite (char *filename)
 		}
 		// return a tempfile
 		TempFileName(wrapf->tempname);
-		printf("tmpname: %s\n", wrapf->tempname);
+		//printf("tmpname: %s\n", wrapf->tempname);
 		wrapf->f = fopen(wrapf->tempname, "wb+");
 		f = wrapf->f;
 		if (!f)
