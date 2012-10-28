@@ -927,7 +927,7 @@ int Script_Main(int argc, char **argv)
 	debugon = false;
 	bigfile = NULL;
 	bigklist = NULL;
-	strcpy(basepath, "./");
+	strcpy(basepath, "");
 	for (i = 2; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-debug"))
