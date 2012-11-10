@@ -828,7 +828,7 @@ static void MapDrawBorder(byte *map_image, int row, int col, byte r, byte g, byt
 }
 
 // draw a picture (sprite or tim)
-static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, byte subpic, bool solid, bool align_center)
+static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, byte subpic, bool solid, bool align_center, float r, float g, float b)
 {
 	int i, j, x, y, startx, starty, width, height;
 	byte *out, *in;
@@ -891,9 +891,9 @@ static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, b
 			out = (byte *)map_image + 80*32*3*(x + i) + 3*(y);
 			for (j = 0; j < width; j++)
 			{
-				out[0] = in[0];
-				out[1] = in[1];
-				out[2] = in[2];
+				out[0] = (byte)min(255, max(0, in[0] * r));
+				out[1] = (byte)min(255, max(0, in[1] * g));
+				out[2] = (byte)min(255, max(0, in[2] * b));
 				out += 3;
 				in += 3;
 			}
@@ -916,15 +916,15 @@ static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, b
 			{
 				if ((in[0] == 8 && in[1] == 16 && (in[2] == 32 || in[2] == 33)) || (in[0] == 9 && in[1] == 17 && in[2] == 36))
 				{
-					out[0] = (byte)(out[0] * 0.5) + (byte)(in[0] * 0.5);
-					out[1] = (byte)(out[1] * 0.5) + (byte)(in[1] * 0.5);
-					out[2] = (byte)(out[2] * 0.5) + (byte)(in[2] * 0.5);
+					out[0] = (byte)min(255, max(0, (float)(out[0] + in[0]) * 0.5 * r));
+					out[1] = (byte)min(255, max(0, (float)(out[1] + in[1]) * 0.5 * g));
+					out[2] = (byte)min(255, max(0, (float)(out[2] + in[2]) * 0.5 * b));
 				}
 				else 
 				{
-					out[0] = in[0];
-					out[1] = in[1];
-					out[2] = in[2];
+					out[0] = (byte)min(255, max(0, (float)in[0] * r));
+					out[1] = (byte)min(255, max(0, (float)in[1] * g));
+					out[2] = (byte)min(255, max(0, (float)in[2] * b));
 				}
 			}
 			out += 3;
@@ -934,7 +934,7 @@ static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, b
 }
 
 // draws a string
-static void MapDrawString(byte *map_image, float row, float col, char *str, bool center_align)
+static void MapDrawString(byte *map_image, float row, float col, char *str, bool center_align, float r, float g, float b)
 {
 	float stringwidth, stringheight;
 	cachepic_t *fontmap;
@@ -997,7 +997,7 @@ static void MapDrawString(byte *map_image, float row, float col, char *str, bool
 				row += 18.0f / 32.0f;
 			continue;
 		}
-		MapDrawPic(map_image, row, col, fontmap, c, false, false);
+		MapDrawPic(map_image, row, col, fontmap, c, false, false, r, g, b);
 		row += (float)(fontmap->subpics->tex[c].w / 32.0f) + 1.0f/32.0f;
 	}
 }
@@ -1153,7 +1153,7 @@ static void Draw_TriggerLine(bo_map_t *map, byte *map_image, int row, int col, u
 	}
 }
 
-// draw a trigger bortder for objecfts that are activated from another level
+// draw a trigger border for objecfts that are activated from another level
 static void Draw_NoTrigger(bo_map_t *map, byte *map_image, int row, int col, unsigned short t)
 {
 	int i;
@@ -1230,7 +1230,7 @@ static void Draw_Path(byte *map_image, int row1, int col1, int row2, int col2, b
 ==========================================================================================
 */
 				
-int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, bool with_solid, bool with_triggers, byte toggled_objects, bool developer, int devnum, bool group_sections_by_path)
+int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, bool with_solid, bool with_triggers, bool show_save_id, byte toggled_objects, bool developer, int devnum, bool group_sections_by_path)
 {
 	int i, j, decSize;
 	int map_mincol, map_minrow, map_maxcol, map_maxrow;
@@ -1303,7 +1303,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 				if (pic)
 				{
 					pic->subpics = &subpics_grp; // always use standart tilemap 
-					MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), true, false);
+					MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), true, false, 1.0f, 1.0f, 1.0f);
 				}
 			}
 			// tile2
@@ -1321,7 +1321,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 				if (pic)
 				{
 					pic->subpics = &subpics_grp; // always use standart tilemap 
-					MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false);
+					MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false, 1.0f, 1.0f, 1.0f);
 				}
 			}
 		}
@@ -1340,7 +1340,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 			if (pic)
 			{
 				pic->subpics = &subpics_grp; // always use standart tilemap 
-				MapDrawPic(map_image, (float)map.atiles[i].x, (float)map.atiles[i].y, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false);
+				MapDrawPic(map_image, (float)map.atiles[i].x, (float)map.atiles[i].y, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false, 1.0f, 1.0f, 1.0f);
 			}
 		}
 	}
@@ -1373,7 +1373,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 				if (pic)
 				{
 					pic->subpics = &subpics_grp; // always use standart tilemap 
-					MapDrawPic(map_image, (float)map.triggers[j].x, (float)map.triggers[j].y, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false);
+					MapDrawPic(map_image, (float)map.triggers[j].x, (float)map.triggers[j].y, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false, 1.0f, 1.0f, 1.0f);
 				}
 			}
 		}
@@ -1413,7 +1413,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 					pic->subpics->tex[0].h = min(map.grpobjects[tilegroup][subpic].h, 256 -  map.grpobjects[tilegroup][subpic].y);
 					pic->subpics->tex[0].ofsx = map.grpobjects[tilegroup][subpic].ofsx * 32;
 					pic->subpics->tex[0].ofsy = map.grpobjects[tilegroup][subpic].ofsy * 32;
-					MapDrawPic(map_image, (float)map.scenery[i].x, (float)map.scenery[i].y, pic, 0, false, false);
+					MapDrawPic(map_image, (float)map.scenery[i].x, (float)map.scenery[i].y, pic, 0, false, false, 1.0f, 1.0f, 1.0f);
 				}
 			}
 		}
@@ -1535,7 +1535,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 		}
 		pic = CachePic(picname);
 		if (pic)
-			MapDrawPic(map_image, map.items[i].x, map.items[i].y, pic, subpic, false, true);
+			MapDrawPic(map_image, map.items[i].x, map.items[i].y, pic, subpic, false, true, 1.0f, 1.0f, 1.0f);
 		else
 			MapDrawColor(map_image, map.items[i].x, map.items[i].y, 0, 128, 0);
 	}
@@ -1553,7 +1553,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 		if (!pic)
 			MapDrawColor(map_image, map.monsters[i].x, map.monsters[i].y, 64, 128, 128);
 		else
-			MapDrawPic(map_image, map.monsters[i].x + 0.5f, map.monsters[i].y + 0.5f, pic, 0, false, false);
+			MapDrawPic(map_image, map.monsters[i].x + 0.5f, map.monsters[i].y + 0.5f, pic, 0, false, false, 1.0f, 1.0f, 1.0f);
 	}
 
 	// effects, defines 2 things:
@@ -1576,7 +1576,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 			sprintf(filename, "eff%05i.sdr", map.sprites[map.effects[i].sprite]);
 			pic = CachePic(filename);
 			if (pic)
-				MapDrawPic(map_image, map.effects[i].x + 0.5f, map.effects[i].y + 0.5f, pic, 0, false, false);
+				MapDrawPic(map_image, map.effects[i].x + 0.5f, map.effects[i].y + 0.5f, pic, 0, false, false, 1.0f, 1.0f, 1.0f);
 		}
 	}
 
@@ -1603,7 +1603,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 				if (pic)
 				{
 					pic->subpics = &subpics_grp; // always use standart tilemap 
-					MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), true, false);
+					MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), true, false, 1.0f, 1.0f, 1.0f);
 				}
 			}
 			// tile2
@@ -1621,7 +1621,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 				if (pic)
 				{
 					pic->subpics = &subpics_grp; // always use standart tilemap 
-					MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false);
+					MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false, 1.0f, 1.0f, 1.0f);
 				}
 			}
 		}
@@ -1641,7 +1641,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 			if (pic)
 			{
 				pic->subpics = &subpics_grp; // always use standart tilemap 
-				MapDrawPic(map_image, (float)map.atiles[i].x, (float)map.atiles[i].y, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false);
+				MapDrawPic(map_image, (float)map.atiles[i].x, (float)map.atiles[i].y, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false, 1.0f, 1.0f, 1.0f);
 			}
 		}
 		// draw contents
@@ -1729,25 +1729,25 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 						MapDrawBorder(map_image, map.triggers[i].x, map.triggers[i].y, 0, 64, 0, 8, 1);
 					}
 					sprintf(filename, "%03i", map.triggers[i].parm1);
-					MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.33f, filename, true);
+					MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.33f, filename, true, 1.0f, 1.0f, 1.0f);
 					sprintf(filename, "%02i", map.triggers[i].parm3);
-					MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.67f, filename, true);
+					MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.67f, filename, true, 1.0f, 1.0f, 1.0f);
 				}
 				break;
 			case TRIGGER_SPEECHMARK:
 			case TRIGGER_IMAGEMARK:
-				MapDrawPic(map_image, map.triggers[i].x, map.triggers[i].y, CachePic("gam.tim"), 0, false, true);
+				MapDrawPic(map_image, map.triggers[i].x, map.triggers[i].y, CachePic("gam.tim"), 0, false, true, 1.0f, 1.0f, 1.0f);
 				if (with_triggers)
 				{
 					if (map.triggers[i].parm1 != 0xFFFE)
 					{
 						sprintf(filename, "%03i", map.triggers[i].parm1);
-						MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.33f, filename, true);
+						MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.33f, filename, true, 1.0f, 1.0f, 1.0f);
 					}
 					if (map.triggers[i].parm2 != 0xFFFF)
 					{
 						sprintf(filename, "%i", map.triggers[i].parm2);
-						MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.67f, filename, true);
+						MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.67f, filename, true, 1.0f, 1.0f, 1.0f);
 					}
 				}
 				break;
@@ -1769,9 +1769,9 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 						MapDrawBorder(map_image, map.triggers[i].x, map.triggers[i].y, 64, 0, 0, 1, 2);
 						MapDrawBorder(map_image, map.triggers[i].x, map.triggers[i].y, 64, 0, 0, 8, 1);
 						sprintf(filename, "%03i", map.triggers[i].parm1);
-						MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.33f, filename, true);
+						MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.33f, filename, true, 1.0f, 1.0f, 1.0f);
 						sprintf(filename, "%02i", map.triggers[i].parm3);
-						MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.67f, filename, true);
+						MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.67f, filename, true, 1.0f, 1.0f, 1.0f);
 					}
 				}
 				break;
@@ -1869,7 +1869,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 			if (map.monsters[i].speechnum != 0xFFFF)
 			{
 				sprintf(filename, "%03i", map.monsters[i].speechnum);
-				MapDrawString(map_image, map.monsters[i].x + 0.5f, map.monsters[i].y + 0.5f, filename, true);
+				MapDrawString(map_image, map.monsters[i].x + 0.5f, map.monsters[i].y + 0.5f, filename, true, 1.0f, 1.0f, 1.0f);
 			}
 
 			// path (buggy)
@@ -1888,22 +1888,83 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 
 		// print map info
 		f = max(0.5f, map_minrow - 1.5f);
+		ExtractFileBase(mapfile, filename);
+		MapDrawString(map_image, max(0.5f, map_mincol - 1.5f), f, filename, false, 1.0f, 1.0f, 1.0f);
+		f += 0.35f;
 		sprintf(filename, "MAP %03i SECTION %02i", map_num, map_section);
-		MapDrawString(map_image, max(0.5f, map_mincol - 1.5f), f, filename, false);
+		MapDrawString(map_image, max(0.5f, map_mincol - 1.5f), f, filename, false, 1.0f, 1.0f, 1.0f);
 		if (toggled_objects)
 		{
 			f += 0.25f;
-			MapDrawString(map_image, max(0.5f, map_mincol - 1.5f), f, "toggleable objects using alternative state", false);
+			MapDrawString(map_image, max(0.5f, map_mincol - 1.5f), f, "toggleable objects using alternative state", false, 1.0f, 1.0f, 1.0f);
 		}
 		if (with_triggers)
 		{
 			f += 0.25f;
-			MapDrawString(map_image, max(0.5f, map_mincol - 1.5f), f, "triggers and misc info are shown", false);
+			MapDrawString(map_image, max(0.5f, map_mincol - 1.5f), f, "triggers and misc info are shown", false, 1.0f, 1.0f, 1.0f);
+		}
+		if (show_save_id)
+		{
+			f += 0.25f;
+			MapDrawString(map_image, max(0.5f, map_mincol - 1.5f), f, "savegame identifiers are shown", false, 1.0f, 1.0f, 1.0f);
 		}
 		if (with_solid)
 		{
 			f += 0.25f;
-			MapDrawString(map_image, max(0.5f, map_mincol - 1.5f), f, "content zones are shown", false);
+			MapDrawString(map_image, max(0.5f, map_mincol - 1.5f), f, "content zones are shown", false, 1.0f, 1.0f, 1.0f);
+		}
+	}
+
+	// save identifiers
+	Print("Assembling save identifiers...\n");
+	if (show_save_id)
+	{
+		// for monsters
+		for (i = 0; i < 32; i++)
+		{
+			if (map.monsters[i].u1[12] == 0xFF) // monster is empty?
+				continue;
+			strcpy(filename, "0");
+			if (map.monsters[i].savenum != 0)
+				sprintf(filename, "%03i", map.monsters[i].savenum);
+			MapDrawString(map_image, map.monsters[i].x + 0.5f, map.monsters[i].y + 0.0f, filename, true, 0.7f, 0.9f, 1.5f);
+		}
+		// for items
+		for (i = 0; i < 50; i++)
+		{
+			if (map.items[i].savenum == 0xFFFF) // item is empty?
+				continue;
+			strcpy(filename, "0");
+			if (map.items[i].savenum != 0)
+				sprintf(filename, "%03i", map.items[i].savenum);
+			MapDrawString(map_image, map.items[i].x + 0.5f, map.items[i].y + 0.0f, filename, true, 0.7f, 0.9f, 1.5f);
+		}
+		// for buttons
+		for (i = 0; i < 20; i++)
+		{
+			if (!map.buttons[i].savenum)
+				continue;
+			for (j = 0; j < 256; j++)
+				if (map.triggers[j].type == TRIGGER_TOUCH && map.triggers[j].parm2 == i)
+					break;
+			if (j >= 256)
+				continue;
+			sprintf(filename, "%03i", map.buttons[i].savenum);
+			MapDrawString(map_image, map.triggers[i].x + 0.5f, map.triggers[i].y + 0.0f, filename, true, 0.7f, 0.9f, 1.5f);
+		}
+		// for scenery
+		for (i = 0; i < 256; i++)
+		{
+			if (!map.scenery[i].active)
+				continue;
+			tilepix = (toggled_objects ? (map.scenery[i].toggled ? map.scenery[i].tile2 : (map.scenery[i].destructible ? map.scenery[i].tile3 : map.scenery[i].tile1)) : map.scenery[i].tile1);
+			if (tilepix != 0xFFFF && !(tilepix & TILEFLAG_NODRAW))
+			{
+				strcpy(filename, "0");
+				if (map.scenery[i].savenum != 0)
+					sprintf(filename, "%03i", map.scenery[i].savenum);
+				MapDrawString(map_image, map.scenery[i].x + 0.5f, map.scenery[i].y + 0.0f, filename, true, 0.7f, 0.9f, 1.5f);
+			}
 		}
 	}
 
@@ -1919,7 +1980,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 		// test
 		picname = (byte *)(&map.triggers[i]);
 		sprintf(filename, "%i", 0);
-		MapDrawString(map_image, map.monsters[i].x + 0.5f, map.monsters[i].y + 0.5f, filename, true);
+		MapDrawString(map_image, map.monsters[i].x + 0.5f, map.monsters[i].y + 0.5f, filename, true, 1.0f, 1.0f, 1.0f);
 	}
 	*/
 
@@ -1979,7 +2040,7 @@ int MapConvert_Main(int argc, char **argv)
 {
 	int i = 1, devnum;
 	char filename[MAX_OSPATH], tilespath[MAX_OSPATH], ext[5], outfile[MAX_OSPATH], *c;
-	bool with_solid, with_triggers, toggled_objects, developer;
+	bool with_solid, with_triggers, show_save_id, toggled_objects, developer;
 	byte *fileData;
 	int fileSize;
 
@@ -2005,6 +2066,7 @@ int MapConvert_Main(int argc, char **argv)
 	// parse cmdline
 	with_solid = false;
 	with_triggers = false;
+	show_save_id = false;
 	toggled_objects = false;
 	developer = false;
 	strcpy(tilespath, "");
@@ -2036,6 +2098,12 @@ int MapConvert_Main(int argc, char **argv)
 			with_triggers = true;
 			continue;
 		}
+		if (!strcmp(argv[i], "-s"))
+		{
+			Verbose("Option: showing save identifiers\n");
+			show_save_id = true;
+			continue;
+		}
 		if (!strcmp(argv[i], "-a"))
 		{
 			Verbose("Option: dynamic objects in alternative state\n");
@@ -2063,7 +2131,7 @@ int MapConvert_Main(int argc, char **argv)
 
 	// open source file, try load it
 	fileSize = LoadFile(filename, &fileData);
-	MapExtract(filename, fileData, fileSize, outfile, NULL, NULL, tilespath, with_solid, with_triggers, toggled_objects, developer, devnum, false);
+	MapExtract(filename, fileData, fileSize, outfile, NULL, NULL, tilespath, with_solid, with_triggers, show_save_id, toggled_objects, developer, devnum, false);
 
 	return 0;
 }

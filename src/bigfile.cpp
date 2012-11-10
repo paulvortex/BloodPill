@@ -955,8 +955,8 @@ void BigFileUnpackOriginalEntry(bigfileentry_t *entry, char *dstdir, bool place_
 	SaveFile(savefile, entry->data, entry->size);
 }
 
-int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, bool with_solid, bool with_triggers, byte toggled_objects, bool developer, int devnum, bool group_sections_by_path);
-void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry_t *entry, char *dstdir, bool tim2tga, bool bpp16to24, bool nopaths, int adpcmconvert, int vagconvert, bool rawconvert, rawtype_t forcerawtype, bool rawnoalign, bool map2tga, bool map_show_contents, bool map_show_triggers, bool map_toggled_objects)
+int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, bool with_solid, bool with_triggers, bool show_save_id, byte toggled_objects, bool developer, int devnum, bool group_sections_by_path);
+void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry_t *entry, char *dstdir, bool tim2tga, bool bpp16to24, bool nopaths, int adpcmconvert, int vagconvert, bool rawconvert, rawtype_t forcerawtype, bool rawnoalign, bool map2tga, bool map_show_contents, bool map_show_triggers, bool map_show_save_id, bool map_toggled_objects)
 {
 	char savefile[MAX_OSPATH], outfile[MAX_OSPATH], basename[MAX_OSPATH], path[MAX_OSPATH];
 	char inputcmd[512], outputcmd[512];
@@ -1037,7 +1037,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 				oldprint = noprint;
 				noprint = true;
 				sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
-				MapExtract(basename, entry->data, entry->size, outfile, bigfileheader, bigf, "", map_show_contents, map_show_triggers, map_toggled_objects, false, 0, nopaths ? false : true);
+				MapExtract(basename, entry->data, entry->size, outfile, bigfileheader, bigf, "", map_show_contents, map_show_triggers, map_show_save_id, map_toggled_objects, false, 0, nopaths ? false : true);
 				noprint = oldprint;
 			}
 			else
@@ -2215,7 +2215,7 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *entry, char *outfile)
 {
 	char filename[MAX_OSPATH], basename[MAX_OSPATH], format[512], last;
-	bool with_solid, with_triggers, toggled_objects;
+	bool with_solid, with_triggers, show_save_id, toggled_objects;
 	bigfileheader_t *bigfileheader;
 	rawblock_t *rawblock;
 	byte *data;
@@ -2228,6 +2228,7 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 	// additional parms
 	with_solid = false;
 	with_triggers = false;
+	show_save_id = false;
 	toggled_objects = false;
 	ExtractFileExtension(outfile, format);
 	for (i = 0; i < argc; i++)
@@ -2252,6 +2253,12 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 		{
 			Verbose("Option: showing triggers\n");
 			with_triggers = true;
+			continue;
+		}
+		if (!strcmp(argv[i], "-s"))
+		{
+			Verbose("Option: showing save identifiers\n");
+			show_save_id = true;
 			continue;
 		}
 		if (!strcmp(argv[i], "-a"))
@@ -2431,7 +2438,7 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			if (!stricmp(format, "tga"))
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
-				MapExtract(entry->name, entry->data, entry->size, filename, bigfileheader, bigfile, "", with_solid, with_triggers, toggled_objects, false, 0, false);
+				MapExtract(entry->name, entry->data, entry->size, filename, bigfileheader, bigfile, "", with_solid, with_triggers, show_save_id, toggled_objects, false, 0, false);
 			}
 			else Error("unknown format '%s'\n", format);
 			mem_free(entry->data);
@@ -2483,7 +2490,7 @@ int BigFile_Unpack(int argc, char **argv)
 {
 	FILE *f, *f2;
 	char savefile[MAX_OSPATH], dstdir[MAX_OSPATH];
-	bool tim2tga, bpp16to24, nopaths, rawconvert, rawnoalign, hashnamesonly, map2tga, map_show_triggers, map_show_contents, map_toggled_objects;
+	bool tim2tga, bpp16to24, nopaths, rawconvert, rawnoalign, hashnamesonly, map2tga, map_show_triggers, map_show_contents, map_show_save_id, map_toggled_objects;
 	rawtype_t forcerawtype;
 	bigfileheader_t *data;
 	list_t *ixlist;
@@ -2504,6 +2511,7 @@ int BigFile_Unpack(int argc, char **argv)
 	hashnamesonly = false;
 	map_show_triggers = false;
 	map_show_contents = false;
+	map_show_save_id = false;
 	map_toggled_objects = false;
 	if (argc > 0)
 	{
@@ -2558,6 +2566,12 @@ int BigFile_Unpack(int argc, char **argv)
 			{
 				Verbose("Option: Map - showing triggers\n");
 				map_show_triggers = true;
+				continue;
+			}
+			if (!strcmp(argv[i], "-mapsaveid"))
+			{
+				Verbose("Option: Map - showing save identifiers\n");
+				map_show_save_id = true;
 				continue;
 			}
 			if (!strcmp(argv[i], "-maptoggled"))
@@ -2647,7 +2661,7 @@ int BigFile_Unpack(int argc, char **argv)
 			if (!MatchIXList(&data->entries[i], ixlist, true, true))
 				continue;
 		Pacifier("unpacking entry %i of %i...", i + 1, data->numentries);
-		BigFileUnpackEntry(data, f, &data->entries[i], dstdir, tim2tga, bpp16to24, nopaths, adpcmconvert, vagconvert, rawconvert, forcerawtype, rawnoalign, map2tga, map_show_contents, map_show_triggers, map_toggled_objects);
+		BigFileUnpackEntry(data, f, &data->entries[i], dstdir, tim2tga, bpp16to24, nopaths, adpcmconvert, vagconvert, rawconvert, forcerawtype, rawnoalign, map2tga, map_show_contents, map_show_triggers, map_show_save_id, map_toggled_objects);
 	}
 	PacifierEnd();
 

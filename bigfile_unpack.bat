@@ -1,1 +1,1 @@
-bpill -w -bigfile pill.big -unpack -tim2tga -raw2tga -adpcm2pcm -vag2wav -map2tga -maptriggers
+bpill -w -bigfile pill.big -unpack bigfile -tim2tga -raw2tga -adpcm2pcm -vag2wav -map2tga -maptriggers -mapsaveid

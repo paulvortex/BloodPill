@@ -110,7 +110,7 @@ typedef struct
 	byte y;                  // end position
 	byte w;                  // width
 	byte h;                  // height
-	byte ofsx;              // multiply by 16 to get real offset
+	byte ofsx;               // multiply by 16 to get real offset
 	byte ofsy;               // multiply by 16 to get real offset
 	byte u1;
 	byte u2;
