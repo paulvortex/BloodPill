@@ -1253,6 +1253,7 @@ bool BigFileScanVAG(FILE *f, bigfileentry_t *entry)
 bool BigFileScanVAG_PS1(FILE *f, bigfileentry_t *entry)
 {
 	unsigned int readpos;
+	bool fq;
 	byte *data;
 
 	data = (byte *)mem_alloc(entry->size);
@@ -1260,8 +1261,12 @@ bool BigFileScanVAG_PS1(FILE *f, bigfileentry_t *entry)
 	readpos = VAG_UnpackTest(data, entry->size, 64);
 	mem_free(data);
 	//if (readpos == entry->size)
-	//	printf("%.8X______________\n", entry->hash);
-	return (readpos == entry->size) ? true : false;
+	//printf("%.8X______________\n", entry->hash);
+	//printf("%s: readpos vs entry size %i %i\n", entry->name, readpos, entry->size);
+	fq = (readpos < 0 || entry->size <= 0) ? false : ((entry->size - readpos) < 64) ? true : false;
+	//if (!fq)
+	//	printf("%s is not FAG\n", entry->name);
+	return fq;
 }
 
 bool BigFileScanRaw(FILE *f, bigfileentry_t *entry, rawtype_t forcerawtype)
@@ -1367,7 +1372,6 @@ void BigfileScanFiletype(FILE *f, bigfileentry_t *entry, bool scanraw, rawtype_t
 				sprintf(entry->name, "%s/%s", kentry->path, name);
 			}
 		}
-
 	}
 	// check listfile
 	else

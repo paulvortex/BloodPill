@@ -46,7 +46,7 @@ unsigned int VAG_UnpackTest(byte *data, unsigned int datasize, int offset)
 			return -1;
 		flags = in[0]; inc() // flags
 		if (flags == 7)
-			break;             
+			break; // end of file             
 		for (i = 0; i < 28; i += 2) 
 		{
 			d = in[0]; inc()
