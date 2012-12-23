@@ -54,7 +54,7 @@ static dllfunction_t zlib_funcs[] =
 };
 
 // deflating
-#define PK3_MAX_FILESIZE 1024*1024*100 // 100 megs
+#define PK3_MAX_FILESIZE 1024*1024*150 // 150 megs
 unsigned char pk3buf[PK3_MAX_FILESIZE];
 
 /*

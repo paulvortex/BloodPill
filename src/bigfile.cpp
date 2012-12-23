@@ -509,7 +509,7 @@ bigfileheader_t *ReadBigfileHeader(FILE *f, bool loadfilecontents, bool hashname
 	fseek(f, SEEK_SET, 0);
 	if (fread(&data->numentries, sizeof(unsigned int), 1, f) < 1)
 		Error("BigfileHeader: wrong of broken file\n");
-	if (!data->numentries)
+	if (data->numentries <= 0 || data->numentries > 3000)
 		Error("BigfileHeader: funny entries count, perhaps file is broken\n");
 	Verbose("%u entries in bigfile", data->numentries);
 
