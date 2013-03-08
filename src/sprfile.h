@@ -62,6 +62,6 @@ typedef struct
 } spr_t;
 
 // functions
-void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, int flags, bool mergeintoexistingfile);
-void SPR_Merge(list_t *mergelist, char *outfile, bool delmerged);
+void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, int flags, bool mergeintoexistingfile, list_t *tailfiles);
+void SPR_Merge(list_t *mergelist, char *outfile, bool delmerged, bool verbose);
 

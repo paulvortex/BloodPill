@@ -168,14 +168,15 @@ void SPR_WriteFrameHeader(FILE *f, sprframetype_t frametype, int width, int heig
 	fput_littleint(height, f);
 }
 
-void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, int flags, bool mergeintoexistingfile)
+void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, int flags, bool mergeintoexistingfile, list_t *tailfiles)
 {
-	int i, d, r, w, h, maxwidth, maxheight, cropx[2], cropy[2], addx[2], addy[2], cropwidth, cropheight, realwidth, realheight;
-	byte *colormap, *buf, normalalpha, color[4];
+	int i, d, r, w, h, maxwidth, maxheight, cropx[2], cropy[2], addx[2], addy[2], cropwidth, cropheight, realwidth, realheight, numframes;
+	byte *colormap, *buf, normalalpha, color[4], *mergedata[16];
+	size_t mergedatalen[16];
 	double cdiv, cd[3];
 	rawchunk_t *chunk;
 	FILE *f;
-	
+
 	// calc whole alpha
 	normalalpha = (byte)(255 * alpha);
 
@@ -187,8 +188,46 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 		maxheight = max(maxheight, (rawblock->chunk[i].height + rawblock->chunk[i].y));
 	}
 
+	// calc num frames
+	numframes = rawblock->chunks;
+	if (tailfiles)
+	{
+		if (tailfiles->items > 16)
+			Error("SPR_WriteFromRawblock: too many tail files to merge, should be not more than 16\n");
+		buf = (byte *)mem_alloc(sizeof(spr_t));
+		for (i = 0; i < tailfiles->items; i++)
+		{
+			
+			// read header
+			f = SafeOpen(tailfiles->item[i], "rb");
+			if (fread(buf, sizeof(spr_t), 1, f) < 1)
+				Error("SPR_WriteFromRawblock: merge tailfiles: broken file\n");
+			// check type
+			if (buf[0] != 'I' && buf[1] != 'D' && buf[2] != 'S' && buf[3] != 'P')
+				Error("SPR_WriteFromRawblock: merge tailfiles: %s is not IDSP file\n", tailfiles->item[i]);
+			// check version
+			if ((sprversion_t)LittleInt(buf + 4) != version)
+				Error("SPR_WriteFromRawblock: merge tailfiles: %s is not same sprite version\n", tailfiles->item[i]);
+			// check type
+			if ((sprtype_t)LittleInt(buf + 8) != type)
+				Error("SPR_WriteFromRawblock: merge tailfiles: %s is bad type %i, should be %i\n", tailfiles->item[i], LittleInt(buf + 8), type);
+			// calc bounds
+			maxwidth = max(maxwidth, LittleInt(buf + 16));
+			maxheight = max(maxheight, LittleInt(buf + 20));
+			numframes = numframes + LittleInt(buf + 24);
+			// save merge data
+			mergedatalen[i] = Q_filelength(f) - sizeof(spr_t);
+			mergedata[i] = (byte *)mem_alloc(mergedatalen[i]);
+			if (fread(mergedata[i], mergedatalen[i], 1, f) < 1)
+				Error("SPR_WriteFromRawblock: merge tailfiles: error reading file %s\n", tailfiles->item[i]);
+			fclose(f);
+		}
+		mem_free(buf);
+		buf = NULL;
+	}
+
 	// write sprite header
-	f = SPR_BeginFile(outfile, version, type, maxwidth, maxheight, rawblock->chunks, mergeintoexistingfile);
+	f = SPR_BeginFile(outfile, version, type, maxwidth, maxheight, numframes, mergeintoexistingfile);
 
 	//54
 	//printf("Exporting %s: \n", outfile);
@@ -391,7 +430,106 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			Error("SPR_WriteFromRawblock: cannot write quake sprites yet\n");
 		}
 	}
+
+	// write mergedata
+	if (tailfiles)
+	{
+		for (i = 0; i < tailfiles->items; i++)
+		{
+			fwrite(mergedata[i], mergedatalen[i], 1, f);
+			mem_free(mergedata[i]);
+		}
+	}
 	WriteClose(f);
+}
+
+void SPR_Merge(list_t *mergelist, char *outfile, bool delmerged, bool verbose)
+{
+	int maxwidth, maxheight, numframes;
+	sprversion_t version;
+	sprtype_t type;
+	int i, bufsize;
+	byte *buf;
+	FILE *f, *f2;
+
+	// step1 - calc new sprite headers
+	if (verbose)
+		Print("Calc headers...\n");
+	maxwidth = 0;
+	maxheight = 0;
+	numframes = 0;
+	buf = (byte *)mem_alloc(sizeof(spr_t));
+	for (i = 0; i < mergelist->items; i++)
+	{
+		// read header
+		f = SafeOpen(mergelist->item[i], "rb");
+		if (fread(buf, sizeof(spr_t), 1, f) < 1)
+			Error("SPR_Merge: broken file\n");
+		fclose(f);
+		// check type
+		if (buf[0] != 'I' && buf[1] != 'D' && buf[2] != 'S' && buf[3] != 'P')
+			Error("SPR_Merge: %s is not IDSP file\n", mergelist->item[i]);
+		// check version
+		version = (sprversion_t)LittleInt(buf + 4);
+		if (version != SPR_DARKPLACES)
+			Error("SPR_Merge: %s is not SPR32 sprite\n", mergelist->item[i]);
+		// check type
+		if (i == 0)
+			type = (sprtype_t)LittleInt(buf + 8);
+		else if (type != LittleInt(buf + 8))
+			Error("SPR_Merge: %s is bad type %i, should be %i\n", LittleInt(buf + 8), type);
+		// print info
+		if (verbose)
+			Print(" %s : %i frames, maxwidth %i, maxheight %i\n", mergelist->item[i], LittleInt(buf + 24), LittleInt(buf + 16), LittleInt(buf + 20));
+		// calc bounds
+		maxwidth = max(maxwidth, LittleInt(buf + 16));
+		maxheight = max(maxheight, LittleInt(buf + 20));
+		numframes = numframes + LittleInt(buf + 24);
+	}
+	mem_free(buf);
+
+	// print some stats
+	if (verbose)
+	{
+		Print("Total:\n", numframes);
+		Print(" framecount = %i\n", numframes);
+		Print(" max width = %i\n", maxwidth);
+		Print(" max height = %i\n", maxheight);
+	}
+
+	// save first file contents since it could be overwritten
+	if (verbose)
+		Print("Write new header...\n");
+	f = SafeOpen(mergelist->item[0], "rb");
+	bufsize = Q_filelength(f) - sizeof(spr_t);
+	buf = (byte *)mem_alloc(bufsize);
+	fseek(f, sizeof(spr_t), SEEK_SET);
+	fread(buf, bufsize, 1, f);
+	fclose(f);
+
+	// step 2 - write header and file beginning
+	f = SPR_BeginFile(outfile, version, type, maxwidth, maxheight, numframes, false);
+	fwrite(buf, bufsize, 1, f);
+	free(buf);
+
+	// step 3 - merge tail files
+	if (verbose)
+		Print("Merging...\n");
+	for (i = 1; i < mergelist->items; i++)
+	{
+		f2 = SafeOpen(mergelist->item[i], "rb");
+		fseek(f2, sizeof(spr_t), SEEK_SET);
+		bufsize = Q_filelength(f2) - sizeof(spr_t);
+		buf = (byte *)mem_alloc(bufsize);
+		fread(buf, bufsize, 1, f2);
+		fclose(f2);
+		fwrite(buf, bufsize, 1, f);
+		mem_free(buf);
+		// delete merged file
+		if (delmerged)
+			remove(mergelist->item[i]);
+	}
+	fclose(f);
 }
 
 // todo: add proper framegroups

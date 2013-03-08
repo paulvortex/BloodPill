@@ -1602,7 +1602,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	byte c[3], oldcolormap[768], oldalphamap[256], loadedcolormap[768];
 	double colorscale, cscale, alphascale;
 	rawblockslice_t slices[16];
-	list_t *includelist;
+	list_t *includelist, *mergelist = NULL;
 	FILE *f;
 
 	// additional parms
@@ -1902,6 +1902,17 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			}
 			continue;
 		}
+		if (!strcmp(argv[i], "-mergefile")) 
+		{
+			i++;
+			if (i < argc)
+			{
+				if (!mergelist)
+					mergelist = NewList();
+				ListAdd(mergelist, argv[i], false);
+			}
+			continue;
+		}
 		if (!strcmp(argv[i], "-nearest2x"))
 		{
 			scale = true;
@@ -2024,7 +2035,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 				rawblock->chunk[i].y = 0 - rawblock->chunk[i].y;
 			}
 		}
-		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, (float)alphascale, spriteflags, merge);
+		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, (float)alphascale, spriteflags, merge, mergelist);
 		// extract tail files
 		if (rawblock->errorcode > 0 && rawblock->errorcode < (int)entry->size)
 			Print("Tail files found but can't be extracted to spr32\n");
@@ -2054,6 +2065,8 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 	if (tb5) FreeRawBlock(tb5);
 	if (tb6) FreeRawBlock(tb6);
 	FreeList(includelist);
+	if (mergelist)
+		FreeList(mergelist);
 }
 
 void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *entry, char *infileformat, int defaultinputrate, char *format)

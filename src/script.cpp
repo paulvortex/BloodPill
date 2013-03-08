@@ -762,7 +762,7 @@ void Script_Parse(char *filename, char *basepath)
 					goto next;
 				}
 				//  spr 'entry' 'filename' commandlineargs
-				//  spr merge 'base' 'add1' 'add2' ...
+				//  spr merge 'filename' merge1 merge2 ... mergeX
 				if (!strcmp(com_token, "spr")) 
 				{	
 					// check if bigfile is opened
