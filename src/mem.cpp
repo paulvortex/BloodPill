@@ -157,9 +157,9 @@ bool _mem_sentinel_free(char *name, void *ptr, char *file, int line)
 	if (found == 1)
 		return true;
 	if (found == -1)
-		Error("%s:%i (%s) - tried to free a non-allocated page %i (sentinel not found)\n", name, file, line, ptr);
+		Error("%s:%i (%s) - tried to free a non-allocated page %i (sentinel not found)\n", file, line, name, ptr);
 	if (found == -2)
-		Error("%s:%i (%s) - tried to free a non-allocated page %i (sentinel already freed)\n", name, file, line, ptr);
+		Error("%s:%i (%s) - tried to free a non-allocated page %i (sentinel already freed)\n", file, line, name, ptr);
 	return false;
 }
 

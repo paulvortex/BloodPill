@@ -28,6 +28,8 @@
 #include "cmdlib.h"
 #include "mem.h"
 #include "BO1.h"
+#include "filter.h"
+
 #include <windows.h>
 
 #define DEFAULT_BIGFILENAME	"pill.big"
@@ -846,7 +848,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 ==========================================================================================
 */
 
-void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, bool bpp16to24)
+void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, bool bpp16to24, bool bpp8to32, imgfilter_t scaler, float colorscale, int colorsub)
 {
 	char name[MAX_OSPATH], maskname[MAX_OSPATH], suffix[21];
 	tim_image_t *tim;
@@ -869,7 +871,7 @@ void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, bool bpp16to24
 		if (tim->error)
 			Error("error saving %s: %s\n", name, tim->error);
 		// write basefile
-		TIM_WriteTarga(tim, name, bpp16to24);
+		TIM_WriteTarga(tim, name, bpp16to24, bpp8to32, scaler, colorscale, colorsub);
 		// write maskfile
 		if (tim->pixelmask != NULL)
 		{
@@ -955,7 +957,8 @@ void BigFileUnpackOriginalEntry(bigfileentry_t *entry, char *dstdir, bool place_
 	SaveFile(savefile, entry->data, entry->size);
 }
 
-int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, bool with_solid, bool with_triggers, bool show_save_id, byte toggled_objects, bool developer, int devnum, bool group_sections_by_path);
+int MapExportTGA(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, bool with_solid, bool with_triggers, bool show_save_id, byte toggled_objects, bool developer, int devnum, bool group_sections_by_path);
+int MapExportTXT(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath);
 void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry_t *entry, char *dstdir, bool tim2tga, bool bpp16to24, bool nopaths, int adpcmconvert, int vagconvert, bool rawconvert, rawtype_t forcerawtype, bool rawnoalign, bool map2tga, bool map_show_contents, bool map_show_triggers, bool map_show_save_id, bool map_toggled_objects)
 {
 	char savefile[MAX_OSPATH], outfile[MAX_OSPATH], basename[MAX_OSPATH], path[MAX_OSPATH];
@@ -1002,7 +1005,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 			{
 				sprintf(entry->name, "%s%s.tga", path, basename); // write correct listfile.txt
 				sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
-				TGAfromTIM(bigf, entry, outfile, bpp16to24);
+				TGAfromTIM(bigf, entry, outfile, bpp16to24, false, FILTER_NONE, 1.0f, 0);
 			}
 			else
 			{
@@ -1021,7 +1024,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 				entry->size = size;
 				// write
 				sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
-				TGAfromTIM(bigf, entry, outfile, bpp16to24);
+				TGAfromTIM(bigf, entry, outfile, bpp16to24, false, FILTER_NONE, 1.0f, 0);
 				entry->timlayers = 0;
 				entry->size = outsize;
 			}
@@ -1037,7 +1040,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 				oldprint = noprint;
 				noprint = true;
 				sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
-				MapExtract(basename, entry->data, entry->size, outfile, bigfileheader, bigf, "", map_show_contents, map_show_triggers, map_show_save_id, map_toggled_objects, false, 0, nopaths ? false : true);
+				MapExportTGA(basename, entry->data, entry->size, outfile, bigfileheader, bigf, "", map_show_contents, map_show_triggers, map_show_save_id, map_toggled_objects, false, 0, nopaths ? false : true);
 				noprint = oldprint;
 			}
 			else
@@ -1725,7 +1728,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 			}
 			continue;
 		}
-		if (!strcmp(argv[i], "-colormapscale"))
+		if (!strcmp(argv[i], "-colorscale"))
 		{
 			i++;
 			if (i < argc)
@@ -1733,11 +1736,11 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 				colorscale = atof(argv[i]);
 				for (num = 0; num < 768; num++)
 					rawblock->colormap[num] = (byte)max(0, min(rawblock->colormap[num]*colorscale, 255));
-				Verbose("Option: scale colormap colors by %f'\n", colorscale);
+				Verbose("Option: scale colormap colors by %f\n", colorscale);
 			}
 			continue;
 		}
-		if (!strcmp(argv[i], "-colormapsub"))
+		if (!strcmp(argv[i], "-colorsub"))
 		{
 			i++;
 			if (i < argc)
@@ -1745,7 +1748,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 				colorscale = atof(argv[i]);
 				for (num = 0; num < 768; num++)
 					rawblock->colormap[num] = (byte)max(0, min(rawblock->colormap[num] - colorscale, 255));
-				Verbose("Option: subtract colormap colors by %f'\n", colorscale);
+				Verbose("Option: subtract colormap colors by %f\n", colorscale);
 			}
 			continue;
 		}
@@ -2232,11 +2235,13 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *entry, char *outfile)
 {
 	char filename[MAX_OSPATH], basename[MAX_OSPATH], format[512], last;
-	bool with_solid, with_triggers, show_save_id, toggled_objects;
+	bool with_solid, with_triggers, show_save_id, toggled_objects, bpp16to24;
+	imgfilter_t timscaler;
 	bigfileheader_t *bigfileheader;
 	rawblock_t *rawblock;
+	float colorscale;
+	int i, size, colorsub;
 	byte *data;
-	int i, size;
 
 	// cannot extract empty files
 	if (entry->size == 0)
@@ -2247,6 +2252,10 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 	with_triggers = false;
 	show_save_id = false;
 	toggled_objects = false;
+	bpp16to24 = false;
+	timscaler = FILTER_NONE;
+	colorscale = 1.0f;
+	colorsub = 0;
 	ExtractFileExtension(outfile, format);
 	for (i = 0; i < argc; i++)
 	{
@@ -2282,6 +2291,52 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 		{
 			Verbose("Option: dynamic objects in alternative state\n");
 			toggled_objects = true;
+			continue;
+		}
+		if (!strcmp(argv[i], "-16to24"))
+		{
+			bpp16to24 = true;
+			Verbose("Option: Targa compatibility mode (converting 16-bit to 24-bit)\n");
+			continue;
+		}
+		if (!strcmp(argv[i], "-timscale"))
+		{
+			i++; 
+			if (i < argc)
+			{
+				if (!strcmp(argv[i], "scale2x"))
+				{
+					timscaler = FILTER_SCALE2X;
+					Verbose("Option: scaling TIM->Targa converted images with Scale2X filter\n");
+				}
+				else if (!strcmp(argv[i], "scale4x"))
+				{
+					timscaler = FILTER_SCALE4X;
+					Verbose("Option: scaling TIM->Targ converted images with Scale4X filter\n");
+				}
+				else
+					Verbose("Unknown -timscale parameter '%s'\n", argv[i]);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-colorscale"))
+		{
+			i++; 
+			if (i < argc)
+			{
+				colorscale = (float)atof(argv[i]);
+				Verbose("Option: scale colors by %f\n", colorscale);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-colorsub"))
+		{
+			i++; 
+			if (i < argc)
+			{
+				colorsub = atoi(argv[i]);
+				Verbose("Option: subtract colors by %i\n", colorsub);
+			}
 			continue;
 		}
 	}
@@ -2329,15 +2384,21 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				Print("writing %s.\n", filename);
-				TGAfromTIM(bigfile, entry, filename, false); 
+				TGAfromTIM(bigfile, entry, filename, bpp16to24, false, timscaler, colorscale, colorsub); 
 			}
 			else if (!stricmp(format, "tga24") || !format[0])
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				Print("writing %s.\n", filename);
-				TGAfromTIM(bigfile, entry, filename, true); 
+				TGAfromTIM(bigfile, entry, filename, true, false, timscaler, colorscale, colorsub); 
 			}
-			else Error("unknown format '%s'\n", format);
+			else if (!stricmp(format, "tga8_32") || !format[0])
+			{
+				DefaultExtension(filename, ".tga", sizeof(filename));
+				Print("writing %s.\n", filename);
+				TGAfromTIM(bigfile, entry, filename, false, true, timscaler, colorscale, colorsub); 
+			}
+			else Error("Tim2Tga: unknown format '%s'\n", format);
 			break;
 		case BIGENTRY_RAW_ADPCM:
 			// load file contents
@@ -2409,6 +2470,15 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			entry->data = (byte *)mem_alloc(entry->size);
 			BigfileSeekContents(bigfile, entry->data, entry);
 			rawblock = RawExtract(entry->data, entry->size, &entry->rawinfo, false, false, RAW_TYPE_UNKNOWN);
+			if (rawblock)
+			{
+				if (colorscale != 1.0f)
+					for (i = 0; i < 768; i++)
+						rawblock->colormap[i] = (byte)max(0, min(rawblock->colormap[i]*colorscale, 255));
+				if (colorsub != 0)
+					for (i = 0; i < 768; i++)
+						rawblock->colormap[i] = (byte)max(0, min(rawblock->colormap[i] - colorsub, 255));
+			}
 			if (!stricmp(format, "tga") || !format[0])
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
@@ -2419,7 +2489,7 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 				DefaultExtension(filename, ".spr32", sizeof(filename));
 				BigFile_ExtractRawImage(argc, argv, outfile, entry, rawblock, "spr32");
 			}
-			else Error("unknown format '%s'\n", format);
+			else Error("ExtractSprite: unknown format '%s'\n", format);
 			FreeRawBlock(rawblock);
 			mem_free(entry->data);
 			entry->data = NULL;
@@ -2429,22 +2499,28 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			size = entry->size;
 			BigfileSeekContents(bigfile, data, entry);
 			entry->data = (byte *)LzDec((int *)&entry->size, data, 0, size, true);
+			entry->timlayers = 1;
 			// extract as TIM
 			if (!stricmp(format, "tga"))
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
-				Print("writing %s.\n", filename);
-				TGAfromTIM(bigfile, entry, filename, false); 
+				Print("writing %s as 8-bit TGA.\n", filename);
+				TGAfromTIM(bigfile, entry, filename, bpp16to24, false, timscaler | FILTER_TRANSFORM_TILEMAP8X8, colorscale, colorsub); 
 			}
 			else if (!stricmp(format, "tga24") || !format[0])
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
-				Print("writing %s.\n", filename);
-				TGAfromTIM(bigfile, entry, filename, true); 
+				Print("writing %s as 24-bit TGA.\n", filename);
+				TGAfromTIM(bigfile, entry, filename, true, false, timscaler | FILTER_TRANSFORM_TILEMAP8X8, colorscale, colorsub); 
 			}
-			else Error("unknown format '%s'\n", format);
+			else if (!stricmp(format, "tga8_32") || !format[0])
+			{
+				DefaultExtension(filename, ".tga", sizeof(filename));
+				Print("writing %s as 32-bit TGA.\n", filename);
+				TGAfromTIM(bigfile, entry, filename, false, true, timscaler | FILTER_TRANSFORM_TILEMAP8X8 | FILTER_TRANSFORM_CREATEBORDER, colorscale, colorsub); 
+			}
+			else Error("Tilemap2Tga: unknown format '%s'\n", format);
 			mem_free(data);
-			mem_free(entry->data);
 			entry->data = NULL;
 			entry->size = size;
 			break;
@@ -2455,9 +2531,14 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			if (!stricmp(format, "tga"))
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
-				MapExtract(entry->name, entry->data, entry->size, filename, bigfileheader, bigfile, "", with_solid, with_triggers, show_save_id, toggled_objects, false, 0, false);
+				MapExportTGA(entry->name, entry->data, entry->size, filename, bigfileheader, bigfile, "", with_solid, with_triggers, show_save_id, toggled_objects, false, 0, false);
 			}
-			else Error("unknown format '%s'\n", format);
+			else if (!stricmp(format, "txt"))
+			{
+				StripFileExtension(filename, filename);
+				MapExportTXT(entry->name, entry->data, entry->size, filename, bigfileheader, bigfile, "");
+			}
+			else Error("ExtractMap: unknown format '%s'\n", format);
 			mem_free(entry->data);
 			FreeBigfileHeader(bigfileheader);
 			entry->data = NULL;

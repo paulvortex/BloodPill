@@ -124,7 +124,7 @@ typedef struct
 	byte u4;                 // ?
 	unsigned short tile1;    // base tile (grpobject really, not standart 32x32 tile)
 	unsigned short tile2;    // toggled tile (grpobject)
-	unsigned short tile3;    // destroyed tilee (grpobject)
+	unsigned short tile3;    // destroyed tile (grpobject)
 	byte u5;                 // ?
 	byte u6;                 // ?
 	byte pushable;           // a strength required to push
@@ -232,14 +232,15 @@ typedef struct
 // tileflags
 #define TILEFLAG_UNKNOWN1       1024
 #define TILEFLAG_NODRAW         2048
-#define TILEFLAG_UNKNOWN3       4096
-#define TILEFLAG_UNKNOWN4       8192
+#define TILEFLAG_ONTOPINFRONT   4096
+#define TILEFLAG_ALWAYSBELOW    8192
 #define TILEFLAG_ALWAYSONTOP    16384
 #define TILEFLAG_UNKNOWN6       32768
 #define TILEFLAG_MASK           (1024 + 2048 + 4096 + 8192 + 16384 + 32768)
 #define TILEFLAG_IMASK          (1 + 2 + 4 + 8 + 16 + 32 + 64 + 128 + 256 + 512)
 
 // contents
+#define CONTENTS_NONE           0
 #define CONTENTS_SOLID          1
 #define CONTENTS_WATER          2
 #define CONTENTS_LAVA           3

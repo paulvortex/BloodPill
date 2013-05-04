@@ -856,7 +856,7 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 
 	// check negative crop
 	// FIXME! only 24-bit mode supports negative add (cropping) for bx/by/ax/ay
-	if (bpp != 24 && (ax < 0 || ay < 0 || bx < 0 || by < 0))
+	if (bpp != 24 && bpp != 32 && (ax < 0 || ay < 0 || bx < 0 || by < 0))
 		Error("RawTGA: negative border (crop) only supported for 24bit bpp!\n");
 
 	// check bpp
@@ -867,9 +867,11 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 	#define skiplines1(lines) { for (i = 0; i < lines; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; } }
 	#define skiplines2(lines) { for (i = 0; i < lines; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; *out++ = 0; }  }
 	#define skiplines3(lines) { for (i = 0; i < lines; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; *out++ = 0; *out++ = 0; } }
+	#define skiplines4(lines) { for (i = 0; i < lines; i++) for (j = 0; j < realwidth; j++) { *out++ = 0; *out++ = 0; *out++ = 0; *out++ = 0; } }
 	#define skiprows1(rows) { for (j = 0; j < rows; j++) { *out++ = 0; } }
 	#define skiprows2(rows) { for (j = 0; j < rows; j++) { *out++ = 0; *out++ = 0; }  }
 	#define skiprows3(rows) { for (j = 0; j < rows; j++) { *out++ = 0; *out++ = 0; *out++ = 0; } }
+	#define skiprows4(rows) { for (j = 0; j < rows; j++) { *out++ = 0; *out++ = 0; *out++ = 0; *out++ = 0; } }
 
 	// create targa header
 	buffer = (byte *)mem_alloc(pixelbytes*(int)(bpp / 8) + ((bpp == 8) ? 768 : 0) + 18);
@@ -1015,6 +1017,43 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 		buffer[16] = 32;
 		// flip upside down, write
 		out = buffer + 18;
+		skiplines4(ay)
+		for (i = cropheight - 1;i >= 0;i--)
+		{
+			in = pixeldata + (i + skipheight)*width*4 + skipwidth*4;
+			end = in + cropwidth * 4;
+			skiprows4(bx)
+			for (;in < end; in += 4)
+			{
+				// swap bgr->rgb
+				if (rawinfo && rawinfo->dontSwapBgr == true)
+				{
+					*out++ = in[0];
+					*out++ = in[1];
+					*out++ = in[2];
+					*out++ = in[3];
+				}
+				else
+				{
+					*out++ = in[2];
+					*out++ = in[1];
+					*out++ = in[0];
+					*out++ = in[3];
+				}
+			}
+			skiprows4(ax)
+		}
+		skiplines4(by)
+		fwrite(buffer, pixelbytes*4 + 18, 1, f);
+		/*
+		buffer[2] = 2; // uncompressed
+		buffer[12] = (realwidth >> 0) & 0xFF;
+		buffer[13] = (realwidth >> 8) & 0xFF;
+		buffer[14] = (realheight >> 0) & 0xFF;
+		buffer[15] = (realheight >> 8) & 0xFF;
+		buffer[16] = 32;
+		// flip upside down, write
+		out = buffer + 18;
 		skiplines3(ay)
 		for (i = height - 1;i >= 0;i--)
 		{
@@ -1043,6 +1082,7 @@ void RawTGA(char *outfile, int width, int height, int bx, int by, int ax, int ay
 		}
 		skiplines3(by)
 		fwrite(buffer, pixelbytes*4 + 18, 1, f);
+		*/
 	}
 	WriteClose(f);
 	mem_free(buffer);
@@ -1145,16 +1185,13 @@ byte *RawMakeAlphamap(byte *colormap, byte shadowpixel, byte shadowalpha)
 // returns allocated 24-bit colormap
 void ColormapFromTGA(char *filename, byte *colormap)
 {
-	byte *buf;
+	byte buf[18+768];
 	FILE *f;
 	int i;
 	
 	f = SafeOpen(filename, "rb");
-	buf = (byte *)mem_alloc(18+768);
-	if (fread(buf, 18+768, 1, f) < 1)
+	if (fread(buf, sizeof(buf), 1, f) < 1)
 		Error("ColormapFromTGA: %s - file is too small", filename);
-	if (!LoadFile(filename, &buf))
-		Error("ColormapFromTGA: failed to open %s", filename);
 	if (buf[1] != 1 || buf[2] != 1 || buf[16] != 8)
 		Error("ColormapFromTGA: %s - only colormapped/uncompressed images supported", filename);
 	if (buf[7] != 24)
@@ -1166,7 +1203,6 @@ void ColormapFromTGA(char *filename, byte *colormap)
 		*colormap++ = buf[18 + i*3 + 1];
 		*colormap++ = buf[18 + i*3];
 	}
-	mem_free(buf);
 	fclose(f);
 }
 

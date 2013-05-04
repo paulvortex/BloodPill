@@ -200,6 +200,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\filter.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\jamfile.cpp"
 				>
 			</File>
@@ -213,6 +217,10 @@
 			</File>
 			<File
 				RelativePath=".\rawfile.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\scale2x.cpp"
 				>
 			</File>
 			<File
@@ -265,6 +273,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\filter.h"
+				>
+			</File>
+			<File
 				RelativePath=".\mapfile.h"
 				>
 			</File>
@@ -274,6 +286,10 @@
 			</File>
 			<File
 				RelativePath="rawfile.h"
+				>
+			</File>
+			<File
+				RelativePath=".\scale2x.h"
 				>
 			</File>
 			<File

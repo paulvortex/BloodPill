@@ -242,12 +242,12 @@ void Script_Parse(char *filename, char *basepath)
 					Error("export: error parsing parm 1 on line %i\n", n);
 				else
 				{
-					if (!strcmp(com_token, "legacy.nsx"))
+					if (!strcmp(com_token, "sprites.nsx"))
 					{
 						// Blood Omnicide - write legacy.nsx
-						sprintf(outfile, "%slegacy.nsx", path);
+						sprintf(outfile, "%ssprites.nsx", path);
 						f = SafeOpenWrite(outfile);
-						fputs("// Legacy stuff script file\n", f);
+						fputs("// Legacy sprite stuff script file\n", f);
 						fputs("\n[macromodels]name=colormap,speechofs\n", f);
 						for (i = 0; i < legacymodels->num; i++)
 							fprintf(f, "%s=%i,%i\n", legacymodels->models[i].name, legacymodels->models[i].colormapid, legacymodels->models[i].speechoffset);
@@ -268,12 +268,12 @@ void Script_Parse(char *filename, char *basepath)
 							fprintf(f, "%s=%s,%.2f,%i\n", legacymodelsubs->subs[i].name, legacymodelsubs->subs[i].orient, legacymodelsubs->subs[i].scale, legacymodels->models[legacymodelsubs->subs[legacymodelsubs->num].basemodel].colormapid);
 						WriteClose(f);
 					}
-					else if (!strcmp(com_token, "colormaps.nsx"))
+					else if (!strcmp(com_token, "particles.nsx"))
 					{
 						// Blood Omnicide - write colormaps.nsx
-						sprintf(outfile, "%scolormaps.nsx", path);
+						sprintf(outfile, "%sparticles.nsx", path);
 						f =	SafeOpenWrite(outfile);
-						fputs("// Particle colormaps  file\n", f);
+						fputs("// Particle colormaps file\n", f);
 						fputs("// colormaps 0-31 are system ones \n", f);
 						fputs("\n[colormaps]index={colormap}\n", f);
 						for (i = 0; i < legacycolormaps->num; i++)
@@ -282,7 +282,7 @@ void Script_Parse(char *filename, char *basepath)
 						WriteClose(f);
 					}
 					else
-						Error("export: unknown parm 1 on line %i\n", n);
+						Error("export: unknown parm '%s' on line %i\n", com_token, n);
 				}
 				goto next;
 			}
@@ -453,7 +453,7 @@ void Script_Parse(char *filename, char *basepath)
 					else
 					{
 						sprintf(outfile, "%s%s", path, com_token);
-						// additionsl parms
+						// additional parms
 						i = 0;
 						while (t = COM_Parse(t))
 						{
@@ -819,6 +819,7 @@ void Script_Parse(char *filename, char *basepath)
 										data = (byte *)mem_alloc(entry->size);
 										BigfileSeekContents(bigfilehandle, data, entry);
 										entry->data = (byte *)RawExtract(data, entry->size, &rawinfo, false, false, RAW_TYPE_UNKNOWN);
+										mem_free(data);
 									}
 									// do extract
 									BigFile_ExtractRawImage(sargc, sargv, outfile, entry, (rawblock_t *)entry->data, "spr32");
@@ -906,6 +907,9 @@ void Script_Parse(char *filename, char *basepath)
 		writingpk3 = false;
 	}
 	mem_free(scriptstring);
+	for (sargc = 0; sargc < 256; sargc++)
+		mem_free(sargv[sargc]);
+	mem_free(sargv);
 }
 
 int Script_Main(int argc, char **argv)

@@ -4,6 +4,7 @@
 #include "sprfile.h"
 #include "vagfile.h"
 #include "mapfile.h"
+#include "filter.h"
 
 #define MAX_TIM_LAYERS
 
@@ -122,5 +123,5 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *entry, char *outfile);
 
 // convert functions
-void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, bool bpp16to24);
+void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, bool bpp16to24, bool bpp8to32, imgfilter_t scaler, float colorscale, int colorsub);
 void TGAfromRAW(rawblock_t *rawblock, rawinfo_t *rawinfo, char *outfile, bool rawnoalign, bool verbose, bool usesubpaths);

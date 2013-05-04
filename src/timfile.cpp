@@ -26,6 +26,7 @@
 #include "timfile.h"
 #include "cmdlib.h"
 #include "mem.h"
+#include "filter.h"
 
 /*
 ==========================================================================================
@@ -706,15 +707,19 @@ void TIM_WriteTargaGrayscale(byte *data, short width, short height, char *savefi
 	mem_free(buffer);
 }
 
-void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24)
+void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24, bool bpp8to32, imgfilter_t scaler, float colorscale, int colorsub)
 {
 	unsigned char *buffer, *out;
-	const unsigned char *in, *end;
+	const unsigned char *in, *end, *clut;
+	unsigned int width, height;
 	FILE *f;
 	int y;
 
 	if (tim->error)
 		return; // don't write erroneous TIM
+
+	width = ImgFilter_Size(tim->dim.xsize, scaler);
+	height = ImgFilter_Size(tim->dim.ysize, scaler);
 
 	// write header
 	f = SafeOpenWrite(savefile);
@@ -722,64 +727,117 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24)
 	{
 		case TIM_4Bit:
 			break;
-		case TIM_8Bit:
-			buffer = (byte *)mem_alloc(tim->dim.xsize*tim->dim.ysize + (bpp16to24 ? 768 : 512) + 18);
-			memset(buffer, 0, 18);
-			buffer[1] = 1; // colormapped
-			buffer[2] = 1; // uncompressed, colormapped
-			buffer[5] = (256 >> 0) & 0xFF;
-			buffer[6] = (256 >> 8) & 0xFF;
-			buffer[7] = (bpp16to24 ? 24 : 16); // colormap BPP
-			buffer[8] = (tim->dim.xpos >> 0) & 0xFF;
-			buffer[9] = (tim->dim.xpos >> 8) & 0xFF;
-			buffer[10] = (tim->dim.ypos >> 0) & 0xFF;
-			buffer[11] = (tim->dim.ypos >> 8) & 0xFF;
-			buffer[12] = (tim->dim.xsize >> 0) & 0xFF;
-			buffer[13] = (tim->dim.xsize >> 8) & 0xFF;
-			buffer[14] = (tim->dim.ysize >> 0) & 0xFF;
-			buffer[15] = (tim->dim.ysize >> 8) & 0xFF;
-			buffer[16] = 8;
-			// write 16 or 24-bit colormap from 15-bit CLUT, swap bgr->rgb
-			out = buffer + 18;
-			for (y = 0;y < 256;y++)
+		case TIM_8Bit:	
+			if (0) // convert 8-bit to 32-bit
 			{
-				in = tim->CLUT->data + y*2;
-				if (bpp16to24)
+				buffer = (byte *)mem_alloc(width*height*4 + 18);
+				memset(buffer, 0, 18);
+				buffer[2] = 2; // uncompressed
+				buffer[8] = (tim->dim.xpos >> 0) & 0xFF;
+				buffer[9] = (tim->dim.xpos >> 8) & 0xFF;
+				buffer[10] = (tim->dim.ypos >> 0) & 0xFF;
+				buffer[11] = (tim->dim.ypos >> 8) & 0xFF;
+				buffer[12] = (width >> 0) & 0xFF;
+				buffer[13] = (width >> 8) & 0xFF;
+				buffer[14] = (height >> 0) & 0xFF;
+				buffer[15] = (height >> 8) & 0xFF;
+				buffer[16] = 32;
+				// swap bgr->rgb, flip upside down
+				out = buffer + 18;
+				for (y = tim->dim.ysize - 1;y >= 0;y--)
 				{
-					*out++ = ((in[1] & 0x7C) >> 2) * 8;
-					*out++ = (((in[0] & 0xE0) >> 5) + ((in[1] & 0x3) << 3)) * 8;
-					*out++ = (in[0] & 0x1F) * 8; 
+					in = tim->pixels + y * tim->dim.xsize;
+					end = in + tim->dim.xsize;
+					for (;in < end; in++)
+					{
+						clut = tim->CLUT->data + in[0]*2;
+						*out++ = ((clut[1] & 0x7C) >> 2) * 8;
+						*out++ = (((clut[0] & 0xE0) >> 5) + ((clut[1] & 0x3) << 3)) * 8;
+						*out++ = (clut[0] & 0x1F) * 8; 
+						*out++ = (in[0] == 0) ? 0 : ((in[0] == 255) ? 128 : 255);
+					}
 				}
-				else
-				{
-					*out++ = (in[0] & 0xE0) + ((in[1] & 0x7C) >> 2); 
-					*out++ = (in[1] & 0x03) + ((in[0] & 0x1F) << 2);
-				}
+				// transform
+				ImgFilter_ColorTransform(tim->dim.xsize, tim->dim.ysize, 4, buffer + 18, colorscale, colorsub);
+				ImgFilter(tim->dim.xsize, tim->dim.ysize, 4, buffer + 18, NULL, scaler);
+				// write file
+				fwrite(buffer, width*height*4 + 18, 1, f);
+				mem_free(buffer);
 			}
-			// flip upside down, write
-			out = buffer + (bpp16to24 ? 768 : 512) + 18;
-			for (y = tim->dim.ysize - 1;y >= 0;y--)
+			else
 			{
-				in = tim->pixels + y * tim->dim.xsize;
-				end = in + tim->dim.xsize;
-				for (;in < end; in++)
-					*out++ = in[0];
+				buffer = (byte *)mem_alloc(width*height + (bpp8to32 ? 1024 : (bpp16to24 ? 768 : 512)) + 18);
+				memset(buffer, 0, 18);
+				buffer[1] = 1; // colormapped
+				buffer[2] = 1; // uncompressed, colormapped
+				buffer[5] = (256 >> 0) & 0xFF;
+				buffer[6] = (256 >> 8) & 0xFF;
+				buffer[7] = (bpp8to32 ? 32 : (bpp16to24 ? 24 : 16)); // colormap BPP
+				buffer[8] = (tim->dim.xpos >> 0) & 0xFF;
+				buffer[9] = (tim->dim.xpos >> 8) & 0xFF;
+				buffer[10] = (tim->dim.ypos >> 0) & 0xFF;
+				buffer[11] = (tim->dim.ypos >> 8) & 0xFF;
+				buffer[12] = (width >> 0) & 0xFF;
+				buffer[13] = (width >> 8) & 0xFF;
+				buffer[14] = (height >> 0) & 0xFF;
+				buffer[15] = (height >> 8) & 0xFF;
+				buffer[16] = 8;
+				// write 16 or 24-bit colormap from 15-bit CLUT, swap bgr->rgb
+				out = buffer + 18;
+				for (y = 0;y < 256;y++)
+				{
+					in = tim->CLUT->data + y*2;
+					if (bpp8to32)
+					{
+						*out++ = ((in[1] & 0x7C) >> 2) * 8;
+						*out++ = (((in[0] & 0xE0) >> 5) + ((in[1] & 0x3) << 3)) * 8;
+						*out++ = (in[0] & 0x1F) * 8; 
+						*out++ = (y == 0) ? 0 : ((y == 255) ? 128 : 255); 
+					}
+					else if (bpp16to24)
+					{
+						*out++ = ((in[1] & 0x7C) >> 2) * 8;
+						*out++ = (((in[0] & 0xE0) >> 5) + ((in[1] & 0x3) << 3)) * 8;
+						*out++ = (in[0] & 0x1F) * 8; 
+					}
+					else
+					{
+						*out++ = (in[0] & 0xE0) + ((in[1] & 0x7C) >> 2); 
+						*out++ = (in[1] & 0x03) + ((in[0] & 0x1F) << 2);
+					}
+				}
+				// flip upside down, write
+				out = buffer + (bpp8to32 ? 1024 : (bpp16to24 ? 768 : 512)) + 18;
+				for (y = tim->dim.ysize - 1;y >= 0;y--)
+				{
+					in = tim->pixels + y * tim->dim.xsize;
+					end = in + tim->dim.xsize;
+					for (;in < end; in++)
+						*out++ = in[0];
+				}
+				// transform
+				if (bpp8to32)
+					ImgFilter_ColorTransform(16, 16, 4, buffer + 18, colorscale, colorsub);
+				else if (bpp16to24)
+					ImgFilter_ColorTransform(16, 16, 3, buffer + 18, colorscale, colorsub);
+				ImgFilter(tim->dim.xsize, tim->dim.ysize, 1, buffer + (bpp8to32 ? 1024 : (bpp16to24 ? 768 : 512)) + 18, NULL, scaler);
+				// write file
+				fwrite(buffer, width*height + (bpp8to32 ? 1024 : (bpp16to24 ? 768 : 512)) + 18, 1, f);
+				mem_free(buffer);
 			}
-			// write file
-			fwrite(buffer, tim->dim.xsize*tim->dim.ysize + (bpp16to24 ? 768 : 512) + 18, 1, f);
 			break;
 		case TIM_16Bit:
-			buffer = (byte *)mem_alloc(tim->dim.xsize*tim->dim.ysize*(bpp16to24 ? 3 : 2) + 18);
+			buffer = (byte *)mem_alloc(width*height*(bpp16to24 ? 3 : 2) + 18);
 			memset(buffer, 0, 18);
 			buffer[2] = 2; // uncompressed
 			buffer[8] = (tim->dim.xpos >> 0) & 0xFF;
 			buffer[9] = (tim->dim.xpos >> 8) & 0xFF;
 			buffer[10] = (tim->dim.ypos >> 0) & 0xFF;
 			buffer[11] = (tim->dim.ypos >> 8) & 0xFF;
-			buffer[12] = (tim->dim.xsize >> 0) & 0xFF;
-			buffer[13] = (tim->dim.xsize >> 8) & 0xFF;
-			buffer[14] = (tim->dim.ysize >> 0) & 0xFF;
-			buffer[15] = (tim->dim.ysize >> 8) & 0xFF;
+			buffer[12] = (width >> 0) & 0xFF;
+			buffer[13] = (width >> 8) & 0xFF;
+			buffer[14] = (height >> 0) & 0xFF;
+			buffer[15] = (height >> 8) & 0xFF;
 			buffer[16] = (bpp16to24 ? 24 : 16);
 			// swap bgr->rgb, flip upside down
 			out = buffer + 18;
@@ -802,20 +860,26 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24)
 					}
 				}
 			}
-			fwrite(buffer, tim->dim.xsize*tim->dim.ysize*(bpp16to24 ? 3 : 2) + 18, 1, f);
+			// transform
+			if (bpp16to24)
+				ImgFilter_ColorTransform(tim->dim.xsize, tim->dim.ysize, 3, buffer + 18, colorscale, colorsub);
+			ImgFilter(tim->dim.xsize, tim->dim.ysize, bpp16to24 ? 3 : 2, buffer + 18, NULL, scaler);
+			// write file
+			fwrite(buffer, width*height*(bpp16to24 ? 3 : 2) + 18, 1, f);
+			mem_free(buffer);
 			break;
 		case TIM_24Bit:
-			buffer = (byte *)mem_alloc(tim->dim.xsize*tim->dim.ysize*3 + 18);
+			buffer = (byte *)mem_alloc(width*height*3 + 18);
 			memset(buffer, 0, 18);
 			buffer[2] = 2; // uncompressed
 			buffer[8] = (tim->dim.xpos >> 0) & 0xFF;
 			buffer[9] = (tim->dim.xpos >> 8) & 0xFF;
 			buffer[10] = (tim->dim.ypos >> 0) & 0xFF;
 			buffer[11] = (tim->dim.ypos >> 8) & 0xFF;
-			buffer[12] = (tim->dim.xsize >> 0) & 0xFF;
-			buffer[13] = (tim->dim.xsize >> 8) & 0xFF;
-			buffer[14] = (tim->dim.ysize >> 0) & 0xFF;
-			buffer[15] = (tim->dim.ysize >> 8) & 0xFF;
+			buffer[12] = (width >> 0) & 0xFF;
+			buffer[13] = (width >> 8) & 0xFF;
+			buffer[14] = (height >> 0) & 0xFF;
+			buffer[15] = (height >> 8) & 0xFF;
 			buffer[16] = 24;
 			// swap bgr->rgb, flip upside down
 			out = buffer + 18;
@@ -830,7 +894,12 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24)
 					*out++ = in[0];
 				}
 			}
-			fwrite(buffer, tim->dim.xsize*tim->dim.ysize*3 + 18, 1, f);
+			// transform
+			ImgFilter_ColorTransform(tim->dim.xsize, tim->dim.ysize, 3, buffer + 18, colorscale, colorsub);
+			ImgFilter(tim->dim.xsize, tim->dim.ysize, 3, buffer + 18, NULL, scaler);
+			// write file
+			fwrite(buffer, width*height*3 + 18, 1, f);
+			mem_free(buffer);
 			break;
 		default:
 			break;
@@ -866,9 +935,11 @@ void TimEmitStats(tim_image_t *tim)
 
 int Tim2Targa_Main(int argc, char **argv)
 {
-	int i = 1;
+	int i = 1, colorsub;
 	char filename[MAX_OSPATH], ext[5], outfile[MAX_OSPATH], *c;
 	tim_image_t *tim;
+	imgfilter_t scaler;
+	float colorscale;
 	bool bpp16to24;
 	FILE *f; 
 
@@ -893,13 +964,50 @@ int Tim2Targa_Main(int argc, char **argv)
 
 	// parse cmdline
 	bpp16to24 = false;
+	scaler = FILTER_NONE;
+	colorscale = 1.0f;
+	colorsub = 0;
 	for (i = i; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-16to24"))
 		{
 			Verbose("Option: targa compatibility mode (converting 16-bit to 24-bit)\n");
 			bpp16to24 = true;
+			continue;
 		}
+		if (!strcmp(argv[i], "-scale2x"))
+		{
+			Verbose("Option: scaling the image to 200% with Scale2X filter\n");
+			scaler = FILTER_SCALE2X;
+			continue;
+		}
+		if (!strcmp(argv[i], "-scale4x"))
+		{
+			Verbose("Option: scaling the image to 400% with Scale2X filter\n");
+			scaler = FILTER_SCALE4X;
+			continue;
+		}
+		if (!strcmp(argv[i], "-colorscale"))
+		{
+			i++; 
+			if (i < argc)
+			{
+				colorscale = (float)atof(argv[i]);
+				Verbose("Option: scale colors by %f\n", colorscale);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-colorsub"))
+		{
+			i++; 
+			if (i < argc)
+			{
+				colorsub = atoi(argv[i]);
+				Verbose("Option: subtract colors by %i\n", colorsub);
+			}
+			continue;
+		}
+		Warning("unknown parameter '%s'", argv[i]);
 	}
 
 	// open source file, try load it
@@ -915,7 +1023,7 @@ int Tim2Targa_Main(int argc, char **argv)
 
 	// write basefile
 	Verbose("writing %s\n", outfile);
-	TIM_WriteTarga(tim, outfile, bpp16to24);
+	TIM_WriteTarga(tim, outfile, bpp16to24, false, scaler, colorscale, colorsub);
 
 	// write maskfile
 	if (tim->pixelmask != NULL)
@@ -937,7 +1045,8 @@ int Targa2Tim_Main(int argc, char **argv)
 	short ofsx = -1, ofsy = -1;
 	unsigned int type;
 	tim_image_t *tim;
-	int i = 1;
+	int i = 1, colorsub;
+	float colorscale;
 	FILE *f;
 
 	Print("=== Tga2Tim ===\n");
@@ -962,6 +1071,8 @@ int Targa2Tim_Main(int argc, char **argv)
 
 	// parse cmdline
 	type = 0;
+	colorscale = 1.0f;
+	colorsub = 0;
 	for (i = i; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-bpp"))
@@ -997,6 +1108,26 @@ int Targa2Tim_Main(int argc, char **argv)
 			i++;
 			if (i < argc)
 				strcpy(maskfile, argv[i]);
+			continue;
+		}
+		if (!strcmp(argv[i], "-colorscale"))
+		{
+			i++; 
+			if (i < argc)
+			{
+				colorscale = (float)atof(argv[i]);
+				Verbose("Option: scale colors by %f\n", colorscale);
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-colorsub"))
+		{
+			i++; 
+			if (i < argc)
+			{
+				colorsub = atoi(argv[i]);
+				Verbose("Option: subtract colors by %i\n", colorsub);
+			}
 			continue;
 		}
 		Warning("unknown parameter '%s'", argv[i]);

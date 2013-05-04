@@ -331,11 +331,11 @@ typedef struct
 	long  used;
 }cachepic_t;
 
-cachepic_t        cachedpics[MAX_CACHEDPICS];
+cachepic_t         cachedpics[MAX_CACHEDPICS];
 char              *cachepic_tilespath;
 bigfileheader_t   *cachepic_bigfileheader;
 FILE              *cachepic_bigfile;
-long              cached_usecounter;
+long               cached_usecounter;
 
 #define CachePic_Globals(tp, bfh, bf) cachepic_tilespath = tp; cachepic_bigfileheader = bfh; cachepic_bigfile = bf;
 static cachepic_t *CachePic(char *entryname)
@@ -603,6 +603,16 @@ static cachepic_t *CachePic(char *entryname)
 	return pic;
 }
 
+void FreePic(cachepic_t *cachepic)
+{
+	if (cachepic->subpics)
+		mem_free(cachepic->subpics);
+	if (cachepic->pixels)
+		mem_free(cachepic->pixels);
+	memset(cachepic, 0, sizeof(cachepic_t));
+}
+
+
 /*
 ==========================================================================================
 
@@ -667,25 +677,55 @@ void DeveloperData(char *caption, byte *data, int per_line, int num_lines, int l
 ==========================================================================================
 */
 
+typedef struct
+{
+	byte *data;
+	int   bpp;
+} map_renderbuffer_t;
+
+map_renderbuffer_t *AllocateMapDrawImage(int bpp)
+{
+	map_renderbuffer_t *map_image;
+
+	if (bpp != 3 && bpp != 4)
+		Error("AllocateMapDrawImage: bad BPP %i\n", bpp);
+
+	map_image = (map_renderbuffer_t *)mem_alloc(sizeof(map_renderbuffer_t));
+	map_image->data = (byte *)mem_alloc(80 * 32 * bpp * 32 * 80);
+	map_image->bpp = bpp;
+
+	return map_image;
+}
+
+void FreeMapDrawImage(map_renderbuffer_t *map_image)
+{
+	if (!map_image)
+		return;
+	mem_free(map_image->data);
+	mem_free(map_image);
+}
+
 // fill tile with color
-static void MapDrawColor(byte *map_image, int row, int col, byte r, byte g, byte b)
+static void MapDrawColor(map_renderbuffer_t *map_image, int row, int col, byte r, byte g, byte b)
 {
 	byte i, j;
 
 	for (i = 0; i < 32; i++)
 	{
-		byte *out = (byte *)map_image + 80*32*3 * (32*col+i) + 32*3*row;
-		for (j = 0; j < 32; j++, out += 3)
+		byte *out = (byte *)map_image->data + 80*32*map_image->bpp * (32*col+i) + 32*map_image->bpp*row;
+		for (j = 0; j < 32; j++, out += map_image->bpp)
 		{
 			out[0] = (byte)min(out[0] + r, 255);
 			out[1] = (byte)min(out[1] + g, 255);
 			out[2] = (byte)min(out[2] + b, 255);
+			if (map_image->bpp == 4)
+				out[3] = min(255, (int)(out[3] + 255));
 		}
 	}					
 }
 
 // draw a line from tile to tile
-static void MapDrawLine(byte *map_image, float row1, float col1, float row2, float col2, byte r, byte g, byte b)
+static void MapDrawLine(map_renderbuffer_t *map_image, float row1, float col1, float row2, float col2, byte r, byte g, byte b)
 {
 	int x1, x2, y1, y2, error, error2, deltaX, deltaY, signX, signY;
 
@@ -705,10 +745,11 @@ static void MapDrawLine(byte *map_image, float row1, float col1, float row2, flo
     error = deltaX - deltaY;
     for (;;)
     {
-		map_image[80*32*3*y1 + 3*x1] = min(map_image[80*32*3*y1 + 3*x1] + r, 255);
-		map_image[80*32*3*y1 + 3*x1 + 1] = min(map_image[80*32*3*y1 + 3*x1 + 1] + g, 255);
-		map_image[80*32*3*y1 + 3*x1 + 2] = min(map_image[80*32*3*y1 + 3*x1 + 2] + b, 255);
-
+		map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1] = min(map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1] + r, 255);
+		map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 1] = min(map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 1] + g, 255);
+		map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 2] = min(map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 2] + b, 255);
+		if (map_image->bpp == 4)
+			map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 3] = min(map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 3] + 255, 255);
         if (x1 == x2 && y1 == y2)
             break;
         error2 = error * 2;
@@ -726,7 +767,7 @@ static void MapDrawLine(byte *map_image, float row1, float col1, float row2, flo
 }
 
 // draw a dashed line from tile to tile
-static void MapDrawDashedLine(byte *map_image, float row1, float col1, float row2, float col2, byte r, byte g, byte b)
+static void MapDrawDashedLine(map_renderbuffer_t *map_image, float row1, float col1, float row2, float col2, byte r, byte g, byte b)
 {
 	int x1, x2, y1, y2, error, error2, deltaX, deltaY, signX, signY, skip;
 
@@ -749,9 +790,11 @@ static void MapDrawDashedLine(byte *map_image, float row1, float col1, float row
     {
 		if (skip >= 0)
 		{
-			map_image[80*32*3*y1 + 3*x1] = min(map_image[80*32*3*y1 + 3*x1] + r, 255);
-			map_image[80*32*3*y1 + 3*x1 + 1] = min(map_image[80*32*3*y1 + 3*x1 + 1] + g, 255);
-			map_image[80*32*3*y1 + 3*x1 + 2] = min(map_image[80*32*3*y1 + 3*x1 + 2] + b, 255);
+			map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1] = min(map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1] + r, 255);
+			map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 1] = min(map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 1] + g, 255);
+			map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 2] = min(map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 2] + b, 255);
+			if (map_image->bpp == 4)
+				map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 3] = min(map_image->data[80*32*map_image->bpp*y1 + map_image->bpp*x1 + 3] + 255, 255);
 		}
 		skip++;
 		if (skip > 3)
@@ -774,7 +817,7 @@ static void MapDrawDashedLine(byte *map_image, float row1, float col1, float row
 }
 
 // fill the inner border
-static void MapDrawBorder(byte *map_image, int row, int col, byte r, byte g, byte b, int margin, int width)
+static void MapDrawBorder(map_renderbuffer_t *map_image, int row, int col, byte r, byte g, byte b, int margin, int width)
 {
 	int i, j, length;
 
@@ -782,53 +825,65 @@ static void MapDrawBorder(byte *map_image, int row, int col, byte r, byte g, byt
 	// up
 	for (i = 0; i < width; i++)
 	{
-		byte *out = (byte *)map_image + 80*32*3 * (32*col+margin+i) + 32*3*row + 3*margin;
-		for (j = 0; j < length; j++, out += 3)
+		byte *out = (byte *)map_image->data + 80*32*map_image->bpp * (32*col+margin+i) + 32*map_image->bpp*row + map_image->bpp*margin;
+		for (j = 0; j < length; j++, out += map_image->bpp)
 		{
 			out[0] = (byte)min(out[0] + r, 255);
 			out[1] = (byte)min(out[1] + g, 255);
 			out[2] = (byte)min(out[2] + b, 255);
+			if (map_image->bpp == 4)
+				out[3] = (byte)min((int)(out[3] + 255), 255);
 		}
 	}
 	// down
 	for (i = 0; i < width; i++)
 	{
-		byte *out = (byte *)map_image + 80*32*3 * (32*col+32-1-margin-i) + 32*3*row + 3*margin;
-		for (j = 0; j < length; j++, out += 3)
+		byte *out = (byte *)map_image->data + 80*32*map_image->bpp * (32*col+32-1-margin-i) + 32*map_image->bpp*row + map_image->bpp*margin;
+		for (j = 0; j < length; j++, out += map_image->bpp)
 		{
 			out[0] = (byte)min(out[0] + r, 255);
 			out[1] = (byte)min(out[1] + g, 255);
 			out[2] = (byte)min(out[2] + b, 255);
+			if (map_image->bpp == 4)
+				out[3] = (byte)min((int)(out[3] + 255), 255);
 		}
 	}
 	// left
 	length = length - width*2;
 	for (i = 0; i < length; i++)
 	{
-		byte *out = (byte *)map_image + 80*32*3 * (32*col+margin+width+i) + 32*3*row + 3*margin;
-		for (j = 0; j < width; j++, out += 3)
+		byte *out = (byte *)map_image->data + 80*32*map_image->bpp * (32*col+margin+width+i) + 32*map_image->bpp*row + map_image->bpp*margin;
+		for (j = 0; j < width; j++, out += map_image->bpp)
 		{
 			out[0] = (byte)min(out[0] + r, 255);
 			out[1] = (byte)min(out[1] + g, 255);
 			out[2] = (byte)min(out[2] + b, 255);
+			if (map_image->bpp == 4)
+				out[3] = (byte)min((int)(out[3] + 255), 255);
 		}
 	}
 	// right
 	for (i = 0; i < length; i++)
 	{
-		byte *out = (byte *)map_image + 80*32*3 * (32*col+margin+width+i) + 32*3*row + 3*(32-margin-width);
-		for (j = 0; j < width; j++, out += 3)
+		byte *out = (byte *)map_image->data + 80*32*map_image->bpp * (32*col+margin+width+i) + 32*map_image->bpp*row + map_image->bpp*(32-margin-width);
+		for (j = 0; j < width; j++, out += map_image->bpp)
 		{
 			out[0] = (byte)min(out[0] + r, 255);
 			out[1] = (byte)min(out[1] + g, 255);
 			out[2] = (byte)min(out[2] + b, 255);
+			if (map_image->bpp == 4)
+				out[3] = (byte)min((int)(out[3] + 255), 255);
 		}
 	}
 
 }
 
+// determin a shadow pixel in tilemap
+// yes, this is bogus as shadows always uses index 0
+#define IsShadowPixel(in) ((in[0] == 8 && in[1] == 16 && (in[2] == 32 || in[2] == 33)) || (in[0] == 9 && in[1] == 17 && in[2] == 36))
+
 // draw a picture (sprite or tim)
-static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, byte subpic, bool solid, bool align_center, float r, float g, float b)
+static void MapDrawPic(map_renderbuffer_t *map_image, float row, float col, cachepic_t *pic, byte subpic, bool solid, bool align_center, float r, float g, float b)
 {
 	int i, j, x, y, startx, starty, width, height;
 	byte *out, *in;
@@ -888,13 +943,15 @@ static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, b
 		for (i = 0; i < height; i++)
 		{
 			in = (byte *)pic->pixels + pic->width*3*(i + starty) + startx * 3;
-			out = (byte *)map_image + 80*32*3*(x + i) + 3*(y);
+			out = (byte *)map_image->data + 80*32*map_image->bpp*(x + i) + map_image->bpp*(y);
 			for (j = 0; j < width; j++)
 			{
 				out[0] = (byte)min(255, max(0, in[0] * r));
 				out[1] = (byte)min(255, max(0, in[1] * g));
 				out[2] = (byte)min(255, max(0, in[2] * b));
-				out += 3;
+				if (map_image->bpp == 4)
+					out[3] = (byte)min(255, max(0, (int)(in[3] + 255)));	
+				out += map_image->bpp;
 				in += 3;
 			}
 		}
@@ -909,32 +966,36 @@ static void MapDrawPic(byte *map_image, float row, float col, cachepic_t *pic, b
 	for (i = 0; i < height; i++)
 	{
 		in = (byte *)pic->pixels + 3*(pic->width*(starty + i) + startx);
-		out = (byte *)map_image  + 3*(80*32*(x + i) + y);
+		out = (byte *)map_image->data + map_image->bpp*(80*32*(x + i) + y);
 		for (j = 0; j < width; j++)
 		{
 			if (in[0] || in[1] || in[2])
 			{
-				if ((in[0] == 8 && in[1] == 16 && (in[2] == 32 || in[2] == 33)) || (in[0] == 9 && in[1] == 17 && in[2] == 36))
+				if (IsShadowPixel(in))
 				{
 					out[0] = (byte)min(255, max(0, (float)(out[0] + in[0]) * 0.5 * r));
 					out[1] = (byte)min(255, max(0, (float)(out[1] + in[1]) * 0.5 * g));
 					out[2] = (byte)min(255, max(0, (float)(out[2] + in[2]) * 0.5 * b));
-				}
+					if (map_image->bpp == 4)
+						out[3] = (byte)min(255, max(0, (float)(out[3] + 128)));
+				}	
 				else 
 				{
 					out[0] = (byte)min(255, max(0, (float)in[0] * r));
 					out[1] = (byte)min(255, max(0, (float)in[1] * g));
 					out[2] = (byte)min(255, max(0, (float)in[2] * b));
+					if (map_image->bpp == 4)
+						out[3] = (byte)min(255, max(0, (float)(out[3] + 255)));
 				}
 			}
-			out += 3;
+			out += map_image->bpp;
 			in += 3;
 		}
 	}	
 }
 
 // draws a string
-static void MapDrawString(byte *map_image, float row, float col, char *str, bool center_align, float r, float g, float b)
+static void MapDrawString(map_renderbuffer_t *map_image, float row, float col, char *str, bool center_align, float r, float g, float b)
 {
 	float stringwidth, stringheight;
 	cachepic_t *fontmap;
@@ -1011,7 +1072,7 @@ static void MapDrawString(byte *map_image, float row, float col, char *str, bool
 */
 
 // draw a contents color block
-static void Draw_Contents(byte *map_image, int row, int col, int contents, bool with_solid, bool with_triggers)
+static void Draw_Contents(map_renderbuffer_t *map_image, int row, int col, int contents, bool with_solid, bool with_triggers)
 {
 	byte color[3];
 
@@ -1097,7 +1158,7 @@ static void Draw_Contents(byte *map_image, int row, int col, int contents, bool 
 }
 
 // draw a trigger line to objects that can be activated
-static void Draw_TriggerLine(bo_map_t *map, byte *map_image, int row, int col, unsigned short t, byte toggled_objects)
+static void Draw_TriggerLine(bo_map_t *map, map_renderbuffer_t *map_image, int row, int col, unsigned short t, byte toggled_objects)
 {
 	int i;
 	cachepic_t *pic;
@@ -1154,7 +1215,7 @@ static void Draw_TriggerLine(bo_map_t *map, byte *map_image, int row, int col, u
 }
 
 // draw a trigger border for objecfts that are activated from another level
-static void Draw_NoTrigger(bo_map_t *map, byte *map_image, int row, int col, unsigned short t)
+static void Draw_NoTrigger(bo_map_t *map, map_renderbuffer_t *map_image, int row, int col, unsigned short t)
 {
 	int i;
 
@@ -1188,7 +1249,7 @@ static void Draw_NoTrigger(bo_map_t *map, byte *map_image, int row, int col, uns
 }
 
 // draw a path line
-static void Draw_Path(byte *map_image, int row1, int col1, int row2, int col2, byte r, byte g, byte b, bool drawarrow)
+static void Draw_Path(map_renderbuffer_t *map_image, int row1, int col1, int row2, int col2, byte r, byte g, byte b, bool drawarrow)
 {
 	float start[2], end[2], dir[2], nd[2], n[2], yaw;
 
@@ -1230,13 +1291,14 @@ static void Draw_Path(byte *map_image, int row1, int col1, int row2, int col2, b
 ==========================================================================================
 */
 				
-int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, bool with_solid, bool with_triggers, bool show_save_id, byte toggled_objects, bool developer, int devnum, bool group_sections_by_path)
+int MapExportTGA(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, bool with_solid, bool with_triggers, bool show_save_id, byte toggled_objects, bool developer, int devnum, bool group_sections_by_path)
 {
 	int i, j, decSize;
 	int map_mincol, map_minrow, map_maxcol, map_maxrow;
 	unsigned short tilepix, tilegroup, map_num, map_section;
 	char filename[MAX_OSPATH], path[MAX_OSPATH], mapname[32],  *picname;
-	byte *dec, *map_image, contents, subpic, color[3];
+	byte *dec, contents, subpic, color[3];
+	map_renderbuffer_t *map_image;
 	cachepic_t *pic;
 	float f;
 	bo_map_t map;
@@ -1275,8 +1337,7 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 	map_minrow = 80;
 	map_maxcol = 0;
 	map_maxrow = 0;
-	map_image = (byte *)mem_alloc(80 * 32 * 3 * 32 * 80);
-	memset(map_image, 0,  80 * 32 * 3 * 32 * 80);
+	map_image = AllocateMapDrawImage(3);
 
 	// draw world
 	// we are splitting world rendering to background (before everything) and foreground (after monsters)
@@ -2001,8 +2062,8 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 		DefaultExtension(filename, ".tga", MAX_OSPATH);
 	}
 	Print("Writing map %s...\n", filename);
-	RawTGA(filename, 80 * 32, 80 * 32, map_mincol, map_minrow, map_maxcol, map_maxrow, NULL, map_image, 24, NULL);
-	mem_free(map_image);
+	RawTGA(filename, 80 * 32, 80 * 32, map_mincol, map_minrow, map_maxcol, map_maxrow, NULL, map_image->data, 24, NULL);
+	FreeMapDrawImage(map_image);
 
 	// write layers
 	/*
@@ -2036,11 +2097,1138 @@ int MapExtract(char *mapfile, byte *fileData, int fileDataSize, char *outfile, b
 	return 1;
 }
 
+/*
+==========================================================================================
+
+ MAP EXPORT FOR BLOOD OMNICIDE
+
+==========================================================================================
+*/
+
+// regions buider structure
+// VorteX: regions are groups (like 4 tiles being solid), used as optimization for physics engine
+typedef struct
+{
+	int x;
+	int y;
+	int sizex;
+	int sizey;
+	int maxx;
+	int maxy;
+	int s;
+} region_t;
+
+region_t testregion;
+byte     testregioncases[80][80];
+int      numtestregions;
+byte     testcontents[80][80];
+
+void TestRegions_Recursive(int sizex, int sizey, int contents)
+{
+	int i, k;
+
+	if (testcontents[testregion.x][testregion.y] != contents)
+		return;
+	if (testregioncases[sizex][sizey])
+		return;
+	testregioncases[sizex][sizey] = 1;
+
+	// test region with row increased
+	k = testregion.x + sizex;
+	if (k < testregion.maxx)
+	{
+		for (i = 0; i < sizey; i++)
+			if (testcontents[k][testregion.y + i] != contents)
+				break;
+		if (i >= sizey)
+		{
+			// can build region with such parms
+			if ((sizex + 1)*sizey >= testregion.s)
+			{
+				testregion.sizex = sizex + 1;
+				testregion.sizey = sizey;
+				testregion.s = testregion.sizex * testregion.sizey;
+			}
+			TestRegions_Recursive(sizex + 1, sizey, contents);
+		}
+	}
+
+	// test region with col increased
+	k = testregion.y + sizey;
+	if (k < testregion.maxy)
+	{
+		for (i = 0; i < sizex; i++)
+			if (testcontents[testregion.x + i][k] != contents)
+				break;
+		if (i >= sizex)
+		{
+			// can build region with such parms
+			if (sizex*(sizey + 1) >= testregion.s)
+			{
+				testregion.sizex = sizex;
+				testregion.sizey = sizey + 1;
+				testregion.s = testregion.sizex * testregion.sizey;
+			}
+			TestRegions_Recursive(sizex, sizey + 1, contents);
+		}
+	}
+}
+
+int TestRegions(int startx, int starty, int maxx, int maxy, int contents)
+{
+	numtestregions = 0;
+	memset(testregioncases, 0, sizeof(testregioncases));
+	testregion.x = startx;
+	testregion.y = starty;
+	testregion.sizex = 1;
+	testregion.sizey = 1;
+	testregion.maxx = maxx;
+	testregion.maxy = maxy;
+	testregion.s = 1;
+	TestRegions_Recursive(1, 1, contents);
+	return testregion.s;
+}
+
+static int BuildRegions(bo_map_t *map, int map_mini, int map_minj, int map_maxi, int map_maxj, FILE *out, region_t *outregions, int maxregions, int contents, int debugwrite)
+{
+	int i, j;
+	region_t maxreg;
+	int haveregions[80][80];
+	int numcollisionregions;
+
+	memcpy(testcontents, map->contents, sizeof(testcontents));
+
+	// eliminate tiles that surrounded by same contents from 4 sides
+	/*
+	for (i = 1; i < 79; i++)
+		for (j = 1; j < 79; j++)
+			if (testcontents[i][j] == contents)
+				if (testcontents[i-1][j] == contents || testcontents[i-1][j] == 255)
+					if (testcontents[i+1][j] == contents || testcontents[i+1][j] == 255)
+						if (testcontents[i][j-1] == contents || testcontents[i][j-1] == 255)
+							if (testcontents[i][j+1] == contents || testcontents[i][j+1] == 255)
+								testcontents[i][j] = 255;
+	*/
+
+	// find out regions
+	numcollisionregions = 0;
+	do
+	{
+		maxreg.x = 0;
+		maxreg.y = 0;
+		maxreg.sizex = 0;
+		maxreg.sizey = 0;
+		maxreg.s = 0;
+		for (i = map_mini; i < map_maxi; i++)
+		{
+			for (j = map_minj; j < map_maxj; j++)
+			{
+				haveregions[i][j] = TestRegions(i, j, map_maxi, map_maxj, contents);
+				if (haveregions[i][j] > maxreg.s)
+					memcpy(&maxreg, &testregion, sizeof(maxreg));
+			}
+		}
+		if (maxreg.s < 2) // finished
+			break;
+
+		// add collision region
+		memcpy(&outregions[numcollisionregions], &maxreg, sizeof(maxreg));
+		for (i = 0; i < maxreg.sizex; i++)
+			for (j = 0; j < maxreg.sizey; j++)
+				testcontents[maxreg.x + i][maxreg.y + j] = 255;
+		numcollisionregions++;
+	}
+	while(numcollisionregions < maxregions);
+
+	// write a one-point regions
+	for (i = map_mini; i < map_maxi; i++)
+	{
+		for (j = map_minj; j < map_maxj; j++)
+		{
+			if (testcontents[i][j] == contents)
+			{
+				if (numcollisionregions >= maxregions)
+					break;
+				outregions[numcollisionregions].x = i;
+				outregions[numcollisionregions].y = j;
+				outregions[numcollisionregions].sizex = 1;
+				outregions[numcollisionregions].sizey = 1;
+				outregions[numcollisionregions].s = 1;
+				numcollisionregions++;
+			}
+		}
+	}
+
+	// debug write
+	if (debugwrite)
+	{
+		byte color[80][80][3], c[3];
+		char filename[128];
+		int k;
+
+		srand(0);
+		for (k = 0; k < numcollisionregions; k++)
+		{
+			c[0] = rand() % 255 + 64;
+			c[1] = rand() % 255 + 64;
+			c[2] = rand() % 255 + 64;
+
+			for (i = 0; i < outregions[k].sizex; i++)
+			{
+				for (j = 0; j < outregions[k].sizey; j++)
+				{
+					color[outregions[k].x + i][outregions[k].y + j][0] = c[0];
+					color[outregions[k].x + i][outregions[k].y + j][1] = c[1];
+					color[outregions[k].x + i][outregions[k].y + j][2] = c[2];
+				}
+			}
+		}
+		sprintf(filename, "regions_%i_%i.tga", contents, debugwrite);
+		RawTGA(filename, 80, 80, 0, 0, 0, 0, NULL, (byte *)color, 24, NULL);
+	}
+
+	return numcollisionregions;
+}
+
+static void BuildMapRegion(bo_map_t *map, int map_mini, int map_minj, int map_maxi, int map_maxj, FILE *out, region_t *collisionregions, int contents, char *contentsName, int debug)
+{
+	int i, numregions;
+
+	numregions = BuildRegions(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, 6400, contents, debug);
+	if (numregions)
+	{
+		Print("%i regions for %s\n", numregions, contentsName);
+		fprintf(out, "%s [\n", contentsName);
+		for (i = 0; i < numregions; i++)
+			fprintf(out, " ( %i %i %i %i )\n", collisionregions[i].x, collisionregions[i].y, collisionregions[i].sizex, collisionregions[i].sizey);
+		fprintf(out, "]\n");
+	}
+}
+
+static void BuildMapRegions(bo_map_t *map, int map_mini, int map_minj, int map_maxi, int map_maxj, FILE *out)
+{
+	region_t collisionregions[6400];
+	
+	fprintf(out, "regions {\n");
+
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, 0, "empty", 0);
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, CONTENTS_SOLID, "solid", 0);
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, CONTENTS_WATER, "water", 0);
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, CONTENTS_LAVA, "lava", 0);
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, CONTENTS_SWAMP, "swamp", 0);
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, CONTENTS_ICE, "ice", 0);
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, CONTENTS_FIRE, "fire", 0);
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, CONTENTS_SPIKES, "spikes", 0);
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, CONTENTS_TRAPTELEPORT, "teleport", 0);
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, CONTENTS_JUMPWALL, "jumpwall", 0);
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, CONTENTS_JUMPFENCE, "jumpfence", 0);
+	BuildMapRegion(map, map_mini, map_minj, map_maxi, map_maxj, out, collisionregions, CONTENTS_MISTWALK, "mistwalk", 0);
+
+	fprintf(out, "}\n");
+}
+
+// Atlas texture (not used)
+// VorteX: atlas texture are rendered full map texture (only static objects) used to speed up drawing
+// unfortunately, atlases for Blood Omen maps are too large to be used
+void BuildAtlasTexture(char *outfile, bo_map_t *map, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath, int map_mini, int map_minj, int map_maxi, int map_maxj, bool top)
+{
+	int i, j;
+	unsigned short tilepix, tilegroup;
+	char filename[MAX_OSPATH];
+	map_renderbuffer_t *map_image;
+	cachepic_t *pic;
+
+	CachePic_Globals(tilespath, bigfileheader, bigfile)
+	map_image = AllocateMapDrawImage(3);
+
+	for (i = map_mini; i < map_maxi; i++)
+	{
+		for (j = map_minj; j < map_maxj; j++)
+		{
+			// foreground
+			if (!top)
+			{
+				// tile1
+				tilepix = map->backtiles[i][j];
+				if (tilepix != 0xFFFF && !(tilepix & (TILEFLAG_NODRAW + TILEFLAG_ALWAYSONTOP)))
+				{
+					tilegroup = (tilepix & TILEFLAG_IMASK) / 64;
+					sprintf(filename, "grp%05i.ctm", map->tilemaps[tilegroup]);
+					pic = CachePic(filename);
+					if (pic)
+					{
+						pic->subpics = &subpics_grp; // always use standart tilemap 
+						MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), true, false, 1.0f, 1.0f, 1.0f);
+					}
+				}
+				// tile2
+				tilepix = map->foretiles[i][j];
+				if (tilepix != 0xFFFF && !(tilepix & (TILEFLAG_NODRAW + TILEFLAG_ALWAYSONTOP)))
+				{
+					tilegroup = (tilepix & TILEFLAG_IMASK) / 64;
+					sprintf(filename, "grp%05i.ctm", map->tilemaps[tilegroup]);
+					pic = CachePic(filename);
+					if (pic)
+					{
+						pic->subpics = &subpics_grp; // always use standart tilemap 
+						MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false, 1.0f, 1.0f, 1.0f);
+					}
+				}
+			}
+			if (top)
+			{
+				// tile1
+				tilepix = map->backtiles[i][j];
+				if (tilepix != 0xFFFF && !(tilepix & TILEFLAG_NODRAW) && (tilepix & TILEFLAG_ALWAYSONTOP))
+				{
+					tilegroup = (tilepix & TILEFLAG_IMASK) / 64;
+					sprintf(filename, "grp%05i.ctm", map->tilemaps[tilegroup]);
+					pic = CachePic(filename);
+					if (pic)
+					{
+						pic->subpics = &subpics_grp; // always use standart tilemap 
+						MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), true, false, 1.0f, 1.0f, 1.0f);
+					}
+				}
+				// tile2
+				tilepix = map->foretiles[i][j];
+				if (tilepix != 0xFFFF && !(tilepix & TILEFLAG_NODRAW) && (tilepix & TILEFLAG_ALWAYSONTOP))
+				{
+					tilegroup = (tilepix & TILEFLAG_IMASK) / 64;
+					sprintf(filename, "grp%05i.ctm", map->tilemaps[tilegroup]);
+					pic = CachePic(filename);
+					if (pic)
+					{
+						pic->subpics = &subpics_grp; // always use standart tilemap 
+						MapDrawPic(map_image, (float)i, (float)j, pic, (tilepix & TILEFLAG_IMASK) - (tilegroup * 64), false, false, 1.0f, 1.0f, 1.0f);
+					}
+				}
+			}
+		}
+	}
+	// write
+	map_mini = 0 - max(0, map_mini) * 32;
+	map_minj = 0 - max(0, map_minj) * 32;
+	map_maxi = (min(80, map_maxi) - 80) * 32;
+	map_maxj = (min(80, map_maxj) - 80) * 32;
+	RawTGA(outfile, 80 * 32, 80 * 32, map_mini, map_minj, map_maxi, map_maxj, NULL, map_image->data, 24, NULL);
+	FreeMapDrawImage(map_image);
+}
+
+// Draw Meshes
+// like atlas texture, but for draw geometry. This contains all static tiles grouped into single model.
+// VorteX: to get rid of transparent sorting math, all static tiles are drawn with alphaTest
+//         so static tiles with shadows should be moved to dynamic render path as well
+bool TileMapIsUsed(bo_map_t *map, int i, int map_mini, int map_minj, int map_maxi, int map_maxj, bool noanimated)
+{
+	int j, k;
+
+	for (j = map_mini; j < map_maxi; j++)
+		for (k = map_minj; k < map_maxj; k++)
+			if ((map->backtiles[j][k] != 0xFFFF && ((map->backtiles[j][k] & TILEFLAG_IMASK) / 64) == i) || (map->foretiles[j][k] != 0xFFFF && ((map->foretiles[j][k] & TILEFLAG_IMASK) / 64) == i))
+				return true;
+	if (noanimated)
+		return false;
+	for (j = 0; j < 100; j++)
+		if (map->atiles[j].targetnum != 0xFFFF && ((map->atiles[j].tile1 != 0xFFFF && ((map->atiles[j].tile1 & TILEFLAG_IMASK) / 64) == i) || (map->atiles[j].tile2 != 0xFFFF && ((map->atiles[j].tile2 & TILEFLAG_IMASK) / 64) == i)))
+			return true;
+	for (j = 0; j < 20; j++)
+		if (map->buttons[j].savenum && map->buttons[j].savenum != 0xFFFF && ((map->buttons[j].tile1 != 0xFFFF && ((map->buttons[j].tile1 & TILEFLAG_IMASK) / 64) == i) || (map->buttons[j].tile2 != 0xFFFF && ((map->buttons[j].tile2 & TILEFLAG_IMASK) / 64) == i)))
+			return true;
+	for (j = 0; j < 256; j++)
+		if (map->scenery[j].active && ((map->scenery[j].tile1 != 0xFFFF && ((map->scenery[j].tile1 & TILEFLAG_IMASK) / 64) == i) || (map->scenery[j].tile2 != 0xFFFF && ((map->scenery[j].tile2 & TILEFLAG_IMASK) / 64) == i) || (map->scenery[j].tile3 != 0xFFFF && ((map->scenery[j].tile3 & TILEFLAG_IMASK) / 64) == i)))
+			return true;
+	return false;
+}
+
+const int z1_1 = 0, z1_2 = 1, z2_1 = 2, z2_2 = 3;
+const int zh[4] = {0, 1, 8, 9};
+
+void PrintVert(FILE *obj, int x, int y, int z, int obj_orientation)
+{
+	if (obj_orientation)
+		fprintf(obj, "v %i %i %i\n", x, zh[z], y);
+	else
+		fprintf(obj, "v %i %i %i\n", x, y, zh[z]);
+}
+
+void BuildStaticGeometry(char *outfile, bo_map_t *map, char *tilematerialspath, int map_mini, int map_minj, int map_maxi, int map_maxj, int map_maxtile, float tilemapsize, bool *tilemaps_exclude)
+{
+	int i, j, k, tilepix, tilenum, tilegroup, idx, tileflags, z, obj_orientation;
+	unsigned int num_verts = 0, num_tc = 0, num_triangles = 0;
+	float tc_epsilon1, tc_epsilon2;
+	int vx_indexes[81][81][4][4], tc_indexes[64];
+	char filename[MAX_OSPATH];
+	float tc[2];
+	FILE *obj;
+
+	memset(vx_indexes, 0, sizeof(vx_indexes));
+	memset(tc_indexes, 0, sizeof(tc_indexes));
+
+	// export materials
+	sprintf(filename, "%s.mtl", outfile);
+	obj = SafeOpenWrite(filename);
+	fprintf(obj, "# Wavefront material file\n");
+	fprintf(obj, "# Generated by Blood Pill\n");
+	for (k = 0; k < map_maxtile; k++)
+	{
+		if (!TileMapIsUsed(map, k, map_mini, map_minj, map_maxi, map_maxj, true))
+			continue;
+		fprintf(obj, "newmtl %sgrp%05i\n", tilematerialspath, map->tilemaps[k]);
+		fprintf(obj, "map_Kd %sgrp%05i.tga\n", tilematerialspath, map->tilemaps[k]);
+		fprintf(obj, "\n");
+	}
+	WriteClose(obj);
+
+	// export geometry, sort by tilemap
+	sprintf(filename, "%s.obj", outfile);
+	obj = SafeOpenWrite(filename);
+	fprintf(obj, "# Wavefront object file\n");
+	fprintf(obj, "# Generated by Blood Pill\n");
+	ExtractFileBase(outfile, filename);
+	fprintf(obj, "mtllib %s.mtl\n", filename);
+	fprintf(obj, "o map\n");
+	tileflags = TILEFLAG_UNKNOWN1+TILEFLAG_NODRAW+TILEFLAG_ONTOPINFRONT+TILEFLAG_UNKNOWN6;
+	obj_orientation = 1;
+	idx = 1;
+	for (k = 0; k < map_maxtile; k++)
+	{
+		if (!TileMapIsUsed(map, k, map_mini, map_minj, map_maxi, map_maxj, true))
+			continue;
+		// export vertexes
+		for (i = 0; i < 80; i++)
+		{
+			for (j = 0; j < 80; j++)
+			{
+				tilepix = map->backtiles[i][j];
+				if (tilepix != 0xFFFF && !(tilepix & tileflags) && !tilemaps_exclude[tilepix & TILEFLAG_IMASK])
+				{
+					tilegroup = (tilepix & TILEFLAG_IMASK) / 64;
+					if (tilegroup == k)
+					{
+						z = ((tilepix & TILEFLAG_ALWAYSONTOP) != 0) ? z2_1 : z1_1;
+						if (!vx_indexes[i][j][z][0])
+						{
+							if (i > 0 && vx_indexes[i-1][j][z][1])
+								vx_indexes[i][j][z][0] = vx_indexes[i-1][j][z][1];
+							else if (j > 0 && vx_indexes[i][j-1][z][3])
+								vx_indexes[i][j][z][0] = vx_indexes[i][j-1][z][3];
+							else if (i > 0 && j > 0 && vx_indexes[i-1][j-1][z][2])
+								vx_indexes[i][j][z][0] = vx_indexes[i-1][j-1][z][2];
+							else
+							{
+								PrintVert(obj, i, -j, z, obj_orientation);
+								vx_indexes[i][j][z][0] = idx;
+								idx += 1;
+							}
+						}
+						if (!vx_indexes[i][j][z][1])
+						{
+							if (i < 79 && vx_indexes[i+1][j][z][0])
+								vx_indexes[i][j][z][1] = vx_indexes[i+1][j][z][0];
+							else if (j > 0 && vx_indexes[i][j-1][z][2])
+								vx_indexes[i][j][z][1] = vx_indexes[i][j-1][z][2];
+							else if (i < 79 && j > 0 && vx_indexes[i+1][j-1][z][3])
+								vx_indexes[i][j][z][1] = vx_indexes[i+1][j-1][z][3];
+							else
+							{
+								PrintVert(obj, i + 1, -j, z, obj_orientation);
+								vx_indexes[i][j][z][1] = idx;
+								idx += 1;
+							}
+						}
+						if (!vx_indexes[i][j][z][2])
+						{
+							if (i < 79 && vx_indexes[i+1][j][z][3])
+								vx_indexes[i][j][z][2] = vx_indexes[i+1][j][z][3];
+							else if (j < 79 && vx_indexes[i][j+1][z][1])
+								vx_indexes[i][j][z][2] = vx_indexes[i][j+1][z][1];
+							else if (i < 79 && j < 79 && vx_indexes[i+1][j+1][z][0])
+								vx_indexes[i][j][z][2] = vx_indexes[i+1][j+1][z][0];
+							else
+							{
+								PrintVert(obj, i + 1, -j-1, z, obj_orientation);
+								vx_indexes[i][j][z][2] = idx;
+								idx += 1;
+							}
+						}
+						if (!vx_indexes[i][j][z][3])
+						{
+							if (i > 0 && vx_indexes[i-1][j][z][2])
+								vx_indexes[i][j][z][3] = vx_indexes[i-1][j][z][2];
+							else if (j < 79 && vx_indexes[i][j+1][z][0])
+								vx_indexes[i][j][z][3] = vx_indexes[i][j+1][z][0];
+							else if (i > 0 && j < 79 && vx_indexes[i-1][j+1][z][1])
+								vx_indexes[i][j][z][3] = vx_indexes[i-1][j+1][z][1];
+							else
+							{
+								PrintVert(obj, i, -j-1, z, obj_orientation);
+								vx_indexes[i][j][z][3] = idx;
+								idx += 1;
+							}
+						}
+					}
+				}
+				tilepix = map->foretiles[i][j];
+				if (tilepix != 0xFFFF && !(tilepix & tileflags) && !tilemaps_exclude[tilepix & TILEFLAG_IMASK])
+				{
+					tilegroup = (tilepix & TILEFLAG_IMASK) / 64;
+					if (tilegroup == k)
+					{
+						z = ((tilepix & TILEFLAG_ALWAYSBELOW) != 0) ? z1_2 : z2_2;
+						if (!vx_indexes[i][j][z][0])
+						{
+							if (i > 0 && vx_indexes[i-1][j][z][1])
+								vx_indexes[i][j][z][0] = vx_indexes[i-1][j][z][1];
+							else if (j > 0 && vx_indexes[i][j-1][z][3])
+								vx_indexes[i][j][z][0] = vx_indexes[i][j-1][z][3];
+							else if (i > 0 && j > 0 && vx_indexes[i-1][j-1][z][2])
+								vx_indexes[i][j][z][0] = vx_indexes[i-1][j-1][z][2];
+							else
+							{
+								PrintVert(obj, i, -j, z, obj_orientation);
+								vx_indexes[i][j][z][0] = idx;
+								idx += 1;
+							}
+						}
+						if (!vx_indexes[i][j][z][1])
+						{
+							if (i < 79 && vx_indexes[i+1][j][z][0])
+								vx_indexes[i][j][z][1] = vx_indexes[i+1][j][z][0];
+							else if (j > 0 && vx_indexes[i][j-1][z][2])
+								vx_indexes[i][j][z][1] = vx_indexes[i][j-1][z][2];
+							else if (i < 79 && j > 0 && vx_indexes[i+1][j-1][z][3])
+								vx_indexes[i][j][z][1] = vx_indexes[i+1][j-1][z][3];
+							else
+							{
+								PrintVert(obj, i + 1, -j, z, obj_orientation);
+								vx_indexes[i][j][z][1] = idx;
+								idx += 1;
+							}
+						}
+						if (!vx_indexes[i][j][z][2])
+						{
+							if (i < 79 && vx_indexes[i+1][j][z][3])
+								vx_indexes[i][j][z][2] = vx_indexes[i+1][j][z][3];
+							else if (j < 79 && vx_indexes[i][j+1][z][1])
+								vx_indexes[i][j][z][2] = vx_indexes[i][j+1][z][1];
+							else if (i < 79 && j < 79 && vx_indexes[i+1][j+1][z][0])
+								vx_indexes[i][j][z][2] = vx_indexes[i+1][j+1][z][0];
+							else
+							{
+								PrintVert(obj, i + 1, -j-1, z, obj_orientation);
+								vx_indexes[i][j][z][2] = idx;
+								idx += 1;
+							}
+						}
+						if (!vx_indexes[i][j][z][3])
+						{
+							if (i > 0 && vx_indexes[i-1][j][z][2])
+								vx_indexes[i][j][z][3] = vx_indexes[i-1][j][z][2];
+							else if (j < 79 && vx_indexes[i][j+1][z][0])
+								vx_indexes[i][j][z][3] = vx_indexes[i][j+1][z][0];
+							else if (i > 0 && j < 79 && vx_indexes[i-1][j+1][z][1])
+								vx_indexes[i][j][z][3] = vx_indexes[i-1][j+1][z][1];
+							else
+							{
+								PrintVert(obj, i, -j-1, z, obj_orientation);
+								vx_indexes[i][j][z][3] = idx;
+								idx += 1;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	num_verts = idx - 1;
+	tc_epsilon1 = (1.0f/tilemapsize);
+	tc_epsilon2 = (1.0f/8.0f - 2.0f/tilemapsize);
+	idx = 1;
+	for (k = 0; k < map_maxtile; k++)
+	{
+		if (!TileMapIsUsed(map, k, map_mini, map_minj, map_maxi, map_maxj, true))
+			continue;
+		// export texture coordinates
+		for (i = 0; i < 80; i++)
+		{
+			for (j = 0; j < 80; j++)
+			{
+				tilepix = map->backtiles[i][j];
+				if (tilepix != 0xFFFF && !(tilepix & tileflags) && !tilemaps_exclude[tilepix & TILEFLAG_IMASK])
+				{
+					tilegroup = (tilepix & TILEFLAG_IMASK) / 64;
+					if (tilegroup == k)
+					{
+						tilenum = (tilepix & TILEFLAG_IMASK) - tilegroup * 64;
+						if (!tc_indexes[tilenum])
+						{
+							tc[0] = (float)(tilenum - (tilenum / 8) * 8) / 8.0f + tc_epsilon1;
+							tc[1] = 0-(float)((int)(tilenum / 8))/8.0f - tc_epsilon1;
+							fprintf(obj, "vt %f %f\n", tc[0], tc[1]);
+							tc[0] += tc_epsilon2;
+							fprintf(obj, "vt %f %f\n", tc[0], tc[1]);
+							tc[1] -= tc_epsilon2;
+							fprintf(obj, "vt %f %f\n", tc[0], tc[1]);
+							tc[0] -= tc_epsilon2;
+							fprintf(obj, "vt %f %f\n", tc[0], tc[1]);
+							tc_indexes[tilenum] = idx;
+							idx += 4;
+						}
+					}
+				}
+				tilepix = map->foretiles[i][j];
+				if (tilepix != 0xFFFF && !(tilepix & tileflags) && !tilemaps_exclude[tilepix & TILEFLAG_IMASK])
+				{
+					tilegroup = (tilepix & TILEFLAG_IMASK) / 64;
+					if (tilegroup == k)
+					{
+						tilenum = (tilepix & TILEFLAG_IMASK) - tilegroup * 64;
+						if (!tc_indexes[tilenum])
+						{
+							tc[0] = (float)(tilenum - (tilenum / 8) * 8) / 8.0f + tc_epsilon1;
+							tc[1] = 0-(float)((int)(tilenum / 8))/8.0f - tc_epsilon1;
+							fprintf(obj, "vt %f %f\n", tc[0], tc[1]);
+							tc[0] += tc_epsilon2;
+							fprintf(obj, "vt %f %f\n", tc[0], tc[1]);
+							tc[1] -= tc_epsilon2;
+							fprintf(obj, "vt %f %f\n", tc[0], tc[1]);
+							tc[0] -= tc_epsilon2;
+							fprintf(obj, "vt %f %f\n", tc[0], tc[1]);
+							tc_indexes[tilenum] = idx;
+							idx += 4;
+						}
+					}
+				}
+			}
+		}
+	}
+	num_tc = idx - 1;
+	num_triangles = 0;
+	for (k = 0; k < map_maxtile; k++)
+	{
+		if (!TileMapIsUsed(map, k, map_mini, map_minj, map_maxi, map_maxj, true))
+			continue;
+		// export triangles
+		fprintf(obj, "usemtl %sgrp%05i\n", tilematerialspath, map->tilemaps[k], tilemapsize);	
+		for (i = 0; i < 80; i++)
+		{
+			for (j = 0; j < 80; j++)
+			{
+				tilepix = map->backtiles[i][j];
+				if (tilepix != 0xFFFF && !(tilepix & tileflags) && !tilemaps_exclude[tilepix & TILEFLAG_IMASK])
+				{
+					tilegroup = (tilepix & TILEFLAG_IMASK) / 64;
+					if (tilegroup == k)
+					{
+						z = ((tilepix & TILEFLAG_ALWAYSONTOP) != 0) ? z2_1 : z1_1;
+						tilenum = (tilepix & TILEFLAG_IMASK) - tilegroup * 64;
+						idx = tc_indexes[tilenum];
+						fprintf(obj, "f %i/%i %i/%i %i/%i\n", vx_indexes[i][j][z][0], idx,     vx_indexes[i][j][z][1], idx + 1, vx_indexes[i][j][z][2], idx + 2);  
+						fprintf(obj, "f %i/%i %i/%i %i/%i\n", vx_indexes[i][j][z][2], idx + 2, vx_indexes[i][j][z][3], idx + 3, vx_indexes[i][j][z][0], idx);
+						num_triangles += 2;
+					}
+				}
+				tilepix = map->foretiles[i][j];
+				if (tilepix != 0xFFFF && !(tilepix & tileflags) && !tilemaps_exclude[tilepix & TILEFLAG_IMASK])
+				{
+					tilegroup = (tilepix & TILEFLAG_IMASK) / 64;
+					if (tilegroup == k)
+					{
+						z = ((tilepix & TILEFLAG_ALWAYSBELOW) != 0) ? z1_2 : z2_2;
+						tilenum = (tilepix & TILEFLAG_IMASK) - tilegroup * 64;
+						idx = tc_indexes[tilenum];
+						fprintf(obj, "f %i/%i %i/%i %i/%i\n", vx_indexes[i][j][z][0], idx,     vx_indexes[i][j][z][1], idx + 1, vx_indexes[i][j][z][2], idx + 2);  
+						fprintf(obj, "f %i/%i %i/%i %i/%i\n", vx_indexes[i][j][z][2], idx + 2, vx_indexes[i][j][z][3], idx + 3, vx_indexes[i][j][z][0], idx);
+						num_triangles += 2;
+					}
+				}
+			}
+		}
+	}
+	fprintf(obj, "# model stats:\n");
+	fprintf(obj, "# %i vertexes\n", num_verts);
+	fprintf(obj, "# %i texture coordinates\n", num_tc);
+	fprintf(obj, "# %i triangles\n", num_triangles);
+	WriteClose(obj);
+}
+
+int MapExportTXT(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath)
+{
+	char mapname[32], filename[MAX_OSPATH];
+	unsigned short map_num, map_section, map_numtilemaps, map_maxtile;
+	int i, j, k, row, col, decSize, map_mini, map_minj, map_maxi, map_maxj, tilepix;
+	FILE *mapsv, *mapcl;
+	cachepic_t *pic;
+	bool tilemaps_withshadow[40*64];
+	byte *dec, *end;
+	bo_map_t map;
+
+	CachePic_Globals(tilespath, bigfileheader, bigfile)
+	memset(tilemaps_withshadow, 0, sizeof(tilemaps_withshadow));
+	
+	// extract map (get mapnum and section)
+	ExtractFileName(mapfile, mapname);
+	StripFileExtension(mapname, mapname);
+	map_num = 0;
+	map_section = 0;
+	if (mapname[0] != 'm' || strlen(mapname) != 8)
+		Print("warning: %s is not valid, map num and section is not known\n", mapname);
+	else
+	{
+		// get map and section
+		map_section = atoi((char *)(mapname + 6));
+		mapname[6] = 0;
+		map_num = atoi((char *)(mapname + 1));
+	}
+
+	// decompress
+	dec = (byte *)LzDec(&decSize, fileData, 0, fileDataSize, true);
+	if (dec == NULL)
+		return 0;
+	if (decSize != sizeof(bo_map_t))
+		return 0;
+	memcpy(&map, dec, sizeof(bo_map_t));
+
+	// set export path
+	sprintf(filename, "%s_sv.txt", outfile);
+	Print("exporting server-side map to %s\n", filename);
+	mapsv = SafeOpenWrite(filename);
+	sprintf(filename, "%s_cl.txt", outfile);
+	Print("exporting client-side map to %s\n", filename);
+	mapcl = SafeOpenWrite(filename);
+
+	// get map bounds
+	map_mini = 80;
+	map_minj = 80;
+	map_maxi = 0;
+	map_maxj = 0;
+	for (i = 0; i < 80; i++)
+	{
+		for (j = 0; j < 80; j++)
+		{
+			if (map.backtiles[i][j] != 0xFFFF)
+			{
+				map_mini = min(i, map_mini);
+				map_minj = min(j, map_minj);
+				map_maxi = max(i, map_maxi);
+				map_maxj = max(j, map_maxj);
+			}
+			if (map.foretiles[i][j] != 0xFFFF)
+			{
+				map_mini = min(i, map_mini);
+				map_minj = min(j, map_minj);
+				map_maxi = max(i, map_maxi);
+				map_maxj = max(j, map_maxj);
+			}
+		}
+	}
+	map_mini = max(0, map_mini - 1);
+	map_minj = max(0, map_minj - 1);
+	map_maxi = min(80, map_maxi + 1);
+	map_maxj = min(80, map_maxj + 1);
+	Print("map bounds (%i %i) (%i %i)\n", map_mini, map_minj, map_maxi, map_maxj);
+
+	// preload tilemaps
+	map_maxtile = 0;
+	map_numtilemaps = 0;
+	for (i = 0; i < 40; i++)
+	{
+		if (!TileMapIsUsed(&map, i, map_mini, map_minj, map_maxi, map_maxj, false))
+			continue;
+		map_numtilemaps++;
+		map_maxtile = max(map_maxtile, i+1);	
+		// check if tile contains shadow pixels, set a flag for this case
+		sprintf(filename, "grp%05i.ctm", map.tilemaps[i]);
+		pic = CachePic(filename);
+		if (!pic)
+			continue;
+		for (j = 0; j < 64; j++)
+		{
+			row = j/8;
+			col = j - row*8;
+			for (k = 0; k < 32; k++)
+			{
+				dec = pic->pixels + (row*32 + k)*256*3 + col*32*3;
+				end = dec + 32*3;
+				while(dec < end)
+				{
+					if (IsShadowPixel(dec))
+						goto foundshadow;
+					dec += 3;
+				}		
+			}
+			continue;
+foundshadow:
+			tilemaps_withshadow[i*64+j] = true;
+		}
+		FreePic(pic);
+	}
+	Print("map using %i tilemaps (max index %i)\n", map_numtilemaps, map_maxtile);
+
+	// generate static geometry to help renderer
+	//sprintf(filename, "%s_256", outfile);
+	//BuildStaticGeometry(filename, &map, "legacy/tiles256/", map_mini, map_minj, map_maxi, map_maxj, map_maxtile, 256, tilemaps_withshadow);
+	//sprintf(filename, "%s_512", outfile);
+	//BuildStaticGeometry(filename, &map, "legacy/tiles512/", map_mini, map_minj, map_maxi, map_maxj, map_maxtile, 512, tilemaps_withshadow);
+	//sprintf(filename, "%s_1024", outfile);
+	//BuildStaticGeometry(filename, &map, "legacy/tiles1024/", map_mini, map_minj, map_maxi, map_maxj, map_maxtile, 1024, tilemaps_withshadow);
+
+	// headers
+	fprintf(mapsv, "BloodOmenMap\n");
+	fprintf(mapcl, "BloodOmenMap\n");
+	fprintf(mapsv, "{\n");
+	fprintf(mapcl, "{\n");
+	fprintf(mapsv, "header {\n");
+	fprintf(mapcl, "header {\n");
+	fprintf(mapsv, " map %i\n", map_num);
+	fprintf(mapcl, " map %i\n", map_num);
+	fprintf(mapsv, " section %i\n", map_section);
+	fprintf(mapcl, " section %i\n", map_section);
+	fprintf(mapsv, " left %i\n", map_mini);
+	fprintf(mapcl, " left %i\n", map_mini);
+	fprintf(mapsv, " top %i\n", map_minj);
+	fprintf(mapcl, " top %i\n", map_minj);
+	fprintf(mapsv, " width %i\n", map_maxi);
+	fprintf(mapcl, " width %i\n", map_maxi);
+	fprintf(mapsv, " height %i\n", map_maxj);
+	fprintf(mapcl, " height %i\n", map_maxj);
+	fprintf(mapsv, "}\n");
+	fprintf(mapcl, "}\n");
+
+	// tilemaps
+	// 2 passes to eliminate extra lines
+	fprintf(mapcl, "tileSet [\n");
+	for (i = 0; i < map_maxtile; i++)
+	{
+		// check if tilemap is actually used
+		for (j = map_mini; j < map_maxi; j++)
+			for (k = map_minj; k < map_maxj; k++)
+				if ((map.backtiles[j][k] != 0xFFFF && ((map.backtiles[j][k] & TILEFLAG_IMASK) / 64) == i) || (map.foretiles[j][k] != 0xFFFF && ((map.foretiles[j][k] & TILEFLAG_IMASK) / 64) == i))
+					goto tilefound2;
+		for (j = 0; j < 100; j++)
+			if (map.atiles[j].targetnum != 0xFFFF && ((map.atiles[j].tile1 != 0xFFFF && ((map.atiles[j].tile1 & TILEFLAG_IMASK) / 64) == i) || (map.atiles[j].tile2 != 0xFFFF && ((map.atiles[j].tile2 & TILEFLAG_IMASK) / 64) == i)))
+				goto tilefound2;
+		for (j = 0; j < 20; j++)
+			if (map.buttons[j].savenum && map.buttons[j].savenum != 0xFFFF && ((map.buttons[j].tile1 != 0xFFFF && ((map.buttons[j].tile1 & TILEFLAG_IMASK) / 64) == i) || (map.buttons[j].tile2 != 0xFFFF && ((map.buttons[j].tile2 & TILEFLAG_IMASK) / 64) == i)))
+				goto tilefound2;
+		for (j = 0; j < 256; j++)
+			if (map.scenery[j].active && ((map.scenery[j].tile1 != 0xFFFF && ((map.scenery[j].tile1 & TILEFLAG_IMASK) / 64) == i) || (map.scenery[j].tile2 != 0xFFFF && ((map.scenery[j].tile2 & TILEFLAG_IMASK) / 64) == i) || (map.scenery[j].tile3 != 0xFFFF && ((map.scenery[j].tile3 & TILEFLAG_IMASK) / 64) == i)))
+				goto tilefound2;
+		fprintf(mapcl, " -\n", map.tilemaps[i]);
+		continue;
+tilefound2:
+		fprintf(mapcl, " \"grp%05i\"\n", map.tilemaps[i]);	
+	}
+	fprintf(mapcl, "]\n");
+
+	// world
+	fprintf(mapcl, "map [\n");
+	for (i = map_mini; i < map_maxi; i++)
+	{
+		fprintf(mapcl, " // %i\n", i);
+		for (j = map_minj; j < map_maxj; j++)
+		{ 
+			if (map.backtiles[i][j] == 0xFFFF)
+				fprintf(mapcl, "- ");
+			else
+			{
+				tilepix = map.backtiles[i][j];
+				if (tilemaps_withshadow[tilepix & TILEFLAG_IMASK])
+					fprintf(mapcl, "%i ", tilepix | 65536); // extra flag for shadow areas
+				else
+					fprintf(mapcl, "%i ", tilepix);
+			}
+			if (map.foretiles[i][j] == 0xFFFF)
+				fprintf(mapcl, "- ");
+			else
+			{
+				tilepix = map.foretiles[i][j];
+				if (tilemaps_withshadow[tilepix & TILEFLAG_IMASK])
+					fprintf(mapcl, "%i ", tilepix | 65536); // extra flag for shadow areas
+				else
+					fprintf(mapcl, "%i ", tilepix);
+			}
+			fprintf(mapcl, "\n");
+		}
+	}
+	fprintf(mapcl, "]\n");
+
+	// world collision
+	BuildMapRegions(&map, map_mini, map_minj, map_maxi, map_maxj, mapsv);
+
+	// entities
+	int numEnts = 0;
+	fprintf(mapsv, "entities [\n");
+	// triggers
+	for (i = 0; i < 255; i++)
+	{
+		if (!map.triggers[i].type || map.triggers[i].type == 0xFF)
+			continue;
+		if (map.triggers[i].type == TRIGGER_EXIT)
+		{
+			fprintf(mapsv, "exit {\n");
+			fprintf(mapsv, " num %i\n", i);
+			fprintf(mapsv, " x %i\n", map.triggers[i].x);
+			fprintf(mapsv, " y %i\n", map.triggers[i].y);
+			fprintf(mapsv, " map %i\n", map.triggers[i].parm1);
+			fprintf(mapsv, " section %i\n", map.triggers[i].parm3);
+			fprintf(mapsv, " destx %i\n", map.triggers[i].srcx);
+			fprintf(mapsv, " desty %i\n", map.triggers[i].srcy);
+			fprintf(mapsv, "}\n");
+			numEnts++;
+		}
+		else if (map.triggers[i].type == TRIGGER_ENTRANCE)
+		{
+			fprintf(mapsv, "entrance {\n");
+			fprintf(mapsv, " num %i\n", i);
+			fprintf(mapsv, " x %i\n", map.triggers[i].x);
+			fprintf(mapsv, " y %i\n", map.triggers[i].y);
+			fprintf(mapsv, " map %i\n", map.triggers[i].parm1);
+			fprintf(mapsv, " section %i\n", map.triggers[i].parm3);
+			fprintf(mapsv, "}\n");
+			numEnts++;
+		}
+		else if (map.triggers[i].type == TRIGGER_SPEECHMARK)
+		{
+			fprintf(mapsv, "speech {\n");
+			fprintf(mapsv, " num %i\n", i);
+			fprintf(mapsv, " x %i\n", map.triggers[i].x);
+			fprintf(mapsv, " y %i\n", map.triggers[i].y);
+			fprintf(mapsv, " speech %i\n", map.triggers[i].parm1);
+			if (map.triggers[i].parm2 < 6500)
+				fprintf(mapsv, " image %i\n", map.triggers[i].parm2);
+			fprintf(mapsv, "}\n");
+			numEnts++;
+		}
+		else if (map.triggers[i].type == TRIGGER_IMAGEMARK)
+		{
+			fprintf(mapsv, "image {\n");
+			fprintf(mapsv, " num %i\n", i);
+			fprintf(mapsv, " x %i\n", map.triggers[i].x);
+			fprintf(mapsv, " y %i\n", map.triggers[i].y);
+			fprintf(mapsv, " image %i\n", map.triggers[i].parm2);
+			if (map.triggers[i].parm1 < 6500)
+				fprintf(mapsv, " speech %i\n", map.triggers[i].parm1);
+			fprintf(mapsv, "}\n");
+			numEnts++;
+		}
+		else if (map.triggers[i].type == TRIGGER_TOUCH)
+		{
+			fprintf(mapsv, "touch {\n");
+			fprintf(mapsv, " num %i\n", i);
+			fprintf(mapsv, " x %i\n", map.triggers[i].x);
+			fprintf(mapsv, " y %i\n", map.triggers[i].y);
+			fprintf(mapsv, "}\n");
+			numEnts++;
+		}
+		else if (map.triggers[i].type == TRIGGER_TELEPORT)
+		{
+			fprintf(mapsv, "teleport {\n");
+			fprintf(mapsv, " num %i\n", i);
+			fprintf(mapsv, " x %i\n", map.triggers[i].x);
+			fprintf(mapsv, " y %i\n", map.triggers[i].y);
+			fprintf(mapsv, " map %i\n", map.triggers[i].parm1);
+			fprintf(mapsv, " section %i\n", map.triggers[i].parm3);
+			fprintf(mapsv, " destx %i\n", map.triggers[i].srcx);
+			fprintf(mapsv, " desty %i\n", map.triggers[i].srcy);
+			fprintf(mapsv, "}\n");
+			numEnts++;
+		}
+	}
+	// touch zones
+	for (i = 0; i < 80; i++)
+	{
+		for (j = 0; j < 80; j++)
+		{
+			if (map.contents[i][j] == CONTENTS_SACRIFICE)
+			{
+				fprintf(mapsv, "sacrifice {\n");
+				fprintf(mapsv, " x %i\n", i);
+				fprintf(mapsv, " y %i\n", j);
+				fprintf(mapsv, "}\n");
+				numEnts++;
+			}
+			else if (map.contents[i][j] == CONTENTS_SAVEGAME)
+			{
+				fprintf(mapsv, "saveGame {\n");
+				fprintf(mapsv, " x %i\n", i);
+				fprintf(mapsv, " y %i\n", j);
+				fprintf(mapsv, "}\n");
+				numEnts++;
+			}
+			else if (map.contents[i][j] == CONTENTS_BATMARK)
+			{
+				fprintf(mapsv, "batMark {\n");
+				fprintf(mapsv, " x %i\n", i);
+				fprintf(mapsv, " y %i\n", j);
+				fprintf(mapsv, "}\n");
+				numEnts++;
+			}
+		}
+	}
+	// enemies
+	for (i = 0; i < 32; i++)
+	{
+		if (map.monsters[i].u1[12] == 0xFF)
+			continue;
+		fprintf(mapsv, "enemy {\n");
+		fprintf(mapsv, " num %i\n", i);
+		if (map.monsters[i].savenum != 0)
+			fprintf(mapsv, " savenum %i\n", map.monsters[i].savenum);
+		fprintf(mapsv, " x %i\n", map.monsters[i].x);
+		fprintf(mapsv, " y %i\n", map.monsters[i].y);
+		fprintf(mapsv, " type %i\n", map.monsters[i].charnum);
+		if (map.monsters[i].target != 0xFFFF)
+			fprintf(mapsv, " target %i\n", map.monsters[i].target);
+		if (map.monsters[i].speechnum != 0xFFFF)
+			fprintf(mapsv, " speech %i\n", map.monsters[i].speechnum);
+		fprintf(mapsv, "}\n");
+		numEnts++;
+	}
+	// items
+	for (i = 0; i < 50; i++)
+	{
+		if (map.items[i].savenum == 0xFFFF)
+			continue;
+		fprintf(mapsv, "item {\n");
+		fprintf(mapsv, " num %i\n", i);
+		fprintf(mapsv, " savenum %i\n", map.items[i].savenum);
+		fprintf(mapsv, " x %i\n", map.items[i].x);
+		fprintf(mapsv, " y %i\n", map.items[i].y);
+		fprintf(mapsv, " type %i\n", map.items[i].itemcode);
+		if (map.items[i].itemcode >= MAPITEM_UNIQUE1 && map.items[i].itemcode <= MAPITEM_UNIQUE4)
+			fprintf(mapsv, " unique %i\n", map.uniqueitems[map.items[i].itemcode - MAPITEM_UNIQUE1]);
+		if (map.items[i].target != 0xFFFF)
+			fprintf(mapsv, " target %i\n", map.items[i].target);
+		if (map.items[i].hidden)
+			fprintf(mapsv, " hidden\n");
+		fprintf(mapsv, "}\n");
+	}
+	Print("%i entities\n", numEnts);
+	fprintf(mapsv, "]\n");
+	fprintf(mapsv, "}\n");
+	fprintf(mapcl, "}\n");
+
+	WriteClose(mapsv);
+	WriteClose(mapcl);
+	return 1;
+}
+
+/*
+==========================================================================================
+
+ MAP ANALYZER
+
+==========================================================================================
+*/
+
+int MapAnalyze(char *mapfile, byte *fileData, int fileDataSize, char *outfile, bigfileheader_t *bigfileheader, FILE *bigfile, char *tilespath)
+{
+	char mapname[32], filename[1024];
+	unsigned short map_num, map_section;
+	FILE *f;
+	int i, decSize;
+	byte *dec;
+	bo_map_t map;
+	
+	// extract map (get mapnum and section)
+	ExtractFileName(mapfile, mapname);
+	StripFileExtension(mapname, mapname);
+	map_num = 0;
+	map_section = 0;
+	if (mapname[0] != 'm' || strlen(mapname) != 8)
+		Print("warning: %s is not valid, map num and section is not known\n", mapname);
+	else
+	{
+		// get map and section
+		map_section = atoi((char *)(mapname + 6));
+		mapname[6] = 0;
+		map_num = atoi((char *)(mapname + 1));
+	}
+
+	// decompress
+	dec = (byte *)LzDec(&decSize, fileData, 0, fileDataSize, true);
+	if (dec == NULL)
+		return 0;
+	if (decSize != sizeof(bo_map_t))
+		return 0;
+	memcpy(&map, dec, sizeof(bo_map_t));
+
+	// u1
+	sprintf(filename, "%s_u1.txt", outfile);
+	f = SafeOpen(filename, "a+");
+	fprintf(f, "m%05i%02i ", map_num, map_section); 
+	for (i = 0; i < 12; i+=1) fprintf(f, "%03i ", *(unsigned char *)(map.u1 + i));
+	fprintf(f, "\n", map_num, map_section);
+	fclose(f);
+
+	// u2
+	sprintf(filename, "%s_u2.txt", outfile);
+	f = SafeOpen(filename, "a+");
+	fprintf(f, "m%05i%02i ", map_num, map_section); 
+	for (i = 0; i < 8; i+=1) fprintf(f, "%03i ", *(unsigned char *)(map.u2 + i));
+	fprintf(f, "\n", map_num, map_section);
+	fclose(f);
+
+	// u4
+	sprintf(filename, "%s_u4.txt", outfile);
+	f = SafeOpen(filename, "a+");
+	fprintf(f, "m%05i%02i ", map_num, map_section); 
+	for (i = 0; i < 8; i+=1) fprintf(f, "%03i ", *(unsigned char *)(map.u4 + i));
+	fprintf(f, "\n", map_num, map_section);
+	fclose(f);
+
+	// u5
+	sprintf(filename, "%s_u5.txt", outfile);
+	f = SafeOpen(filename, "a+");
+	fprintf(f, "m%05i%02i ", map_num, map_section); 
+	for (i = 0; i < 8*40; i+=1) fprintf(f, "%03i ", *(unsigned char *)(map.u5 + i));
+	fprintf(f, "\n", map_num, map_section);
+	fclose(f);
+
+	// u6
+	sprintf(filename, "%s_u6.txt", outfile);
+	f = SafeOpen(filename, "a+");
+	fprintf(f, "m%05i%02i ", map_num, map_section); 
+	for (i = 0; i < 24; i+=1) fprintf(f, "%03i ", *(unsigned char *)(map.u6 + i));
+	fprintf(f, "\n", map_num, map_section);
+	fclose(f);
+
+	// u7
+	sprintf(filename, "%s_u7.txt", outfile);
+	f = SafeOpen(filename, "a+");
+	fprintf(f, "m%05i%02i ", map_num, map_section); 
+	for (i = 0; i < 936; i+=1) fprintf(f, "%03i ", *(unsigned char *)(map.u7 + i));
+	fprintf(f, "\n", map_num, map_section);
+	fclose(f);
+
+	// o
+	sprintf(filename, "%s_o.txt", outfile);
+	f = SafeOpen(filename, "a+");
+	fprintf(f, "m%05i%02i ", map_num, map_section); 
+	for (i = 0; i < 10*164; i+=1) fprintf(f, "%03i ", *(unsigned char *)((byte *)map.objects + i));
+	fprintf(f, "\n", map_num, map_section);
+	fclose(f);
+
+	return 1;
+}
+
+
+/*
+==========================================================================================
+
+ MAIN
+
+==========================================================================================
+*/
+
+
 int MapConvert_Main(int argc, char **argv)
 {
 	int i = 1, devnum;
 	char filename[MAX_OSPATH], tilespath[MAX_OSPATH], ext[5], outfile[MAX_OSPATH], *c;
-	bool with_solid, with_triggers, show_save_id, toggled_objects, developer;
+	bool with_solid, with_triggers, show_save_id, toggled_objects, developer, txt, analyze;
 	byte *fileData;
 	int fileSize;
 
@@ -2069,8 +3257,10 @@ int MapConvert_Main(int argc, char **argv)
 	show_save_id = false;
 	toggled_objects = false;
 	developer = false;
+	txt = false;
 	strcpy(tilespath, "");
 	devnum = 0;
+	analyze = false;
 	for (i = i; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-tilespath"))
@@ -2127,11 +3317,33 @@ int MapConvert_Main(int argc, char **argv)
 			}
 			continue;
 		}
+		if (!strcmp(argv[i], "-f"))
+		{
+			i++;
+			if (i < argc)
+			{
+				if (!stricmp(argv[i], "txt"))
+					txt = true;
+				Verbose("Option: convert map to text format used by blood omnicide\n");
+			}
+			continue;
+		}
+		if (!strcmp(argv[i], "-analyze"))
+		{
+			analyze = true;
+			Verbose("Option: analyzing map\n");
+			continue;
+		}
 	}
 
 	// open source file, try load it
 	fileSize = LoadFile(filename, &fileData);
-	MapExtract(filename, fileData, fileSize, outfile, NULL, NULL, tilespath, with_solid, with_triggers, show_save_id, toggled_objects, developer, devnum, false);
-
+	if (analyze)
+		MapAnalyze(filename, fileData, fileSize, outfile, NULL, NULL, tilespath);
+	else if (txt)
+		MapExportTXT(filename, fileData, fileSize, outfile, NULL, NULL, tilespath);
+	else
+		MapExportTGA(filename, fileData, fileSize, outfile, NULL, NULL, tilespath, with_solid, with_triggers, show_save_id, toggled_objects, developer, devnum, false);
+		
 	return 0;
 }

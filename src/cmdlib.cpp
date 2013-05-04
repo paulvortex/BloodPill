@@ -651,7 +651,7 @@ FILE *SafeOpen (char *filename, char mode[])
   f = fopen(filename, mode);
 
   if (!f)
-    Error ("SafeOpen %s: %s",filename,strerror(errno));
+    Error ("SafeOpen(%s) %s: %s", mode, filename, strerror(errno));
 
   return f;
 }
