@@ -103,7 +103,7 @@ void Script_Parse(char *filename, char *basepath)
 	char *t, *s;
 	int scriptsize, n, len;
 	bool bloodomnicide = false, bigfileinstall = false, litsprites = false, allowdebug = true, writingpk3 = false;
-	int i, currentmodel = -1, minp, maxp, sargc, stt = 0, stt_total = 0, c[3], is_adpcm;
+	int i, currentmodel = -1, minp, maxp, sargc, stt = 0, stt_total = 0, c[3], is_adpcm, pk3compression = 8;
 	char tempchar, **sargv, outfile[MAX_OSPATH], infile[MAX_OSPATH], cs[32];
 	char soxparm1[1024], soxparm2[1024], soxparm3[1024], soxparm4[1024];
 	bigfileentry_t *oldentry;
@@ -527,9 +527,26 @@ void Script_Parse(char *filename, char *basepath)
 					// fixme: make path consistent immediately?
 					// begin new pk3 file
 					sprintf(outfile, "%s%s", path, com_token);
-					pk3 = PK3_Create(outfile);
+					pk3 = PK3_Create(outfile, pk3compression);
 					WrapFileWritesToMemory();
 					writingpk3 = true;
+				}
+				goto next;
+			}
+			// pk3 file - begin a new pk3 file and set all output to it
+			if (!strcmp(com_token, "pk3compression")) 
+			{
+				if (!(t = COM_Parse(t)))
+					Error("pk3compression: error parsing parm 1 on line %i\n", n);
+				else
+				{
+					pk3compression = atoi(com_token);
+					if (pk3compression < 0)
+						pk3compression = 0;
+					if (pk3compression > 9)
+						pk3compression = 9;
+					if (writingpk3)
+						pk3->compression = pk3compression;
 				}
 				goto next;
 			}
@@ -542,6 +559,7 @@ void Script_Parse(char *filename, char *basepath)
 					PK3_Close(pk3);
 				}
 				writingpk3 = false;
+				goto next;
 			}
 			// ---- Debug part ----
 			if (allowdebug)

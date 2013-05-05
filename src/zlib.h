@@ -108,12 +108,13 @@ typedef struct pk3_file_s
 {
 	FILE		*file;
 	pk3_entry_t	*files[MAX_PK3_FILES];
+	int         compression; //0-9
 	unsigned short numfiles;
 	
 }pk3_file_t;
 
 // pk3 writing
-pk3_file_t *PK3_Create(char *filepath);
+pk3_file_t *PK3_Create(char *filepath, int compression);
 pk3_entry_t *PK3_CreateFile(pk3_file_t *pk3, char *filename);
 void PK3_CompressFileData(pk3_file_t *pk3, pk3_entry_t *entry, unsigned char *filedata, unsigned int datasize);
 void PK3_AddFile(pk3_file_t *pk3, char *filename, unsigned char *filedata, unsigned int datasize);

@@ -54,7 +54,7 @@ static dllfunction_t zlib_funcs[] =
 };
 
 // deflating
-#define PK3_MAX_FILESIZE 1024*1024*150 // 150 megs
+#define PK3_MAX_FILESIZE 1024*1024*128 // 128 megs
 unsigned char pk3buf[PK3_MAX_FILESIZE];
 
 /*
@@ -65,7 +65,7 @@ PK3 writing
 ====================
 */
 
-pk3_file_t *PK3_Create(char *filepath)
+pk3_file_t *PK3_Create(char *filepath, int compression)
 {
 	pk3_file_t *pk3;
 
@@ -75,6 +75,7 @@ pk3_file_t *PK3_Create(char *filepath)
 	pk3 = (pk3_file_t *)mem_alloc(sizeof(pk3_file_t));
 	CreatePath(filepath);
 	pk3->file = SafeOpen(filepath, "wb");
+	pk3->compression = compression;
 	pk3->numfiles = 0;
 
 	return pk3;
@@ -117,25 +118,31 @@ void PK3_CompressFileData(pk3_file_t *pk3, pk3_entry_t *entry, unsigned char *fi
 	entry->stream.zalloc = Z_NULL;
     entry->stream.zfree = Z_NULL;
     entry->stream.opaque = Z_NULL;
-	if (zlib_deflateInit2(&entry->stream, 8, Z_DEFLATED, -MAX_WBITS, Z_MEMLEVEL_DEFAULT, Z_BINARY) != Z_OK)
-		Error("PK3_CompressFile: failed to allocate compressor");
+	if (pk3->compression != 0)
+		if (zlib_deflateInit2(&entry->stream, pk3->compression, Z_DEFLATED, -MAX_WBITS, Z_MEMLEVEL_DEFAULT, Z_BINARY) != Z_OK)
+			Error("PK3_CompressFile: failed to allocate compressor");
 
 	// compress
 	entry->stream.avail_in = datasize;
 	entry->stream.next_in = filedata;
 	entry->stream.avail_out = PK3_MAX_FILESIZE;
     entry->stream.next_out = pk3buf;
-	if (zlib_deflate(&entry->stream, Z_FINISH) == Z_STREAM_ERROR)
-		Error("PK3_CompressFile: error during compression");
-	compressed_size = PK3_MAX_FILESIZE - entry->stream.avail_out;
-	if (compressed_size >= PK3_MAX_FILESIZE)
-		Error("PK3_CompressFile: PK3_MAX_FILESIZE exceeded!");
+	if (pk3->compression == 0)
+		compressed_size = datasize;
+	else
+	{
+		if (zlib_deflate(&entry->stream, Z_FINISH) == Z_STREAM_ERROR)
+			Error("PK3_CompressFile: error during compression");
+		compressed_size = PK3_MAX_FILESIZE - entry->stream.avail_out;
+		if (compressed_size >= PK3_MAX_FILESIZE)
+			Error("PK3_CompressFile: PK3_MAX_FILESIZE exceeded!");
+	}
 
 	// register in central directory
 	entry->xver = 20; // File is a folder (directory), is compressed using Deflate compression
 	entry->bitflag = 2; // maximal compression
 	entry->crc32 = crc32(filedata, datasize);
-	entry->compression = 8; // Deflate
+	entry->compression = (pk3->compression == 0) ? 0 : 8; // stored/deflate
 	entry->csize = compressed_size;
 	entry->usize = datasize;
 	entry->offset = ftell(pk3->file);
@@ -155,7 +162,10 @@ void PK3_CompressFileData(pk3_file_t *pk3, pk3_entry_t *entry, unsigned char *fi
 	fwrite(&entry->filenamelen, 2, 1, pk3->file);
     fwrite(&ret, 2, 1, pk3->file);
 	fwrite(entry->filename, entry->filenamelen, 1, pk3->file);
-	fwrite(pk3buf, entry->csize, 1, pk3->file);
+	if (pk3->compression == 0)
+		fwrite(filedata, entry->csize, 1, pk3->file);
+	else
+		fwrite(pk3buf, entry->csize, 1, pk3->file);
 	if (ferror(pk3->file))
 		Error("PK3_CompressFile: failed write pk3");
 
