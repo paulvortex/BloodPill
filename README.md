@@ -18,21 +18,6 @@ Feature list includes:
 - Patching .big files
 - Support for Blood Omnicide scripted installation
 
-Screenshots
-------
-Unpacked sprites and tiles:
-![unpacked sprites](/images/sprites.jpg)
-![unpacked sprites](/images/sprites2.jpg)
-![unpacked tiles](/images/tiles.jpg)
-JAM decoded frames:
-![JAM frame](/images/jam.jpg)
-![JAM frame](/images/jam2.jpg)
-![JAM frame](/images/jam3.jpg)
-Blood Omen maps converted to TGA:
-![Extracted map](/images/map.jpg)
-![Extracted map](/images/map2.jpg)
-![Extracted map](/images/map3.jpg)
-
 Thanks to
 ------
 
