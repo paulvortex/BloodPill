@@ -2076,8 +2076,8 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 {
 	char informat[1024], outformat[1024], effects[1024], temp[1024];
 	byte *outdata;
-	int outsize;
 	int i, ir;
+	int outsize;
 
 	if (!soxfound)
 		Error("SoX not found!");
@@ -2189,6 +2189,17 @@ void BigFile_ExtractSound(int argc, char **argv, char *outfile, bigfileentry_t *
 			strcpy(temp, effects);
 			sprintf(effects, "%s reverb", temp);
 			Verbose("Option: reverbance\n");
+			continue;
+		}
+		if (!strcmp(argv[i], "-effect"))
+		{
+			i++;
+			if (i < argc)
+			{
+				strcpy(temp, effects);
+				sprintf(effects, "%s %s", temp, argv[i]);
+				Verbose("Option: SoX custom effect %s\n", argv[i]);
+			}
 			continue;
 		}
 		if (!strcmp(argv[i], "-ir"))
