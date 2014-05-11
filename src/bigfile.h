@@ -1,12 +1,10 @@
 // thanks to XentaX (www.xentax.com) community for providing bigfile specs
 #include "timfile.h"
 #include "rawfile.h"
-#include "sprfile.h"
 #include "vagfile.h"
 #include "mapfile.h"
 #include "filter.h"
-
-#define MAX_TIM_LAYERS
+#include "omnilib/dpspr32file.h"
 
 // filetypes
 #define BIGFILE_NUM_FILETYPES 8

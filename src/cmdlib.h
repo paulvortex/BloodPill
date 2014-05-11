@@ -1,5 +1,4 @@
 // cmdlib.h
-
 #ifndef __CMDLIB__
 #define __CMDLIB__
 

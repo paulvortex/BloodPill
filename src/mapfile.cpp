@@ -23,8 +23,6 @@
 
 #include "bloodpill.h"
 #include "bigfile.h"
-#include "cmdlib.h"
-#include "mem.h"
 
 // test colors for tilemaps
 unsigned char tiletestcolors[20*3] =

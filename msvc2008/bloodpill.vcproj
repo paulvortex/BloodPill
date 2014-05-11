@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9,00"
-	Name="bloodpill"
+	Name="BloodPill"
 	ProjectGUID="{EF16070B-8F0A-4A84-9A80-1F9E2C56E459}"
 	TargetFrameworkVersion="131072"
 	>
@@ -192,14 +192,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\..\src\cmdlib.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\..\src\dll.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\..\src\filter.cpp"
 				>
 			</File>
@@ -212,10 +204,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\..\src\mem.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\..\src\rawfile.cpp"
 				>
 			</File>
@@ -224,15 +212,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\..\src\script.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\..\src\soxsupp.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\..\src\sprfile.cpp"
 				>
 			</File>
 			<File
@@ -243,10 +223,50 @@
 				RelativePath=".\..\src\vagfile.cpp"
 				>
 			</File>
-			<File
-				RelativePath=".\..\src\zlib.cpp"
+			<Filter
+				Name="Omnicide"
 				>
-			</File>
+				<File
+					RelativePath="..\src\omnilib\dpspr32file.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\src\omnilib\installscript.cpp"
+					>
+				</File>
+				<Filter
+					Name="OmniLib"
+					>
+					<File
+						RelativePath="..\src\omnilib\libinternal.cpp"
+						>
+					</File>
+					<File
+						RelativePath="..\src\omnilib\libsprite.cpp"
+						>
+					</File>
+				</Filter>
+			</Filter>
+			<Filter
+				Name="Common"
+				>
+				<File
+					RelativePath=".\..\src\cmdlib.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\..\src\dll.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\..\src\mem.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\..\src\zlib.cpp"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -265,23 +285,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\..\src\cmdlib.h"
-				>
-			</File>
-			<File
-				RelativePath=".\..\src\dll.h"
-				>
-			</File>
-			<File
 				RelativePath=".\..\src\filter.h"
 				>
 			</File>
 			<File
 				RelativePath=".\..\src\mapfile.h"
-				>
-			</File>
-			<File
-				RelativePath=".\..\src\mem.h"
 				>
 			</File>
 			<File
@@ -297,10 +305,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\..\src\sprfile.h"
-				>
-			</File>
-			<File
 				RelativePath=".\..\src\timfile.h"
 				>
 			</File>
@@ -308,10 +312,46 @@
 				RelativePath=".\..\src\vagfile.h"
 				>
 			</File>
-			<File
-				RelativePath=".\..\src\zlib.h"
+			<Filter
+				Name="Omnicide"
 				>
-			</File>
+				<File
+					RelativePath="..\src\omnilib\dpspr32file.h"
+					>
+				</File>
+				<Filter
+					Name="OmniLib"
+					>
+					<File
+						RelativePath="..\src\omnilib\dpomnilib.h"
+						>
+					</File>
+					<File
+						RelativePath="..\src\omnilib\dpomnilibinternal.h"
+						>
+					</File>
+				</Filter>
+			</Filter>
+			<Filter
+				Name="Common"
+				>
+				<File
+					RelativePath=".\..\src\cmdlib.h"
+					>
+				</File>
+				<File
+					RelativePath=".\..\src\dll.h"
+					>
+				</File>
+				<File
+					RelativePath=".\..\src\mem.h"
+					>
+				</File>
+				<File
+					RelativePath=".\..\src\zlib.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Resource Files"

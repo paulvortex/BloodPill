@@ -5,6 +5,166 @@ This file contains a list of all changes starting after the release of
 sox-11gamma, followed by a list of prior authors and features.
 
 
+sox-14.3.2	2011-02-27
+----------
+
+File formats:
+
+  o Add seek support to mp3 handler for speed improvements.  (Pavel Karneliuk)
+  o Fix bug were WavPack header was not updated correctly when closing
+    file.  Fixed libsox memory leak when closing WavPack files.
+    (David Bryant)
+  o Fix RIFF chunk length error when writing 24-bit files. (David Bryant)
+  o 24-bit WAV files were leaving channel maps unassigned. Change to use
+    common channel mappings based on channel count.  This allows to
+    work more seemlessly with other apps such as WavPack and Foobar2000.
+    (David Bryant)
+  o Fix ffmpeg playback bug caused by alignment requirements on some platforms.
+    Closes bug #3017690.  (Reuben Thomas).
+  o Fix memory leak in ffmpeg. (Doug Cook)
+  o Handle 0 length chunks in WAV files gracefully.  (Beat Jorg)
+  o When skipping over chunks, account for word alignment. Helps
+    with some Logic Pro generated files.  (D Lambley)
+  o Fix incorrect MP3 file length determination with VBR & .5s initial
+    silence.  (robs)
+
+Audio device drivers:
+
+  o Fix immediate segfault on OSX while attempting to record. (Adam Fritzler)
+  o Fix segfault on OSX playback for some HW that gives smaller then
+    requested buffers. (cbagwell)
+  o Clean up system resource in coreaudio on close.  Allows running
+    back-to-back open()/close()'s without exiting app first. (cbagwell)
+  o Add support for 32-bit samples to OSS driver. (Eric Lammerts)
+  o Add support for 24 and 32-bit samples to waveaudio (Win32) driver.
+    (Doug Cook)
+  o Support specifying audio device other than default on OSX (cbagwell)
+
+Effects:
+
+  o F.R. [3051700] spectrogram -r for `raw' spectrogram, no legend.  (robs)
+  o Fix -w option on stats effect. (Ronald Sprouse)
+  o Fix segfault with some ladspa plugins (Thor Andreassen)
+  o Optionally look for png.h in libpng directory to support OpenBSD
+    packaging.  Helps enable spectrograph effect. (cbagwell)
+  o libpng15 requires application to include zlib.h header file. (cbagwell)
+    Add this to spectrograph effect. [3184238]
+  o Enable LADSPA effects on all platforms without any external
+    dependencies.  Mainly useful for Linux, Windows and OS X which have
+    binaries readily available. (cbagwell)
+  o Support specifying an absolute end location for trim effect instead
+    only an offset from trim begin location. (Ulrich Klauer)
+  o Fix regression where MP3 handler required libmad headers to be installed.
+    (Samuli Suominen) 
+  o Allow dynamic loading of lame to be enabled even if lame header files
+    are not installed.  (Doug Cook)
+
+Other new features:
+
+  o Soxi now reports duration of AMR files.  (robs)
+  o Document the "multiple" combine option in man pages and in
+    usage output (Ulrich Klauer).
+
+Internal improvements:
+
+  o Distribute msvc9 project files that had been in CVS only. (cbagwell)
+  o Add msvc10 project files (also compatible with the Windows SDK 7.1).
+    (Doug Cook)
+  o cmake now compiles waveaudio driver under windows environment. (cbagwell)
+    [3072672]
+
+sox-14.3.1	2010-04-11
+----------
+
+Newly deprecated features (to be removed in future):
+
+  Deprec-  Feature    [O(ption)]                           Removal
+  ated in  [F(ormat)] [E(ffect)]   Replacement             due after
+  -------  ----------------------  ----------------------  -------
+  14.3.1   F mp3: lame 3.97        lame > 3.97             2011-04-11
+  14.3.1   F sndfile: sndfile 1.0.11 sndfile > 1.0.11      14.3.1
+
+Previously deprecated features (to be removed in future):
+
+  Deprec-  Feature    [O(ption)]                           Removal
+  ated in  [F(ormat)] [E(ffect)]   Replacement             due after
+  -------  ----------------------  ----------------------  -------
+  14.2.0   E key alias             pitch                   14.3.1
+  14.2.0   E pan                   ~= mixer/remix          14.3.1
+  14.3.0   F flac: libFLAC 1.1.2,3 libFLAC > 1.1.3         14.3.1
+  14.3.0   PLAY_RATE_ARG           SOX_OPTS                14.3.1
+  14.3.0   E norm -b, norm -i      gain -B, gain -en       2010-06-14
+  14.3.0   E filter                ~=sinc                  2010-06-14
+  14.1.0   E resample alias        rate                    2010-06-14
+  14.1.0   E polyphase alias       rate                    2010-06-14
+  14.1.0   E rabbit alias          rate                    2010-06-14
+
+LibSoX interface changes:
+
+  o Added new variants of sox_open to allow read/write from/to memory
+    buffers (in POSIX 2008 environment); see example5.c.  (robs)
+
+File formats:
+
+  o New Grandstream ring-tone (gsrt) format.  (robs)
+  o CVSD encode/decode speed-ups.  (Kimberly Rockwell, P. Chaintreuil)
+  o Add ability to select MP3 compression parameters.  (Jim Harkins)
+  o Now writes out ID3-tags in MP3 files with lame supports it.  (Doug Cook)
+  o Also can write VBR Tag ("XING Header") in MP3 files. (Jim Hark /
+    Doug Cook)
+  o Increase percision of MP3 encoders to use 24-bits instead of 
+    16-bits. (Doug Cook)
+  o Fix failed writing 24-bit PAF files (and possibly other libsndfile
+    based formats).  (cbagwell)
+  o Allow libsndfile to be dlopen()'ed at runtime if --enable-dl-sndfile
+    is used. (Doug Cook)
+  o Allow amr-nb/amr-wb to be dlopen()'ed at runtime if 
+    --enable-dl-amrwb or --enable-dl-amrnb is used. (Doug Cook)
+  o amrnb and amrwb formats can optionally use opencore-amr libraries.
+    (cbagwell)
+
+Audio device drivers:
+
+  o Add native windows audio driver.  (Pavel Karneliuk, Doug Cook)
+  o Add 32-bit support to ALSA driver.  (Pavel Hofman)
+  o Make OpenBSD sndio audio driver default over older sunau driver.
+   (cbagwell)
+
+Effects:
+
+  o Fix [2254919] silence doesn't trim digital silence correctly.  (robs)
+  o Fix [2859842] stats effect crashes on 64-bit arch.  (Ulrich Klauer)
+
+Other new features:
+
+  o Added libSoX example #4: concatenating audio files.  (robs)
+  o Show soxi version & usage information when no args given.  (robs)
+
+Other bug fixes:
+
+  o Fix build so that grouped files (e.g. play -r 6k "*.vox" plays all
+    at 6k) works.  (robs)
+  o Fix build to support auto file type detection with pipes on FreeBSD
+    and elsewhere.  (Dan Nelson)
+  o Fix simultaneous play & rec not working.  (robs)
+  o Fix multi-threading problems on multi-core Windows OS; also, change
+    default to single-threaded.
+  o Fix mistaken file size with pipe input on Windows.  (Doug Cook)
+  o Fix missing documentation for -R (repeatable), and pulseaudio driver.
+  o Fix memory leak of format private data.  (Slawomir Testowy)
+
+Internal improvements:
+
+  o Move bit-rot detection support files to sub-directory (could
+    previously cause build problems).  (robs)
+  o [2859244] Fixes to improve compatibility with MSVC.  (Doug Cook)
+  o Added utilities to help any format handler dlopen() external
+    libraries at run time instead of link time. (Doug Cook)
+  o Compiling with mingw now has feature parity with cygwin. (Doug Cook
+    and cbagwell)
+   
+
+
 sox-14.3.0	2009-06-14
 ----------
 
@@ -20,31 +180,6 @@ Previously deprecated features that have been removed in this release:
   14.1.0   F flac: libFLAC 1.1.1   libFLAC > 1.1.1
 
   * But interface retained as an alias for `rate'.
-
-Newly deprecated features (to be removed in future):
-
-  Deprec-  Feature    [O(ption)]                           Removal
-  ated in  [F(ormat)] [E(ffect)]   Replacement             due after
-  -------  ----------------------  ----------------------  -------
-  14.3.0   E norm -b, norm -i      gain -B, gain -en       14.3.0 + 1 year
-  14.3.0   E filter                ~=sinc                  14.3.0 + 1 year
-  14.3.0   F flac: libFLAC 1.1.2,3 libFLAC > 1.1.3         14.3.0 + 6 months
-  14.3.0   PLAY_RATE_ARG           SOX_OPTS                14.3.0 + 6 months
-
-Previously deprecated features (to be removed in future):
-
-  Deprec-  Feature    [O(ption)]                           Removal
-  ated in  [F(ormat)] [E(ffect)]   Replacement             due after
-  -------  ----------------------  ----------------------  -------
-  14.2.0   E key alias             pitch                   2009-05-29
-  14.2.0   E pan                   ~= mixer/remix          2009-05-29
-  14.1.0   E resample alias        rate                    14.3.0 + 1 year
-  14.1.0   E polyphase alias       rate                    14.3.0 + 1 year
-  14.1.0   E rabbit alias          rate                    14.3.0 + 1 year
-  14.1.0   F wve (native)          wve (libsndfile)        2009-07-29
-  14.1.0   Behaviour whereby       soxi                    2009-07-29
-           sox -V file(s) -n
-           doesn't read to EOF.
 
 LibSoX interface changes:
 

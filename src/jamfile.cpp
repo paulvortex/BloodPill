@@ -23,7 +23,6 @@
 
 #include "bloodpill.h"
 #include "rawfile.h"
-#include "mem.h"
 
 void Jam_DecodeFrame(byte *inbuf, byte *outbuf, byte *prevbuf, int outsize, int frametype)
 {

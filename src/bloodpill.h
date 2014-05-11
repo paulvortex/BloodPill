@@ -1,23 +1,21 @@
+// bloodpill.h
+#ifndef F_BLOODPILL_H
+#define F_BLOODPILL_H
+
+// dependencies
 #include "cmdlib.h"
 #include "dll.h"
+#include "mem.h"
 #include <vector>
-#include "math.h"
-
+#include <math.h>
 using namespace std;
 
 #ifndef BLOODPILL_VERSION
-#define BLOODPILL_VERSION "v1.04"
+#define BLOODPILL_VERSION "v1.08"
 static char *BLOODPILL_WELCOME =
-"----------------------------------------\n"
-"Blood Pill %s by VorteX and Mean Person\n"
-"A set of utils to manipulate Blood Omen: Legacy Of Kain files\n"
-"portions of code by LordHavoc\n"
-"Additional thanks to Balder and Zench from XentaX forums (www.xentax.com)\n"
-"TIM specs by Klarth and Raul Sobon\n"
-"Bigfile specs by Andrey [Rackot] Grachev\n"
-"Raw Type 7 (LZW Tiles) specs by Ben Lincoln\n"
-"JAM decoder by MisterGrim\n"
-"----------------------------------------\n"
+"-------------------------------------------------------------------------------\n"
+" Blood Pill %s by Pavel [VorteX] Timofeyev\n"
+"-------------------------------------------------------------------------------\n"
 ;
 #define MAX_OSPATH 1024
 #endif
@@ -41,3 +39,5 @@ void Warning (char *str, ...);
 void Pacifier(char *str, ...);
 void PercentPacifier(char *str, ...);
 void PacifierEnd();
+
+#endif

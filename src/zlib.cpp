@@ -196,7 +196,7 @@ void PK3_AddExternalFile(pk3_file_t *pk3, char *filename, char *externalfile)
 
 #ifdef __CMDLIB_WRAPFILES__
 // add wrapped files to PK3
-void PK3_AddWrappedFiles(pk3_file_t *pk3)
+void PK3_AddWrappedFiles(pk3_file_t *pk3, void (*filefunc)(char *filename,byte **filedata,size_t *datasize))
 {
 	int i, numfiles;
 	pk3_entry_t *entry;
@@ -208,8 +208,12 @@ void PK3_AddWrappedFiles(pk3_file_t *pk3)
 	for (i = 0; i < numfiles; i++)
 	{
 		datasize = LoadWrappedFile(i, &filedata, &filename);
+		// postprocess file
+		if (filefunc != NULL)
+			filefunc(filename, &filedata, &datasize);
+		// compress and write file
 		entry = PK3_CreateFile(pk3, filename);
-		PK3_CompressFileData(pk3, entry, (byte *)filedata, datasize);
+		PK3_CompressFileData(pk3, entry, filedata, datasize);
 		mem_free(filedata);
 	}
 	FreeWrappedFiles();

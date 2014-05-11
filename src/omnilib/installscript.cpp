@@ -20,11 +20,14 @@
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ////////////////////////////////
 
-#include "bloodpill.h"
-#include "bigfile.h"
-#include "zlib.h"
-#include "mem.h"
-#include "soxsupp.h"
+#include "../bloodpill.h"
+#include "../bigfile.h"
+#include "../zlib.h"
+#include "../mem.h"
+#include "../soxsupp.h"
+#include "../omnilib/dpomnilib.h"
+
+using namespace omnilib;
 
 // colormaps for Blood Omnicide
 #define MAX_COLORMAPS		256
@@ -78,15 +81,70 @@ typedef struct
 }legacymodelsubs_t;
 legacymodelsubs_t *legacymodelsubs;
 
+// globals
 double scriptstarted;
 char path[MAX_OSPATH] = { 0 };
 char bigfilepath[MAX_OSPATH] = { 0 };
 char spr_parms[MAX_OSPATH] = { 0 };
 char extract_parms[MAX_OSPATH] = { 0 };
+bool packsprites = false;
 bigfileentry_t *entry = NULL;
 bigfileheader_t *bigfile = NULL;
 FILE *bigfilehandle;
 
+/*
+==========================================================================================
+
+  OMNILIB BINDING
+
+==========================================================================================
+*/
+
+// omnilib dynamic memory wrapper - malloc
+void *omnilib_malloc(size_t size)
+{
+	return mem_alloc(size);
+}
+
+// omnilib dynamic memory  - realloc
+void *omnilib_realloc(void *buf, size_t size)
+{
+	return mem_realloc(buf, size);
+}
+
+// omnilib dynamic memory  - free
+void omnilib_free(void *buf)
+{
+	return mem_free(buf);
+}
+
+// omnilib message wrapper
+void omnilib_print_message(int level, char *msg)
+{
+	if (level == 0)
+		Print(msg);
+	else if (level == 1)
+		Verbose(msg);
+	else if (level == 2)
+		Warning(msg);
+}
+
+// omnilib error wrapper
+void omnilib_error(char *msg)
+{
+	Error(msg);
+}
+
+/*
+==========================================================================================
+
+  SCRIPT PARSE
+
+==========================================================================================
+*/
+
+// SpriteLitFileName
+// generate Darkplaces litsprite filename
 void SpriteLitFileName(char *in)
 {
 	char name[MAX_OSPATH], path[MAX_OSPATH];
@@ -96,6 +154,278 @@ void SpriteLitFileName(char *in)
 	sprintf(in, "%s!%s", path, name);
 }
 
+// FillQuakeSpriteColormapFromRawBlockColormap
+// generate a quake sprite 32-bit colormap from rawblock/chunk colormap
+void FillQuakeSpriteColormapFromRawBlockColormap(char *outfile, byte *colormap32, byte *colormap, byte *alphamap)
+{
+	int i;
+
+	if (!colormap)
+		Error("FillQuakeSpriteColormapFromRawBlock: no colormap for %s!\n", outfile);
+	for (i = 0; i < 256; i++)
+	{
+		colormap32[i*4 + 0] = colormap[i*3 + 0];
+		colormap32[i*4 + 1] = colormap[i*3 + 1];
+		colormap32[i*4 + 2] = colormap[i*3 + 2];
+		colormap32[i*4 + 3] = (alphamap != NULL) ? alphamap[i] : 255;
+	}
+}
+
+// WriteQuakeSpriteFromRawBlock
+// writes out quake sprite from rawblock
+void WriteQuakeSpriteFromRawBlock(rawblock_t *block, char *outfile, QuakeSpriteType_t type, int cx, int cy, float alpha, int flags, bool mergeintoexistingfile, list_t *tailfiles)
+{
+	MetaSprite_t *sprite, *sprite2;
+	rawblock_t *rawblock;
+	int i, j, *colormapindexes, *picindexes;
+	byte colormap32[1024], chunkcolormap32[1024], *colormap, *buf;
+	size_t bufsize;
+	MetaSpriteColormap_t *cm;
+	MetaSpritePic_t *pic, *pic2;
+	MetaSpriteFrame_t *frame, *frame2;
+	rawchunk_t *chunk;
+
+	// crop rawblock
+	if (packsprites)
+		rawblock = RawblockCrop(block, true, 0);
+	else
+		rawblock = block;
+
+	// load up/create sprite
+	sprite = NULL;
+	if (mergeintoexistingfile)
+	{
+		FILE *f = OpenReadWrite(outfile);
+		if (f)
+		{
+			// load file
+			fseek(f, 0, SEEK_SET);
+			bufsize = Q_filelength(f);
+			if (bufsize > 32)
+			{
+				buf = (byte *)mem_alloc(bufsize+1);
+				SafeRead(f, buf, bufsize);
+				// load sprite
+				sprite = olLoadSprite(buf, bufsize);
+				mem_free(buf);
+				if (sprite->errormsg[0])
+				{
+					olFreeSprite(sprite);
+					sprite = NULL;
+				}
+				// check
+				if (sprite->type != (long)type)
+					Error("WriteQuakeSpriteFromRawBlock: mismatched sprite type!");
+			}
+			WriteClose(f);
+		}
+	}
+	if (sprite == NULL)
+	{
+		sprite = olCreateSprite();
+		sprite->fourCC[0] = 'I';
+		sprite->fourCC[1] = 'D';
+		sprite->fourCC[2] = 'S';
+		sprite->fourCC[3] = 'P';
+		sprite->version = SPR_SPRITE32; // also support SPR_PACKED, SPR_PACKED32
+		sprite->type = (long)type;
+	}
+
+	// convert rawblock to 8-bit unpacked sprite
+	// convert a rawblock palette to 32-bit
+	FillQuakeSpriteColormapFromRawBlockColormap(outfile, colormap32, rawblock->colormap, rawblock->alphamap);
+
+	// write colormaps
+	if (sprite->version == SPR_PACKED)
+	{
+		colormapindexes = (int *)mem_alloc(rawblock->chunks * sizeof(int));
+		for (i = 0; i < rawblock->chunks; i++)
+		{
+			chunk = &rawblock->chunk[i];
+			// get local colormap
+			colormap = colormap32;
+			if (chunk->colormap)
+			{
+				FillQuakeSpriteColormapFromRawBlockColormap(outfile, chunkcolormap32, chunk->colormap, chunk->alphamap);
+				colormap = chunkcolormap32;
+			}
+			// colormap already exists?
+			for (j = 0; j < sprite->numColormaps; j++)
+				if (!memcmp(sprite->colormaps[j]->palette, colormap, 1024))
+					break;
+			if (j < sprite->numColormaps)
+			{
+				colormapindexes[i] = j;
+				continue;
+			}
+			// create a new colormap
+			cm = olSpriteAddColormap(sprite);
+			memcpy(cm->palette, colormap, 1024);
+			colormapindexes[i] = cm->num;
+		}
+	}
+
+	// write pics
+	picindexes = (int *)mem_alloc(rawblock->chunks * sizeof(int));
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		chunk = &rawblock->chunk[i];
+		pic = olSpriteAddPic(sprite);
+		if (sprite->version == SPR_PACKED)
+		{
+			// write 8-bit picture
+			olSpritePicResize(pic, chunk->width, chunk->height, 1);
+			memcpy(pic->pixels, chunk->pixels, chunk->width * chunk->height);
+			pic->colormap = sprite->colormaps[colormapindexes[i]];
+		}
+		else
+		{
+			// get local colormap
+			colormap = colormap32;
+			if (chunk->colormap)
+			{
+				FillQuakeSpriteColormapFromRawBlockColormap(outfile, chunkcolormap32, chunk->colormap, chunk->alphamap);
+				colormap = chunkcolormap32;
+			}
+			// write 32-bit picture
+			olSpritePicResize(pic, chunk->width, chunk->height, 4);
+			byte *in = chunk->pixels;
+			byte *out = pic->pixels;
+			byte *end = out + pic->width * pic->height * 4;
+			while(out < end)
+			{
+				memcpy(out, colormap + *in * 4, 4);
+				out += 4;
+				in++;
+			}
+		}
+		picindexes[i] = pic->num;
+		// todo: crop
+	}
+
+	// write frames
+	for (i = 0; i < rawblock->chunks; i++)
+	{
+		chunk = &rawblock->chunk[i];
+		frame = olSpriteAddFrame(sprite);
+		frame->ofsx = chunk->x + rawblock->posx + cx;
+		frame->ofsy = chunk->y + rawblock->posy + cy;
+		frame->width = chunk->width;
+		frame->height = chunk->height;
+		frame->pic = sprite->pics[picindexes[i]];
+	}
+
+	// clean up
+	if (sprite->version == SPR_PACKED)
+		mem_free(colormapindexes);
+	mem_free(picindexes);
+
+	// merge tail files
+	if (tailfiles)
+	{
+		for (i = 0; i < tailfiles->items; i++)
+		{
+			FILE *f = SafeOpen(tailfiles->item[i], "rb");
+			bufsize = Q_filelength(f);
+			if (bufsize > 32)
+			{
+				buf = (byte *)mem_alloc(bufsize+1);
+				SafeRead(f, buf, bufsize);
+				// load sprite
+				sprite2 = olLoadSprite(buf, bufsize);
+				mem_free(buf);
+				if (sprite2->errormsg[0])
+				{
+					olFreeSprite(sprite);
+					sprite2 = NULL;
+				}
+				if (sprite2 != NULL)
+				{
+					// merge
+					if (sprite2->version != sprite->version)
+						Error("WriteQuakeSpriteFromRawBlock: merge failed - mismatched sprite version for %s/%s!", outfile, tailfiles->item[i]);
+					if (sprite2->version != SPR_SPRITE32)
+						Error("WriteQuakeSpriteFromRawBlock: sprite is not SPR_SPRITE32!");
+					// merge pics
+					picindexes = (int *)mem_alloc(sprite2->numFrames * sizeof(int));
+					for (j = 0; j < sprite2->numPics; j++)
+					{
+						pic = olSpriteAddPic(sprite);
+						pic2 = sprite2->pics[j];
+						picindexes[j] = pic->num;
+						olSpritePicResize(pic, pic2->width, pic2->height, pic2->bpp);
+						memcpy(pic->pixels, pic2->pixels, pic2->width * pic2->height * pic2->bpp);
+					}
+					// merge frames
+					for (j = 0; j < sprite2->numFrames; j++)
+					{
+						frame = olSpriteAddFrame(sprite);
+						frame2 = sprite2->frames[j];
+						frame->ofsx = frame2->ofsx;
+						frame->ofsy = frame2->ofsy;
+						frame->width = frame2->width;
+						frame->height = frame2->height;
+						frame->pic = sprite->pics[picindexes[j]];
+					}
+					// cleanup
+					mem_free(picindexes);
+				}
+			}
+			fclose(f);
+		}
+	}
+
+	// save
+	bufsize = olSpriteSave(sprite, &buf);
+	if (!bufsize)
+		Error("WriteQuakeSpriteFromRawBlock: error saving sprite");
+	olFreeSprite(sprite);
+	FILE *f = SafeOpenWrite(outfile);
+	fseek(f, 0, SEEK_SET);
+	fwrite(buf, bufsize, 1, f);
+	WriteClose(f);
+	mem_free(buf);
+
+	// cleanup
+	if (packsprites)
+		FreeRawBlock(rawblock);
+}
+
+// Script_WrappedFilePostProcess
+// post-process wrapped file
+void Script_WrappedFilePostProcess(char *filename, byte **filedata, size_t *datasize)
+{
+	MetaSprite_t *sprite, *sprite2;
+
+	if (packsprites && *datasize > 32 && (*filedata)[0] == 'I' && (*filedata)[1] == 'D' && (*filedata)[2] == 'S' && (*filedata)[3] == 'P')
+	{
+		sprite = olLoadSprite(*filedata, *datasize);
+		if (sprite->errormsg[0] != 0)
+			Error("Script_WrappedFilePostProcess: failed to open sprite %s: %s", filename, sprite->errormsg);
+		mem_free(*filedata);
+		// flood alpha
+		olSpriteFloodAlpha(sprite, 3);
+		// convert to single-image
+		sprite2 = olSpriteConvertToSingle(sprite);
+		if (sprite2 != sprite)
+		{
+			olFreeSprite(sprite);
+			sprite = sprite2;
+		}
+		// convert to packed
+		sprite2 = olSpriteConvertToPacked(sprite, 1, 2048, 2048, false, false, false, false, true, SPR_PACK_NORMAL);
+		if (sprite2 != sprite)
+		{
+			olFreeSprite(sprite);
+			sprite = sprite2;
+		}
+		*datasize = olSpriteSave(sprite, filedata);
+		olFreeSprite(sprite);
+	}
+}
+
+// Script_Parse
+// parse script file
 void Script_Parse(char *filename, char *basepath)
 {
 	double cscale, aver, diff;
@@ -112,6 +442,10 @@ void Script_Parse(char *filename, char *basepath)
 	FILE *f;
 	pk3_file_t *pk3;
 	strcpy(path, basepath);
+
+	// init omnilib
+	OmnilibSetMemFunc(omnilib_malloc, omnilib_realloc, omnilib_free);
+	OmnilibSetMessageFunc(omnilib_print_message, omnilib_error);
 	
 	// read file
 	Verbose("%s:\n", filename);
@@ -233,6 +567,8 @@ void Script_Parse(char *filename, char *basepath)
 					//	bigfilerepack = true;
 					else if (!strcmp(com_token, "litsprites"))
 						litsprites = true;
+					else if (!strcmp(com_token, "packsprites"))
+						packsprites = true;
 				}
 				goto next;
 			}
@@ -291,7 +627,7 @@ void Script_Parse(char *filename, char *basepath)
 				// on each extract we are packing all wrapped files to PK3
 				if (writingpk3)
 				{
-					PK3_AddWrappedFiles(pk3);
+					PK3_AddWrappedFiles(pk3, Script_WrappedFilePostProcess);
 					WrapFileWritesToMemory();
 				}
 				// check if bigfile is opened
@@ -521,7 +857,7 @@ void Script_Parse(char *filename, char *basepath)
 					// close old pk3 file
 					if (writingpk3)
 					{
-						PK3_AddWrappedFiles(pk3);
+						PK3_AddWrappedFiles(pk3, Script_WrappedFilePostProcess);
 						PK3_Close(pk3);
 					}
 					// fixme: make path consistent immediately?
@@ -555,7 +891,7 @@ void Script_Parse(char *filename, char *basepath)
 			{
 				if (writingpk3)
 				{
-					PK3_AddWrappedFiles(pk3);
+					PK3_AddWrappedFiles(pk3, Script_WrappedFilePostProcess);
 					PK3_Close(pk3);
 				}
 				writingpk3 = false;
@@ -568,7 +904,7 @@ void Script_Parse(char *filename, char *basepath)
 				{
 					if (writingpk3)
 					{
-						PK3_AddWrappedFiles(pk3);
+						PK3_AddWrappedFiles(pk3, Script_WrappedFilePostProcess);
 						PK3_Close(pk3);
 						writingpk3 = false;
 					}
@@ -625,7 +961,7 @@ void Script_Parse(char *filename, char *basepath)
 						// once beginning new model we are packing all wrapped files to PK3
 						if (writingpk3)
 						{
-							PK3_AddWrappedFiles(pk3);
+							PK3_AddWrappedFiles(pk3, Script_WrappedFilePostProcess);
 							WrapFileWritesToMemory();
 						}
 						// find model or allocate new
@@ -920,7 +1256,7 @@ void Script_Parse(char *filename, char *basepath)
 	PacifierEnd();
 	if (writingpk3)
 	{
-		PK3_AddWrappedFiles(pk3);
+		PK3_AddWrappedFiles(pk3, Script_WrappedFilePostProcess);
 		PK3_Close(pk3);
 		writingpk3 = false;
 	}
@@ -930,6 +1266,8 @@ void Script_Parse(char *filename, char *basepath)
 	mem_free(sargv);
 }
 
+// Script_Main
+// main function
 int Script_Main(int argc, char **argv)
 {
 	char basepath[MAX_OSPATH];
@@ -999,7 +1337,7 @@ int Script_Main(int argc, char **argv)
 	scriptstarted = I_DoubleTime();
 	Script_Parse(argv[1], basepath);
 
-	// deinit
+	// cleanup
 	mem_free(legacycolormaps);
 	mem_free(legacymodels);
 	mem_free(legacymodelsubs);

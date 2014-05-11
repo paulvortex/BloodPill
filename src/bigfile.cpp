@@ -21,12 +21,9 @@
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ////////////////////////////////
 
-
 #include "bloodpill.h"
 #include "bigfile.h"
 #include "soxsupp.h"
-#include "cmdlib.h"
-#include "mem.h"
 #include "BO1.h"
 #include "filter.h"
 
@@ -1595,10 +1592,13 @@ int BigFile_List(int argc, char **argv)
 ==========================================================================================
 */
 
+// defined in installscript.cpp
+void WriteQuakeSpriteFromRawBlock(rawblock_t *rawblock, char *outfile, QuakeSpriteType_t type, int cx, int cy, float alpha, int flags, bool mergeintoexistingfile, list_t *tailfiles);
+
 void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_t *entry, rawblock_t *rawblock, char *format)
 {
 	int i, num, minp, maxp, margin, aver, diff, spritex, spritey, spriteflags, numslices;
-	sprtype_t spritetype = SPR_VP_PARALLEL;
+	QuakeSpriteType_t spritetype = SPR_VP_PARALLEL;
 	rawblock_t *tb1, *tb2, *tb3, *tb4, *tb5, *tb6;
 	bool noalign, nocrop, flip, scale, merge, slice;
 	byte pix, shadowpix;
@@ -2026,9 +2026,7 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 
 	// write file
 	Print("Writing images...\n");
-	if (!stricmp(format, "spr"))
-		Error("Quake sprites format is not supported!\n");
-	else if (!stricmp(format, "spr32"))
+	if (!stricmp(format, "spr32"))
 	{
 		if (noalign)
 		{
@@ -2038,7 +2036,8 @@ void BigFile_ExtractRawImage(int argc, char **argv, char *outfile, bigfileentry_
 				rawblock->chunk[i].y = 0 - rawblock->chunk[i].y;
 			}
 		}
-		SPR_WriteFromRawblock(rawblock, outfile, SPR_DARKPLACES, spritetype, spritex, spritey, (float)alphascale, spriteflags, merge, mergelist);
+		WriteQuakeSpriteFromRawBlock(rawblock, outfile, spritetype, spritex, spritey, (float)alphascale, spriteflags, merge, mergelist);
+		//SPR_WriteFromRawblock(rawblock, outfile, spritetype, spritex, spritey, (float)alphascale, spriteflags, merge, mergelist);
 		// extract tail files
 		if (rawblock->errorcode > 0 && rawblock->errorcode < (int)entry->size)
 			Print("Tail files found but can't be extracted to spr32\n");

@@ -122,7 +122,7 @@ void PK3_AddExternalFile(pk3_file_t *pk3, char *filename, char *externalfile);
 void PK3_Close(pk3_file_t *pk3);
 
 #ifdef __CMDLIB_WRAPFILES__
-void PK3_AddWrappedFiles(pk3_file_t *pk3);
+void PK3_AddWrappedFiles(pk3_file_t *pk3, void (*filefunc)(char *filename,byte **filedata,size_t *datasize));
 #endif
 
 // functions to use

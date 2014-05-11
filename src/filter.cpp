@@ -21,8 +21,6 @@
 ////////////////////////////////
 
 #include "bloodpill.h"
-#include "cmdlib.h"
-#include "mem.h"
 #include "scale2x.h"
 #include "filter.h"
 #include "rawfile.h"

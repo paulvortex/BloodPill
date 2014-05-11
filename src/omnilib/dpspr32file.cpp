@@ -21,11 +21,24 @@
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ////////////////////////////////
 
-#include "bloodpill.h"
-#include "sprfile.h"
-#include "rawfile.h"
-#include "mem.h"
-#include <math.h>
+#include "../bloodpill.h"
+#include "../rawfile.h"
+#include "../mem.h"
+#include "dpspr32file.h"
+
+// sprite header
+typedef struct
+{ 
+	char  name[4];    // 4 (+0) "IDSP"
+	long  ver1;       // 4 (+4) Version = 1
+	long  type;       // 4 (+8) See bove
+	float radius;     // 4 (+12) Bounding Radius
+	long  maxwidth;   // 4 (+16) Width of the largest frame
+	long  maxheight;  // 4 Height of the largest frame
+	long  nframes;    // 4 Number of frames
+	float beamlength; // 4 pushs the sprite away, strange legacy from DOOM?
+	long  synchtype;  // 4 0=synchron 1=random
+} spr_t;
 
 /*
 ==========================================================================================
@@ -35,7 +48,7 @@
 ==========================================================================================
 */
 
-void fput_littleint(int num, FILE* file)
+void FPutLittleInt(int num, FILE* file)
 {
 	fputc(num & 0xFF, file);
 	fputc((num >> 8) & 0xFF, file);
@@ -43,29 +56,28 @@ void fput_littleint(int num, FILE* file)
 	fputc((num >> 24) & 0xFF, file);
 }
 
-void fput_littlefloat(float num, FILE* file)
+void FPutLittleFloat(float num, FILE* file)
 {
 	union {int i; float f;} in;
 	in.f = num;
-	fput_littleint(in.i, file);
+	FPutLittleInt(in.i, file);
 }
 
-int LittleInt(byte *buffer)
+int ReadLittleInt(byte *buffer)
 {
 	return buffer[3]*16777216 + buffer[2]*65536 + buffer[1]*256 + buffer[0];
 }
 
-float LittleFloat (byte *buffer)
+float ReadLittleFloat (byte *buffer)
 {
-  union {byte b[4]; float f;} in;
+	union {byte b[4]; float f;} in;
 
-  in.b[0] = buffer[0];
-  in.b[1] = buffer[1];
-  in.b[2] = buffer[2];
-  in.b[3] = buffer[3];
-  return in.f;
+	in.b[0] = buffer[0];
+	in.b[1] = buffer[1];
+	in.b[2] = buffer[2];
+	in.b[3] = buffer[3];
+	return in.f;
 }
-
 
 /*
 ==========================================================================================
@@ -82,18 +94,18 @@ bool SPR_ReadHeader(byte *buf, int bufsize, spr_t *sprheader)
 		return false;
 	if (bufsize < sizeof(spr_t))
 		return false;
-	sprheader->ver1 = LittleInt(buf + 4);
-	sprheader->type = LittleInt(buf + 8);
-	sprheader->radius = LittleFloat(buf + 12);
-	sprheader->maxwidth = LittleInt(buf + 16);
-	sprheader->maxheight = LittleInt(buf + 20);
-	sprheader->nframes = LittleInt(buf + 24);
-	sprheader->beamlength = LittleFloat(buf + 28);
-	sprheader->synchtype = LittleInt(buf + 32);
+	sprheader->ver1 = ReadLittleInt(buf + 4);
+	sprheader->type = ReadLittleInt(buf + 8);
+	sprheader->radius = ReadLittleFloat(buf + 12);
+	sprheader->maxwidth = ReadLittleInt(buf + 16);
+	sprheader->maxheight = ReadLittleInt(buf + 20);
+	sprheader->nframes = ReadLittleInt(buf + 24);
+	sprheader->beamlength = ReadLittleFloat(buf + 28);
+	sprheader->synchtype = ReadLittleInt(buf + 32);
 	return true;
 }
 
-FILE *SPR_BeginFile(char *outfile, sprversion_t version, sprtype_t type, int maxwidth, int maxheight, int numframes, bool mergeintoexistingfile)
+FILE *SPR_BeginFile(char *outfile, QuakeSpriteVersion_t version, QuakeSpriteType_t type, int maxwidth, int maxheight, int numframes, bool mergeintoexistingfile)
 {
 	spr_t mergespr;
 	byte mergedata[36];
@@ -137,20 +149,20 @@ writeheader:
 	// IDSP
 	fputc('I', f);fputc('D', f);fputc('S', f);fputc('P', f); 
 	// version
-	fput_littleint(version, f); // 32bit color
+	FPutLittleInt(version, f); // 32bit color
 	// type
-	fput_littleint(type, f); 
+	FPutLittleInt(type, f); 
 	// boundingradius
-	fput_littlefloat(boundradius, f); 
+	FPutLittleFloat(boundradius, f); 
 	// maxwidth/maxheight
-	fput_littleint(maxwidth, f); 
-	fput_littleint(maxheight, f);
+	FPutLittleInt(maxwidth, f); 
+	FPutLittleInt(maxheight, f);
 	// numframes
-	fput_littleint(numframes, f);
+	FPutLittleInt(numframes, f);
 	// beamlength
-	fput_littlefloat(0.0f, f); 
+	FPutLittleFloat(0.0f, f); 
 	// synctype
-	fput_littleint(0, f);
+	FPutLittleInt(0, f);
 
 	// append if merging
 	if (mergeintoexistingfile)
@@ -159,18 +171,20 @@ writeheader:
 	return f;
 }
 
-void SPR_WriteFrameHeader(FILE *f, sprframetype_t frametype, int width, int height, int cx, int cy)
+void SPR_WriteFrameHeader(FILE *f, QuakeSpriteFrameType_t frametype, int width, int height, int cx, int cy)
 {
-	fput_littleint(frametype, f);
-	fput_littleint(cx, f);
-	fput_littleint(cy, f);
-	fput_littleint(width, f);
-	fput_littleint(height, f);
+	FPutLittleInt(frametype, f);
+	FPutLittleInt(cx, f);
+	FPutLittleInt(cy, f);
+	FPutLittleInt(width, f);
+	FPutLittleInt(height, f);
 }
 
-void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t version, sprtype_t type, int cx, int cy, float alpha, int flags, bool mergeintoexistingfile, list_t *tailfiles)
+// fixme: this needs cleanup
+void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, QuakeSpriteType_t type, int cx, int cy, float alpha, int flags, bool mergeintoexistingfile, list_t *tailfiles)
 {
 	int i, d, r, w, h, maxwidth, maxheight, cropx[2], cropy[2], addx[2], addy[2], cropwidth, cropheight, realwidth, realheight, numframes;
+	QuakeSpriteVersion_t version = SPR_SPRITE32;
 	byte *colormap, *buf, normalalpha, color[4], *mergedata[16];
 	size_t mergedatalen[16];
 	double cdiv, cd[3];
@@ -206,15 +220,15 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 			if (buf[0] != 'I' && buf[1] != 'D' && buf[2] != 'S' && buf[3] != 'P')
 				Error("SPR_WriteFromRawblock: merge tailfiles: %s is not IDSP file\n", tailfiles->item[i]);
 			// check version
-			if ((sprversion_t)LittleInt(buf + 4) != version)
+			if ((QuakeSpriteVersion_t)ReadLittleInt(buf + 4) != version)
 				Error("SPR_WriteFromRawblock: merge tailfiles: %s is not same sprite version\n", tailfiles->item[i]);
 			// check type
-			if ((sprtype_t)LittleInt(buf + 8) != type)
-				Error("SPR_WriteFromRawblock: merge tailfiles: %s is bad type %i, should be %i\n", tailfiles->item[i], LittleInt(buf + 8), type);
+			if ((QuakeSpriteType_t)ReadLittleInt(buf + 8) != type)
+				Error("SPR_WriteFromRawblock: merge tailfiles: %s is bad type %i, should be %i\n", tailfiles->item[i], ReadLittleInt(buf + 8), type);
 			// calc bounds
-			maxwidth = max(maxwidth, LittleInt(buf + 16));
-			maxheight = max(maxheight, LittleInt(buf + 20));
-			numframes = numframes + LittleInt(buf + 24);
+			maxwidth = max(maxwidth, ReadLittleInt(buf + 16));
+			maxheight = max(maxheight, ReadLittleInt(buf + 20));
+			numframes = numframes + ReadLittleInt(buf + 24);
 			// save merge data
 			mergedatalen[i] = Q_filelength(f) - sizeof(spr_t);
 			mergedata[i] = (byte *)mem_alloc(mergedatalen[i]);
@@ -236,7 +250,7 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 	{
 		chunk = &rawblock->chunk[i];
 		colormap = (chunk->colormap != NULL) ? chunk->colormap : rawblock->colormap;
-		if (version == SPR_DARKPLACES) // 32bit RGBA8 raw, ready for OpenGL
+		if (version == SPR_SPRITE32) // 32bit RGBA8 raw, ready for OpenGL
 		{
 			// create initial image
 			// in Blood Omen, black pixels (0) were transparent
@@ -441,227 +455,4 @@ void SPR_WriteFromRawblock(rawblock_t *rawblock, char *outfile, sprversion_t ver
 		}
 	}
 	WriteClose(f);
-}
-
-void SPR_Merge(list_t *mergelist, char *outfile, bool delmerged, bool verbose)
-{
-	int maxwidth, maxheight, numframes;
-	sprversion_t version;
-	sprtype_t type;
-	int i, bufsize;
-	byte *buf;
-	FILE *f, *f2;
-
-	// step1 - calc new sprite headers
-	if (verbose)
-		Print("Calc headers...\n");
-	maxwidth = 0;
-	maxheight = 0;
-	numframes = 0;
-	buf = (byte *)mem_alloc(sizeof(spr_t));
-	for (i = 0; i < mergelist->items; i++)
-	{
-		// read header
-		f = SafeOpen(mergelist->item[i], "rb");
-		if (fread(buf, sizeof(spr_t), 1, f) < 1)
-			Error("SPR_Merge: broken file\n");
-		fclose(f);
-		// check type
-		if (buf[0] != 'I' && buf[1] != 'D' && buf[2] != 'S' && buf[3] != 'P')
-			Error("SPR_Merge: %s is not IDSP file\n", mergelist->item[i]);
-		// check version
-		version = (sprversion_t)LittleInt(buf + 4);
-		if (version != SPR_DARKPLACES)
-			Error("SPR_Merge: %s is not SPR32 sprite\n", mergelist->item[i]);
-		// check type
-		if (i == 0)
-			type = (sprtype_t)LittleInt(buf + 8);
-		else if (type != LittleInt(buf + 8))
-			Error("SPR_Merge: %s is bad type %i, should be %i\n", LittleInt(buf + 8), type);
-		// print info
-		if (verbose)
-			Print(" %s : %i frames, maxwidth %i, maxheight %i\n", mergelist->item[i], LittleInt(buf + 24), LittleInt(buf + 16), LittleInt(buf + 20));
-		// calc bounds
-		maxwidth = max(maxwidth, LittleInt(buf + 16));
-		maxheight = max(maxheight, LittleInt(buf + 20));
-		numframes = numframes + LittleInt(buf + 24);
-	}
-	mem_free(buf);
-
-	// print some stats
-	if (verbose)
-	{
-		Print("Total:\n", numframes);
-		Print(" framecount = %i\n", numframes);
-		Print(" max width = %i\n", maxwidth);
-		Print(" max height = %i\n", maxheight);
-	}
-
-	// save first file contents since it could be overwritten
-	if (verbose)
-		Print("Write new header...\n");
-	f = SafeOpen(mergelist->item[0], "rb");
-	bufsize = Q_filelength(f) - sizeof(spr_t);
-	buf = (byte *)mem_alloc(bufsize);
-	fseek(f, sizeof(spr_t), SEEK_SET);
-	fread(buf, bufsize, 1, f);
-	fclose(f);
-
-	// step 2 - write header and file beginning
-	f = SPR_BeginFile(outfile, version, type, maxwidth, maxheight, numframes, false);
-	fwrite(buf, bufsize, 1, f);
-	free(buf);
-
-	// step 3 - merge tail files
-	if (verbose)
-		Print("Merging...\n");
-	for (i = 1; i < mergelist->items; i++)
-	{
-		f2 = SafeOpen(mergelist->item[i], "rb");
-		fseek(f2, sizeof(spr_t), SEEK_SET);
-		bufsize = Q_filelength(f2) - sizeof(spr_t);
-		buf = (byte *)mem_alloc(bufsize);
-		fread(buf, bufsize, 1, f2);
-		fclose(f2);
-		fwrite(buf, bufsize, 1, f);
-		mem_free(buf);
-		// delete merged file
-		if (delmerged)
-			remove(mergelist->item[i]);
-	}
-	fclose(f);
-}
-
-// todo: add proper framegroups
-void SPR32_DecompileSprite(char *file)
-{
-	int bufsize, i, framehead[5], y;
-	char scriptfile[MAX_OSPATH], framepic[MAX_OSPATH], outfolder[MAX_OSPATH];
-	byte *b, *buf, *buffer, *out, *in, *end;
-	spr_t sprheader;
-	FILE *f, *f2;
-
-	// open scriptfile
-	ExtractFilePath(file, outfolder);
-	if (outfolder[0])
-		sprintf(scriptfile, "%s/sprinfo.txt", outfolder);
-	else
-		sprintf(scriptfile, "sprinfo.txt", outfolder);
-	printf("open %s...\n", scriptfile);
-	f = SafeOpenWrite(scriptfile);
-
-	// load spr header
-	bufsize = LoadFile(file, &b);
-	buf = b;
-	if (!SPR_ReadHeader(buf, bufsize, &sprheader))
-		Error("%s: not IDSP file\n", file);
-	if (sprheader.ver1 != SPR_DARKPLACES)
-		Error("%s: not Darkplaces SPR32 sprite\n", file);
-	fprintf(f, "TYPE %i\n", sprheader.type);
-	fprintf(f, "SYNCTYPE %i\n", sprheader.synchtype);
-	// write frames
-	buf+=sizeof(spr_t);
-	bufsize-=sizeof(spr_t);
-	for (i = 0; i < sprheader.nframes; i++)
-	{
-		if (bufsize < 20)
-			Error("unexpected EOF");
-		// read frame header
-		framehead[0] = LittleInt(buf);
-		framehead[1] = LittleInt(buf + 4);
-		framehead[2] = LittleInt(buf + 8);
-		framehead[3] = LittleInt(buf + 12);
-		framehead[4] = LittleInt(buf + 16);
-		buf+=20;
-		bufsize-=20;
-		// write frame
-		fprintf(f, "FRAME %i %i %i\n", framehead[0], framehead[1], framehead[2]);
-		if (bufsize < framehead[3]*framehead[4]*4)
-			Error("unexpected EOF");
-		if (framehead[3]*framehead[4] <= 0)
-			Error("bad frame width/height");
-		// write tga image
-		sprintf(framepic, "frame%04i.tga", i);
-		Verbose("writing frame %s\n", framepic);
-		f2 = SafeOpenWrite(framepic);
-		buffer = (byte *)mem_alloc(framehead[3]*framehead[4]*4 + 18);
-		memset(buffer, 0, 18);
-		buffer[2] = 2; // uncompressed
-		buffer[12] = (framehead[3] >> 0) & 0xFF;
-		buffer[13] = (framehead[3] >> 8) & 0xFF;
-		buffer[14] = (framehead[4] >> 0) & 0xFF;
-		buffer[15] = (framehead[4] >> 8) & 0xFF;
-		buffer[16] = 32;
-		out = buffer + 18;
-		for (y = framehead[4] - 1;y >= 0;y--)
-		{
-			in = buf + y * framehead[3] * 4;
-			end = in + framehead[3] * 4;
-			for (;in < end;in += 4)
-			{
-				*out++ = in[2];
-				*out++ = in[1];
-				*out++ = in[0];
-				*out++ = in[3];
-			}
-		}
-		fwrite(buffer, framehead[3]*framehead[4]*4 + 18, 1, f2);
-		mem_free(buffer);
-		WriteClose(f2);
-		// advance
-		buf+=framehead[3]*framehead[4]*4;
-		bufsize-=framehead[3]*framehead[4]*4;
-	}
-	WriteClose(f);
-	mem_free(b);
-}
-
-int Spr32_Main(int argc, char **argv)
-{
-	char infile[MAX_OSPATH];
-	bool delmerged;
-	list_t *mergelist;
-	int i;
-
-	// in file
-	if (argc < 3)
-		Error("not enough parms");
-	strcpy(infile, argv[1]);
-	Verbose("File: %s\n", argv[1]);
-
-	// commandline actions
-	delmerged = true;
-	mergelist = NewList();
-	ListAdd(mergelist, infile, false);
-	for(i = 2; i < argc; i++)
-	{
-		if (!strcmp(argv[i], "-decompile"))
-			continue;
-		if (!strcmp(argv[i], "-compile"))
-			continue;
-		if (!strcmp(argv[i], "-merge"))
-		{
-			i++; 
-			while (i < argc && argv[i][0] != '-')
-			{
-				ListAdd(mergelist, argv[i], false);
-				i++; 
-			}
-			continue;
-		}
-		if (!strcmp(argv[i], "-keepfiles"))
-		{
-			delmerged = false;
-			Verbose("Option: keeping merged files undeleted\n");
-			continue;
-		}
-		if (i != 0)
-			Warning("unknown parameter '%s'",  argv[i]);
-	}
-
-	// do action
-	if (!strcmp(argv[2], "-decompile"))
-		SPR32_DecompileSprite(argv[1]);
-	Verbose("Done.\n");
-	return 0;
 }

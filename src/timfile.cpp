@@ -24,8 +24,6 @@
 
 #include "bloodpill.h"
 #include "timfile.h"
-#include "cmdlib.h"
-#include "mem.h"
 #include "filter.h"
 
 /*

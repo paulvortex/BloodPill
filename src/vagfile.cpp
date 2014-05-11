@@ -3,8 +3,6 @@
 
 #include "bloodpill.h"
 #include "bigfile.h"
-#include "cmdlib.h"
-#include "mem.h"
 
 // todo: cleanup
 // magic matrix used for VAG depacking

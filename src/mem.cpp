@@ -1,6 +1,8 @@
 // memory management
 #include "bloodpill.h"
 
+using namespace std;
+
 typedef struct
 {
 	char  *name;
@@ -19,6 +21,25 @@ vector<memsentinel> sentinels;
 HANDLE              sentinelMutex = NULL;
 HANDLE              sentinelMutex2 = NULL;
 
+/*
+==========================================================================================
+
+	DYNAMIC MEMORY
+
+==========================================================================================
+*/
+
+void Mem_Error(char *message_format, ...) 
+{
+	char msg[16384];
+	va_list argptr;
+
+	va_start(argptr, message_format);
+	vsprintf(msg, message_format, argptr);
+	va_end(argptr);
+	Error(msg);
+}
+
 void Mem_Init(void)
 {
 	if (initialized)
@@ -34,7 +55,7 @@ void Mem_Init(void)
 	sentinelMutex2 = CreateMutex(NULL, FALSE, NULL);
 }
 
-void Mem_Shutdown()
+void Mem_Shutdown(void)
 {
 	if (!initialized)
 		return;
@@ -47,29 +68,25 @@ void Mem_Shutdown()
 			if (!s->free)
 			{
 				leaked += s->size;
-				leaks++;
+				leaks;
 			}
 		}
 
-		printf("----------------------------------------\n");
-		printf(" Memory stats\n");
-		printf("----------------------------------------\n");
-		printf("     peak active memory: %.2f Mbytes\n", (double)total_active_peak / 1048576.0 );
-		printf(" total memory allocated: %.2f Mbytes\n", (double)total_allocated / 1048576.0 );
-		printf("          leaked memory: %.2f Mbytes\n", (double)leaked / 1048576.0 );
+		Print("----------------------------------------\n");
+		Print(" Dynamic memory usage stats\n");
+		Print("----------------------------------------\n");
+		Print("        Peak allocated: %.3f Mb\n", (double)total_active_peak / 1048576.0 );
+		Print("       total allocated: %.3f Mb\n", (double)total_allocated / 1048576.0 );
+		Print("                 leaks: %.3f Mb\n", (double)leaked / 1048576.0 );
 		if (leaks)
 		{
-			printf("     leaked allocations: %i\n", leaks );
-			printf("\n");
-			printf("----------------------------------------\n");
-			printf(" Leaked memory\n");
-			printf("----------------------------------------\n");
+			Print("            leak spots: %i\n", leaks );
+			Print("\n");
 			for (std::vector<memsentinel>::iterator s = sentinels.begin(); s < sentinels.end(); s++)
 				if (!s->free)
-					printf("%s:%i (%s) %i bytes (%.2f Mb)\n", s->file, s->line, s->name, s->size, (double)s->size / 1048576.0);
+					Print("%s:%i (%s) %i bytes (%.3f Mb)\n", s->file, s->line, s->name, s->size, (double)s->size / 1048576.0);
 		}
-
-		printf("\n");
+		Print("\n");
 	}
 	initialized = false;
 	sentinels.clear();
@@ -157,10 +174,25 @@ bool _mem_sentinel_free(char *name, void *ptr, char *file, int line)
 	if (found == 1)
 		return true;
 	if (found == -1)
-		Error("%s:%i (%s) - tried to free a non-allocated page %i (sentinel not found)\n", file, line, name, ptr);
+		Mem_Error("%s:%i (%s) - trying to free non-allocated page %i (sentinel not found)\n", name, file, line, ptr);
 	if (found == -2)
-		Error("%s:%i (%s) - tried to free a non-allocated page %i (sentinel already freed)\n", file, line, name, ptr);
+		Mem_Error("%s:%i (%s) - trying to free non-allocated page %i (sentinel already freed)\n", name, file, line, ptr);
 	return false;
+}
+
+void *_mem_realloc(void *data, size_t size, char *file, int line)
+{
+	if (size <= 0)
+		return NULL;
+	if (!_mem_sentinel_free("mem_realloc", data, file, line))
+		return NULL;
+	data = realloc(data, size);
+	if (!data)
+		Mem_Error("%s:%i - error reallocating %d bytes (%.2f Mb)\n", file, line, size, (double)size / 1048576.0);
+	if (!initialized)
+		return data;
+	_mem_sentinel("mem_realloc", data, size, file, line);
+	return data;
 }
 
 void *_mem_alloc(size_t size, char *file, int line)
@@ -171,11 +203,27 @@ void *_mem_alloc(size_t size, char *file, int line)
 		return NULL;
 	data = malloc(size);
 	if (!data)
-		Error("%s:%i - failed on allocating %d bytes (%.2f Mb)\n", file, line, size, (double)size / 1048576.0);
+		Mem_Error("%s:%i - error allocating %d bytes (%.2f Mb)\n", file, line, size, (double)size / 1048576.0);
 	if (!initialized)
 		return data;
 	_mem_sentinel("mem_alloc", data, size, file, line);
 	return data;
+}
+
+void _mem_calloc(void **bufferptr, size_t size, char *file, int line)
+{
+	void *data;
+
+	if (size <= 0)
+		return;
+	data = malloc(size);
+	memset(data, 0, size);
+	if (!data)
+		Mem_Error("%s:%i - error allocating %d bytes (%.2f Mb)\n", file, line, size, (double)size / 1048576.0);
+	if (!initialized)
+		return;
+	_mem_sentinel("mem_calloc", data, size, file, line);
+	*bufferptr = data;
 }
 
 void _mem_free(void *data, char *file, int line)
@@ -190,4 +238,99 @@ void _mem_free(void *data, char *file, int line)
 	if (!_mem_sentinel_free("mem_free", data, file, line))
 		return;
 	free(data);
+}
+
+/*
+==========================================================================================
+
+	AUTO-EXPANDABLE MEMORY BUFFERS
+
+==========================================================================================
+*/
+
+// bcreate()
+// creates new buffer
+MemBuf_t *bcreate(int size)
+{
+	MemBuf_t *b;
+
+	b = (MemBuf_t *)mem_alloc(sizeof(MemBuf_t));
+	memset(b, 0, sizeof(MemBuf_t));
+	if (size)
+	{
+		b->ptr = b->buffer = (byte *)mem_alloc(size);
+		b->size = size;
+	}
+	return b;
+}
+
+// bgrow()
+// checks if buffer can take requested amount of data, if not - expands
+void bgrow(MemBuf_t *b, int morebytes)
+{
+	int newused;
+
+	newused = b->used + morebytes;
+	if (newused > b->size)
+	{
+		b->size = newused + MEMBUF_GROW;
+		if (b->buffer)
+			b->buffer = (byte *)mem_realloc(b->buffer, b->size);
+		else
+			b->buffer = (byte *)mem_alloc(b->size);
+		b->ptr = b->buffer + b->used;
+	}
+}
+
+// bputlitleint()
+// puts a little int to buffer
+void bputlittleint(MemBuf_t *b, int n)
+{
+	bgrow(b, 4);
+	b->ptr[0] = n & 0xFF;
+	b->ptr[1] = (n >> 8) & 0xFF;
+	b->ptr[2] = (n >> 16) & 0xFF;
+	b->ptr[3] = (n >> 24) & 0xFF;
+	b->used += 4;
+	b->ptr += 4;
+}
+
+// bputlittlefloat()
+// puts a little float to buffer
+void bputlittlefloat(MemBuf_t *b, float n)
+{
+	union {int i; float f;} in;
+	in.f = n;
+	bputlittleint(b, in.i);
+}
+
+// bwrite()
+// writes arbitrary data grow buffer
+void bwrite(MemBuf_t *b, void *data, int size)
+{
+	bgrow(b, size);
+	memcpy(b->ptr, data, size);
+	b->used += size;
+	b->ptr += size;
+}
+
+// brelease()
+// returns size of used data of buffer, fills bufferptr and frees temp data
+int brelease(MemBuf_t *b, void **bufferptr)
+{
+	int bufsize;
+	
+	*bufferptr = b->buffer;
+	bufsize = b->used;
+	mem_free(b);
+	return bufsize;
+}
+
+// bfree()
+// free buffer and stored data
+void bfree(MemBuf_t *b, byte **bufferptr)
+{
+	if (b->buffer)
+		mem_free(b->buffer);
+	mem_free(b);
 }

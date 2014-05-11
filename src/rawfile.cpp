@@ -21,20 +21,18 @@
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ////////////////////////////////
 
-// WARNING!
-// this file should be names spritefile.c
-// code was written with no knowledge of what format Blood Omen uses for sprites so it's aimed to raw scan and detect
-// now we have a knowledge of what types Blood Omen is using, and code can be cleaned up and rewritten
-// in real, raw types 1-5 is 2 formats of sprite storage: SDR and SDP with hacks applied on some files
-// but i'm too lazy to refactor it, because it requires a lot of work and on it's current state code is working pretty fast
-// if you decide to make your own loaders based on this, you-d better to refactor
+// NOTE
+// This file should be named spritefile.c.
+// When it was written, there were no knowledge of what format Blood Omen uses for sprites, so it's aimed to raw scan and detect.
+// Now we have a knowledge of what types Blood Omen is using, and code can be cleaned up and rewritten.
+// Raw types 1-5 is 2 formats of sprite storage: SDR and SDP with hacks applied on some files
+// I'm too lazy to refactor it, because it requires a lot of work and on it's current state code is working pretty fast
+// If you decide to make your own loaders based on this, you-d better to refactor
 //
 // VorteX
 
 #include "bloodpill.h"
 #include "bigfile.h"
-#include "cmdlib.h"
-#include "mem.h"
 
 // raw error messages
 char *rawextractresultstrings[13] =
@@ -372,7 +370,7 @@ void RawblockFlip(rawblock_t *rawblock, bool flipoffset)
 	}
 }
 
-// crop black pixels on raw blocl
+// crop black pixels on raw block
 // returns completely new rawblock (only colormap are derived)
 rawblock_t *RawblockCrop(rawblock_t *rawblock, bool cropeachchunk, int margin)
 {
@@ -540,7 +538,7 @@ rawblock_t *RawblockCrop(rawblock_t *rawblock, bool cropeachchunk, int margin)
 			cropy[1] = max(0, cropy[1] - margin);
 		}
 		// create cropped image, copy lines
-		RawBlockAllocateChunk(cropblock, i, rawblock->chunk[i].width - cropx[0] - cropx[1], rawblock->chunk[i].height - cropy[0] - cropy[1], 0, 0, false);
+		RawBlockAllocateChunk(cropblock, i, rawblock->chunk[i].width - cropx[0] - cropx[1], rawblock->chunk[i].height - cropy[0] - cropy[1], rawblock->chunk[i].x + cropx[1], rawblock->chunk[i].y + cropy[0], false);
 		cropblock->chunk[i].colormap = rawblock->chunk[i].colormap;
 		cropblock->chunk[i].colormapExternal = true;
 		cropblock->chunk[i].alphamap = rawblock->chunk[i].alphamap;
