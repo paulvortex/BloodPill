@@ -22,6 +22,7 @@
 
 #include "bloodpill.h"
 #include "scale2x.h"
+#include "scalexbr.h"
 #include "filter.h"
 #include "rawfile.h"
 
@@ -32,6 +33,8 @@ int ImgFilter_Size(int sourcesize, imgfilter_t scaler)
 
 	if (magnify & FILTER_SCALE4X) return sourcesize * 4;
 	if (magnify & FILTER_SCALE2X) return sourcesize * 2;
+	if (magnify & FILTER_XBRZ4X)  return sourcesize * 4;
+	if (magnify & FILTER_XBRZ2X)  return sourcesize * 2;
 	return sourcesize;
 }
 
@@ -72,7 +75,7 @@ void ImgFilter_CreateClampedBorder(int width, int height, int bpp, byte *pixels)
 }
 
 // image filter - scale
-void ImgFilter_Scale(int src_width, int src_height, int src_bpp, byte *src_pixels, byte *out, imgfilter_t scaler)
+void ImgFilter_Scale(int src_width, int src_height, int src_bpp, byte *src_pixels, byte *out_pixels, imgfilter_t scaler)
 {
 	int scaledwidth, scaledheight;
 	unsigned int scale;
@@ -81,28 +84,174 @@ void ImgFilter_Scale(int src_width, int src_height, int src_bpp, byte *src_pixel
 	scale = ImgFilter_Size(1, scaler);
 	if (scale > 1)
 	{
-		scaledwidth  = ImgFilter_Size(src_width, scaler);
-		scaledheight = ImgFilter_Size(src_height, scaler);
-		if (sxCheck(scale, src_bpp, src_width, src_height) != SCALEX_OK) 
-			Error("ImgFilter: unsupported scale/BPP/width/height %i/%i/%i/%i\n", scale, src_bpp, src_width, src_height);
-		// copy source data to temporary storage
-		if (src_pixels != out)
-			in = src_pixels;
-		else
+		// Scale2X, Scale4X
+		if (scaler & (FILTER_SCALE2X+FILTER_SCALE4X))
 		{
-			in = (byte *)mem_alloc(scaledwidth * scaledheight * src_bpp);
-			memcpy(in, src_pixels, src_width * src_height * src_bpp);
+			scaledwidth  = ImgFilter_Size(src_width, scaler);
+			scaledheight = ImgFilter_Size(src_height, scaler);
+			if (sxCheck(scale, src_bpp, src_width, src_height) != SCALEX_OK) 
+				Error("ImgFilter: unsupported scale/BPP/width/height %i/%i/%i/%i\n", scale, src_bpp, src_width, src_height);
+			// copy source data to temporary storage
+			if (src_pixels != out_pixels)
+				in = src_pixels;
+			else
+			{
+				in = (byte *)mem_alloc(scaledwidth * scaledheight * src_bpp);
+				memcpy(in, src_pixels, src_width * src_height * src_bpp);
+			}
+			// scale
+			sxScale(scale, out_pixels, scaledwidth * src_bpp, in, src_width * src_bpp, src_bpp, src_width, src_height);
+			if (src_pixels == out_pixels)
+				mem_free(in);
+			return;
 		}
-		// scale
-		sxScale(scale, out, scaledwidth * src_bpp, in, src_width * src_bpp, src_bpp, src_width, src_height);
-		if (src_pixels == out)
-			mem_free(in);
+		// xBRz - 2X, 4X
+		if (scaler & (FILTER_XBRZ2X+FILTER_XBRZ4X))
+		{
+			byte *temp_scale, *temp_scaled, *end, *out;
+			xbrz::ScalerCfg scalerconfig;
+
+			scaledwidth  = ImgFilter_Size(src_width, scaler);
+			scaledheight = ImgFilter_Size(src_height, scaler);
+
+			// create scaler config
+			memcpy(&scalerconfig, &xbrz::DefaultScalerCfg, sizeof(xbrz::ScalerCfg));
+			scalerconfig.luminanceWeight_ = 1;
+
+			if (src_bpp == 1)
+			{
+				temp_scale = (byte *)mem_alloc(src_width * src_height * 4);
+				temp_scaled = (byte *)mem_alloc(scaledwidth * scaledheight * 4);
+				// keep colormap intact
+				scalerconfig.noBlend = true;
+				scalerconfig.diffusion = true;
+				// fill temp_scale (xBRz only supports 32-bits per pixel with last 8 bits being 0)
+				in = src_pixels;
+				end = in + src_width * src_height;
+				out = temp_scale;
+				while(in < end)
+				{
+					out[0] = in[0];
+					out[1] = in[0];
+					out[2] = in[0];
+					out[3] = 0;
+					out += 4;
+					in++;
+				}
+				// scale
+				xbrz::scale(scale, (uint32_t *)temp_scale, (uint32_t *)temp_scaled, src_width, src_height, scalerconfig, 0, 99999999);
+				mem_free(temp_scale);
+				// copy out
+				in = temp_scaled;
+				end = in + scaledwidth * scaledheight * 4;
+				out = out_pixels;
+				while(in < end)
+				{
+					out[0] = in[0];
+					in += 4;
+					out++;
+				}
+				mem_free(temp_scaled);
+			}
+			else if (src_bpp == 3)
+			{
+				temp_scale = (byte *)mem_alloc(src_width * src_height * 4);
+				temp_scaled = (byte *)mem_alloc(scaledwidth * scaledheight * 4);
+				// fill temp_scale (xBRz only supports 32-bits per pixel with last 8 bits being 0)
+				in = src_pixels;
+				end = in + src_width * src_height * 3;
+				out = temp_scale;
+				while(in < end)
+				{
+					out[0] = in[0];
+					out[1] = in[1];
+					out[2] = in[2];
+					out[3] = 0;
+					out += 4;
+					in += 3;
+				}
+				// scale
+				xbrz::scale(scale, (uint32_t *)temp_scale, (uint32_t *)temp_scaled, src_width, src_height, scalerconfig, 0, 99999999);
+				mem_free(temp_scale);
+				// copy out
+				in = temp_scaled;
+				end = in + scaledwidth * scaledheight * 4;
+				out = out_pixels;
+				while(in < end)
+				{
+					out[0] = in[0];
+					out[1] = in[1];
+					out[2] = in[2];
+					in += 4;
+					out += 3;
+				}
+				mem_free(temp_scaled);
+			}
+			else
+			{
+				temp_scale = (byte *)mem_alloc(src_width * src_height * 4);
+				temp_scaled = (byte *)mem_alloc(scaledwidth * scaledheight * 4);
+				// fill temp_scale with RGB data (xBRz only supports 32-bits per pixel with last 8 bits being 0)
+				in = src_pixels;
+				end = in + src_width * src_height * 4;
+				out = temp_scale;
+				while(in < end)
+				{
+					out[0] = in[0];
+					out[1] = in[1];
+					out[2] = in[2];
+					out[3] = 0;
+					out += 4;
+					in += 4;
+				}
+				// scale & copy out
+				xbrz::scale(scale, (uint32_t *)temp_scale, (uint32_t *)temp_scaled, src_width, src_height, scalerconfig, 0, 99999999);
+				in = temp_scaled;
+				end = in + scaledwidth * scaledheight * 4;
+				out = out_pixels;
+				while(in < end)
+				{
+					out[0] = in[0];
+					out[1] = in[1];
+					out[2] = in[2];
+					in += 4;
+					out += 4;
+				}
+				// now fill with alpha
+				in = src_pixels;
+				end = in + src_width * src_height * 4;
+				out = temp_scale;
+				while(in < end)
+				{
+					out[0] = in[3];
+					out[1] = in[3];
+					out[2] = in[3];
+					out[3] = 0;
+					out += 4;
+					in += 4;
+				}
+				// scale & copy out
+				xbrz::scale(scale, (uint32_t *)temp_scale, (uint32_t *)temp_scaled, src_width, src_height, scalerconfig, 0, 99999999);
+				in = temp_scaled;
+				end = in + scaledwidth * scaledheight * 4;
+				out = out_pixels;
+				while(in < end)
+				{
+					out[3] = in[0];
+					in += 4;
+					out += 4;
+				}
+				mem_free(temp_scale);
+				mem_free(temp_scaled);
+			}
+			return;
+		}
 		return;
 	}
 
 	// no scale, just copy pixels if needed
-	if (src_pixels != out)
-		memcpy(out, src_pixels, src_width*src_height*src_bpp);
+	if (src_pixels != out_pixels)
+		memcpy(out_pixels, src_pixels, src_width*src_height*src_bpp);
 }
 
 // image filter - scale and prepare borders
@@ -114,7 +263,7 @@ void ImgFilter_ScaleClamp(int src_width, int src_height, int src_bpp, byte *src_
 }
 
 // image filter
-void ImgFilter(int src_width, int src_height, int src_bpp, byte *src_pixels, byte *out, imgfilter_t scaler)
+void ImgFilter(int src_width, int src_height, int src_bpp, byte *src_pixels, byte *src_palette, int src_palette_bpp, byte *out, imgfilter_t scaler)
 {
 	byte *tiledata[64], *in;
 	int i, j, tw, th, col, row;

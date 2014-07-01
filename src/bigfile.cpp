@@ -845,7 +845,7 @@ bigfileheader_t *BigfileOpenListfile(char *srcdir)
 ==========================================================================================
 */
 
-void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, bool bpp16to24, bool bpp8to32, imgfilter_t scaler, float colorscale, int colorsub)
+void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, bool bpp16to24, bool bpp8to32, bool keep_palette, imgfilter_t scaler, float colorscale, int colorsub)
 {
 	char name[MAX_OSPATH], maskname[MAX_OSPATH], suffix[21];
 	tim_image_t *tim;
@@ -868,7 +868,7 @@ void TGAfromTIM(FILE *bigf, bigfileentry_t *entry, char *outfile, bool bpp16to24
 		if (tim->error)
 			Error("error saving %s: %s\n", name, tim->error);
 		// write basefile
-		TIM_WriteTarga(tim, name, bpp16to24, bpp8to32, scaler, colorscale, colorsub);
+		TIM_WriteTarga(tim, name, bpp16to24, bpp8to32, keep_palette, scaler, colorscale, colorsub);
 		// write maskfile
 		if (tim->pixelmask != NULL)
 		{
@@ -1002,7 +1002,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 			{
 				sprintf(entry->name, "%s%s.tga", path, basename); // write correct listfile.txt
 				sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
-				TGAfromTIM(bigf, entry, outfile, bpp16to24, false, FILTER_NONE, 1.0f, 0);
+				TGAfromTIM(bigf, entry, outfile, bpp16to24, false, true, FILTER_NONE, 1.0f, 0);
 			}
 			else
 			{
@@ -1021,7 +1021,7 @@ void BigFileUnpackEntry(bigfileheader_t *bigfileheader, FILE *bigf, bigfileentry
 				entry->size = size;
 				// write
 				sprintf(outfile, "%s/%s%s.tga", dstdir, path, basename);
-				TGAfromTIM(bigf, entry, outfile, bpp16to24, false, FILTER_NONE, 1.0f, 0);
+				TGAfromTIM(bigf, entry, outfile, bpp16to24, false, true, FILTER_NONE, 1.0f, 0);
 				entry->timlayers = 0;
 				entry->size = outsize;
 			}
@@ -2324,6 +2324,16 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 					timscaler = FILTER_SCALE4X;
 					Verbose("Option: scaling TIM->Targ converted images with Scale4X filter\n");
 				}
+				else if (!strcmp(argv[i], "xbrz2x"))
+				{
+					timscaler = FILTER_XBRZ2X;
+					Verbose("Option: scaling TIM->Targa converted images with xBRz 2X filter\n");
+				}
+				else if (!strcmp(argv[i], "xbrz4x"))
+				{
+					timscaler = FILTER_XBRZ4X;
+					Verbose("Option: scaling TIM->Targ converted images with xBRz 4X filter\n");
+				}
 				else
 					Verbose("Unknown -timscale parameter '%s'\n", argv[i]);
 			}
@@ -2394,19 +2404,31 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				Print("writing %s.\n", filename);
-				TGAfromTIM(bigfile, entry, filename, bpp16to24, false, timscaler, colorscale, colorsub); 
+				TGAfromTIM(bigfile, entry, filename, bpp16to24, false, true, timscaler, colorscale, colorsub); 
 			}
 			else if (!stricmp(format, "tga24") || !format[0])
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				Print("writing %s.\n", filename);
-				TGAfromTIM(bigfile, entry, filename, true, false, timscaler, colorscale, colorsub); 
+				TGAfromTIM(bigfile, entry, filename, true, false, false, timscaler, colorscale, colorsub); 
+			}
+			else if (!stricmp(format, "tga32") || !format[0])
+			{
+				DefaultExtension(filename, ".tga", sizeof(filename));
+				Print("writing %s.\n", filename);
+				TGAfromTIM(bigfile, entry, filename, false, true, false, timscaler, colorscale, colorsub); 
+			}
+			else if (!stricmp(format, "tga8_24") || !format[0])
+			{
+				DefaultExtension(filename, ".tga", sizeof(filename));
+				Print("writing %s.\n", filename);
+				TGAfromTIM(bigfile, entry, filename, true, false, true, timscaler, colorscale, colorsub); 
 			}
 			else if (!stricmp(format, "tga8_32") || !format[0])
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				Print("writing %s.\n", filename);
-				TGAfromTIM(bigfile, entry, filename, false, true, timscaler, colorscale, colorsub); 
+				TGAfromTIM(bigfile, entry, filename, false, true, true, timscaler, colorscale, colorsub); 
 			}
 			else Error("Tim2Tga: unknown format '%s'\n", format);
 			break;
@@ -2515,19 +2537,31 @@ void BigFile_ExtractEntry(int argc, char **argv, FILE *bigfile, bigfileentry_t *
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				Print("writing %s as 8-bit TGA.\n", filename);
-				TGAfromTIM(bigfile, entry, filename, bpp16to24, false, timscaler | FILTER_TRANSFORM_TILEMAP8X8, colorscale, colorsub); 
+				TGAfromTIM(bigfile, entry, filename, bpp16to24, false, true, timscaler | FILTER_TRANSFORM_TILEMAP8X8, colorscale, colorsub); 
 			}
 			else if (!stricmp(format, "tga24") || !format[0])
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
 				Print("writing %s as 24-bit TGA.\n", filename);
-				TGAfromTIM(bigfile, entry, filename, true, false, timscaler | FILTER_TRANSFORM_TILEMAP8X8, colorscale, colorsub); 
+				TGAfromTIM(bigfile, entry, filename, true, false, false, timscaler | FILTER_TRANSFORM_TILEMAP8X8, colorscale, colorsub); 
+			}
+			else if (!stricmp(format, "tga32") || !format[0])
+			{
+				DefaultExtension(filename, ".tga", sizeof(filename));
+				Print("writing %s as 32-bit TGA.\n", filename);
+				TGAfromTIM(bigfile, entry, filename, false, true, false, timscaler | FILTER_TRANSFORM_TILEMAP8X8 | FILTER_TRANSFORM_CREATEBORDER, colorscale, colorsub); 
+			}
+			else if (!stricmp(format, "tga8_24") || !format[0])
+			{
+				DefaultExtension(filename, ".tga", sizeof(filename));
+				Print("writing %s as 24-bit paletted TGA.\n", filename);
+				TGAfromTIM(bigfile, entry, filename, true, false, true, timscaler | FILTER_TRANSFORM_TILEMAP8X8, colorscale, colorsub); 
 			}
 			else if (!stricmp(format, "tga8_32") || !format[0])
 			{
 				DefaultExtension(filename, ".tga", sizeof(filename));
-				Print("writing %s as 32-bit TGA.\n", filename);
-				TGAfromTIM(bigfile, entry, filename, false, true, timscaler | FILTER_TRANSFORM_TILEMAP8X8 | FILTER_TRANSFORM_CREATEBORDER, colorscale, colorsub); 
+				Print("writing %s as 32-bit paletted TGA.\n", filename);
+				TGAfromTIM(bigfile, entry, filename, false, true, true, timscaler | FILTER_TRANSFORM_TILEMAP8X8 | FILTER_TRANSFORM_CREATEBORDER, colorscale, colorsub); 
 			}
 			else Error("Tilemap2Tga: unknown format '%s'\n", format);
 			mem_free(data);

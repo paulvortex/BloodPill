@@ -212,6 +212,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\scalexbr.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\..\src\soxsupp.cpp"
 				>
 			</File>
@@ -298,6 +302,10 @@
 			</File>
 			<File
 				RelativePath=".\..\src\scale2x.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\scalexbr.h"
 				>
 			</File>
 			<File

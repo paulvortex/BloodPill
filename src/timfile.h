@@ -71,7 +71,7 @@ tim_image_t *TIM_LoadFromTargaStream(FILE *f, unsigned int type);
 
 tim_image_t *TIM_LoadFromTarga(char *filename, unsigned int type);
 
-void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24, bool bpp8to32, imgfilter_t scaler, float colorscale, int colorsub);
+void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24, bool bpp8to32, bool keep_palette, imgfilter_t scaler, float colorscale, int colorsub);
 
 void TIM_WriteTargaGrayscale(byte *data, short width, short height, char *savefile);
 

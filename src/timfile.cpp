@@ -705,7 +705,7 @@ void TIM_WriteTargaGrayscale(byte *data, short width, short height, char *savefi
 	mem_free(buffer);
 }
 
-void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24, bool bpp8to32, imgfilter_t scaler, float colorscale, int colorsub)
+void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24, bool bpp8to32, bool keep_palette, imgfilter_t scaler, float colorscale, int colorsub)
 {
 	unsigned char *buffer, *out;
 	const unsigned char *in, *end, *clut;
@@ -726,8 +726,9 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24, bool bpp8t
 		case TIM_4Bit:
 			break;
 		case TIM_8Bit:	
-			if (0) // convert 8-bit to 32-bit
+			if (!keep_palette) // convert 8-bit to 32-bit
 			{
+				// todo: bpp16to24, bpp8to32?
 				buffer = (byte *)mem_alloc(width*height*4 + 18);
 				memset(buffer, 0, 18);
 				buffer[2] = 2; // uncompressed
@@ -740,6 +741,7 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24, bool bpp8t
 				buffer[14] = (height >> 0) & 0xFF;
 				buffer[15] = (height >> 8) & 0xFF;
 				buffer[16] = 32;
+				buffer[17] = 8; // has alpha flag
 				// swap bgr->rgb, flip upside down
 				out = buffer + 18;
 				for (y = tim->dim.ysize - 1;y >= 0;y--)
@@ -757,7 +759,7 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24, bool bpp8t
 				}
 				// transform
 				ImgFilter_ColorTransform(tim->dim.xsize, tim->dim.ysize, 4, buffer + 18, colorscale, colorsub);
-				ImgFilter(tim->dim.xsize, tim->dim.ysize, 4, buffer + 18, NULL, scaler);
+				ImgFilter(tim->dim.xsize, tim->dim.ysize, 4, buffer + 18, NULL, 0, NULL, scaler);
 				// write file
 				fwrite(buffer, width*height*4 + 18, 1, f);
 				mem_free(buffer);
@@ -818,7 +820,7 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24, bool bpp8t
 					ImgFilter_ColorTransform(16, 16, 4, buffer + 18, colorscale, colorsub);
 				else if (bpp16to24)
 					ImgFilter_ColorTransform(16, 16, 3, buffer + 18, colorscale, colorsub);
-				ImgFilter(tim->dim.xsize, tim->dim.ysize, 1, buffer + (bpp8to32 ? 1024 : (bpp16to24 ? 768 : 512)) + 18, NULL, scaler);
+				ImgFilter(tim->dim.xsize, tim->dim.ysize, 1, buffer + (bpp8to32 ? 1024 : (bpp16to24 ? 768 : 512)) + 18, buffer + 18, (bpp8to32 ? 4 : (bpp16to24 ? 3 : 2)), NULL, scaler);
 				// write file
 				fwrite(buffer, width*height + (bpp8to32 ? 1024 : (bpp16to24 ? 768 : 512)) + 18, 1, f);
 				mem_free(buffer);
@@ -861,7 +863,7 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24, bool bpp8t
 			// transform
 			if (bpp16to24)
 				ImgFilter_ColorTransform(tim->dim.xsize, tim->dim.ysize, 3, buffer + 18, colorscale, colorsub);
-			ImgFilter(tim->dim.xsize, tim->dim.ysize, bpp16to24 ? 3 : 2, buffer + 18, NULL, scaler);
+			ImgFilter(tim->dim.xsize, tim->dim.ysize, bpp16to24 ? 3 : 2, buffer + 18, NULL, 0, NULL, scaler);
 			// write file
 			fwrite(buffer, width*height*(bpp16to24 ? 3 : 2) + 18, 1, f);
 			mem_free(buffer);
@@ -894,7 +896,7 @@ void TIM_WriteTarga(tim_image_t *tim, char *savefile, bool bpp16to24, bool bpp8t
 			}
 			// transform
 			ImgFilter_ColorTransform(tim->dim.xsize, tim->dim.ysize, 3, buffer + 18, colorscale, colorsub);
-			ImgFilter(tim->dim.xsize, tim->dim.ysize, 3, buffer + 18, NULL, scaler);
+			ImgFilter(tim->dim.xsize, tim->dim.ysize, 3, buffer + 18, NULL, 0, NULL, scaler);
 			// write file
 			fwrite(buffer, width*height*3 + 18, 1, f);
 			mem_free(buffer);
@@ -985,6 +987,18 @@ int Tim2Targa_Main(int argc, char **argv)
 			scaler = FILTER_SCALE4X;
 			continue;
 		}
+		if (!strcmp(argv[i], "-xbrz2x"))
+		{
+			Verbose("Option: scaling the image to 200% with xBRz 2X filter\n");
+			scaler = FILTER_XBRZ2X;
+			continue;
+		}
+		if (!strcmp(argv[i], "-xbrz4x"))
+		{
+			Verbose("Option: scaling the image to 400% with xBRz 4X filter\n");
+			scaler = FILTER_XBRZ4X;
+			continue;
+		}
 		if (!strcmp(argv[i], "-colorscale"))
 		{
 			i++; 
@@ -1021,7 +1035,7 @@ int Tim2Targa_Main(int argc, char **argv)
 
 	// write basefile
 	Verbose("writing %s\n", outfile);
-	TIM_WriteTarga(tim, outfile, bpp16to24, false, scaler, colorscale, colorsub);
+	TIM_WriteTarga(tim, outfile, bpp16to24, false, true, scaler, colorscale, colorsub);
 
 	// write maskfile
 	if (tim->pixelmask != NULL)
