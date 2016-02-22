@@ -43,8 +43,8 @@ unsigned int VAG_UnpackTest(byte *data, unsigned int datasize, int offset)
 		if (predict_nr > 4)
 			return -1;
 		flags = in[0]; inc() // flags
-		if (flags == 7)
-			break; // end of file             
+		if (flags == 7 /*|| flags == 5*/)
+			break; // end of file     
 		for (i = 0; i < 28; i += 2) 
 		{
 			d = in[0]; inc()
@@ -91,8 +91,8 @@ void VAG_Unpack(byte *data, int offset, int databytes, byte **bufferptr, int *ou
 		shift_factor = predict_nr & 0xf;
 		predict_nr >>= 4;
 		flags = in[0]; inc() // flags
-		if (flags == 7)
-			break;             
+		if (flags == 7 || flags == 5)
+			break;    
 		for (i = 0; i < 28; i += 2) 
 		{
 			d = in[0]; inc()
@@ -127,7 +127,7 @@ void VAG_Unpack(byte *data, int offset, int databytes, byte **bufferptr, int *ou
 		predict_nr >>= 4;
 		flags = in[0]; inc() // flags
 		if (flags == 7 || flags == 5)
-			break;             
+			break;   
 		for (i = 0; i < 28; i += 2) 
 		{
 			d = in[0]; inc()

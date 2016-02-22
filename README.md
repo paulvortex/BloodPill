@@ -1,4 +1,5 @@
-Blood Pill - a set of tools to manipulate with .BIG files. It can be used to view the data stored in pill.big - resources file of Blood Omen.
+Blood Pill - a set of tools to manipulate with .BIG files. 
+It can be used to view the data stored in pill.big - resources file of Blood Omen.
 
 Features
 ------
