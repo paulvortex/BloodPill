@@ -126,7 +126,7 @@ void VAG_Unpack(byte *data, int offset, int databytes, byte **bufferptr, int *ou
 		shift_factor = predict_nr & 0xf;
 		predict_nr >>= 4;
 		flags = in[0]; inc() // flags
-		if (flags == 7)
+		if (flags == 7 || flags == 5)
 			break;             
 		for (i = 0; i < 28; i += 2) 
 		{
