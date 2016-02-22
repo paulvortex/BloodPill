@@ -59,6 +59,35 @@ If you found any, let me know.
  Version History + Changelog
 --------------------------------------------------------------------------------
 
+1.09 (bugfix release)
+------
+- Fixed tinkering sound (actually a decoder error) in the end of 
+  unpacked PSX VAG files.
+
+1.05-1.08 (Blood Omnicide internal release)
+------
+- Tighter check for bogus numentries in pill.big header. 
+  Increased PK3 pack buffer (100mb -> 150mb) as recent version 
+  of jPsxDec has slightly better quality at extracting FMV's.
+- Can now attach external spr32 files to generated sprites in build script.
+- Introduces blood omen .txt maps exporter (to play them in Blood Omnicide),
+  plus tilemaps scaler.
+- Added "pk3compression" option for script launcher to control per-entry 
+  compression ratio. It will be used for psx vids and ogg files extraction 
+  as compressing them is really just a waste of CPU time.
+- Add SoX custom effect (-effect) switch to sound entry extraction.
+- Rewritten help page.
+- Removed spr32 command stage.
+- Rawblock crop now saves frame offsets (which allows to generate
+  correct Quake/Darkplaces sprite file from it)/
+- New option "packsprite" for omnicide installer, which will generate a
+  new packed sprites that uses atlas textures.
+- Omnicide-related code are moved to separate omnilib/ folder.
+- Cleaned up memory allocation utils.
+- OmniLib are used to load and save .spr32 files (so dpspr32file.cpp
+  will be removed in future).
+- Fresh SoX build.
+
 1.04 (Blood Omnicide internal release)
 ------
 - Added early version of text-based map format exporter.
