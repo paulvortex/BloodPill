@@ -71,9 +71,8 @@ The current release handles the following audio file formats:
   o  Macintosh HCOM files
   o  Amiga MAUD files
   o  AMR-WB & AMR-NB (with optional libamrwb & libamrnb libraries)
-  o  MP3 (with optional libmad and libmp3lame libraries)
-  o  MP4, AAC, AC3, WAVPACK, AMR-NB files (with optional ffmpeg library)
-  o  AVI, WMV, Ogg Theora, MPEG video files (with optional ffmpeg library)
+  o  MP2/MP3 (with optional libmad, libtwolame and libmp3lame libraries)
+  o  Opus files (read only; with optional Opus libraries)
 
   o  Ogg Vorbis files (with optional Ogg Vorbis libraries)
   o  FLAC files (with optional libFLAC)
@@ -85,8 +84,8 @@ The current release handles the following audio file formats:
   o  SoundBlaster .VOC files
   o  Dialogic/OKI ADPCM files (.VOX)
   o  Microsoft .WAV files
-    o  PCM, u-law, A-law
-    o  MS ADPCM, IMA ADPCM
+    o  PCM, floating point
+    o  u-law, A-law, MS ADPCM, IMA (DMI) ADPCM
     o  GSM
     o  RIFX (big endian)
   o  WavPack files (with optional libwavpack library)
@@ -105,11 +104,10 @@ The audio effects/tools included in this release are as follows:
     o  bandreject: RBJ band-reject biquad IIR filter
     o  band: SPKit resonator band-pass IIR filter
     o  bass: Tone control: RBJ shelving biquad IIR filter
-    o  biquad: 2nd-order IIR filter using externally provided coefficients
     o  equalizer: RBJ peaking equalisation biquad IIR filter
-    o  fir: FFT convolution FIR filter using externally provided coefficients
     o  firfit+: FFT convolution FIR filter using given freq. response (W.I.P.)
     o  highpass: High-pass filter: Single pole or RBJ biquad IIR
+    o  hilbert: Hilbert transform filter (90 degrees phase shift)
     o  lowpass: Low-pass filter: single pole or RBJ biquad IIR
     o  sinc: Sinc-windowed low/high-pass/band-pass/reject FIR
     o  treble: Tone control: RBJ shelving biquad IIR filter
@@ -139,19 +137,17 @@ The audio effects/tools included in this release are as follows:
     o  vol: Adjust audio volume
 
   o  Editing effects
-    o  crop+: Like `trim', but can crop end without specifying length (W.I.P.)
     o  pad: Pad (usually) the ends of the audio with silence
     o  silence: Remove portions of silence from the audio
     o  splice: Perform the equivalent of a cross-faded tape splice
-    o  trim: Trim the ends of the audio
+    o  trim: Cuts portions out of the audio
     o  vad: Voice activity detector
 
   o  Mixing effects
     o  channels: Auto mix or duplicate to change number of channels
     o  divide+: Divide sample values by those in the 1st channel (W.I.P.)
-    o  mixer: Mix up to 4 channels in certain ways
     o  remix: Produce arbitrarily mixed output channels
-    o  swap: Swap stereo channels
+    o  swap: Swap pairs of channels
 
   o  Pitch/tempo effects
     o  bend: Bend pitch at given times without changing tempo
@@ -182,6 +178,12 @@ The audio effects/tools included in this release are as follows:
     o  synth: Synthesise/modulate audio tones or noise signals
     o  newfile: Create a new output file when an effects chain ends.
     o  restart: Restart 1st effects chain when multiple chains exist.
+
+  o  Low-level signal processing effects
+    o  biquad: 2nd-order IIR filter using externally provided coefficients
+    o  downsample: Reduce sample rate by discarding samples
+    o  fir: FFT convolution FIR filter using externally provided coefficients
+    o  upsample: Increase sample rate by zero stuffing
 
   + Experimental or incomplete effect; may change in future.
 

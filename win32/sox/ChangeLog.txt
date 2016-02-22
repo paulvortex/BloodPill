@@ -4,6 +4,217 @@ Change History
 This file contains a list of all changes starting after the release of
 sox-11gamma, followed by a list of prior authors and features.
 
+$ox-14.4.2	2015-02-22
+----------
+
+Previously deprecated features that have been removed in this release:
+
+  Deprec-  Feature    [O(ption)]
+  ated in  [F(ormat)] [E(ffect)]   Replacement
+  -------  ----------------------  ----------------------
+  14.3.0   O -1/-2/-3/-4/-8        -b
+  14.3.0   O -s/-u/-f              -e
+  14.3.0   O -A/-U/-o/-i/-a/-g     -e
+  14.4.0   E swap with parameters  remix
+  14.4.0   E mixer                 remix
+  14.4.1   OpenMP < 3.0            OpenMP >= 3.0
+  14.4.1   F ffmpeg                ffmpeg/avconv via pipe
+
+File formats:
+
+  o Add optional support for reading Ogg Opus files. (John Stumpo)
+  o Fix for max size text chunks in aiff files. (cbagwell)
+  o Add reading support for RF64 WAV files. (Dave Lambley)
+  o Work around for libsndfile created RF64 files with invalid
+    sizes. (Dave Lambley)
+  o Detect MS ADPCM WAV files with invalid blocks. (cbagwell)
+  o Detect Sphere files with invalid header sizes. (cbagwell)
+
+Effects:
+
+  o 'Deemph' can now also be used at 48kHz sample rate.  (robs)
+  o 'Rate' now much faster in many cases.  (robs)
+  o Allow sending spectrograms to stdout. (Ulrich Klauer)
+  o Allow use of Dolph window with spectrograms. (robs)
+  o Allow mixing time and sample-count arguments for the delay
+    effect, and for spectrogram -S and -d. (Ulrich Klauer)
+  o Support multi-channel LADSPA plugins. (Eric Wong)
+  o Support infinite repetition with repeat. (Ulrich Klauer)
+  o Improved pink noise frequency response in synth. (robs)
+  o Extended syntax for specifying audio positions to several
+    effects. (Ulrich Klauer)
+  o Fix integer overflow in mcompand. [3590093] (Guido Aulisi)
+  o Add optional latency compenstation for LADSPA plugins. (Eric Wong)
+
+Other new features:
+
+  o New -p option for soxi to display sample precision. (Ulrich Klauer)
+  o New libsox example6: give explicit output attributes. (robs)
+
+Internal improvements:
+
+  o Speed optimization for effects that operate on channels
+    independently. (Ulrich Klauer)
+  o Fix memory leaks. (Ulrich Klauer)
+  o Most internal symbols (lsx_*) are no longer exported. (Ulrich Klauer)
+
+
+sox-14.4.1	2013-02-01
+----------
+
+Newly deprecated features (to be removed in future):
+
+  Deprec-  Feature    [O(ption)]                           Removal
+  ated in  [F(ormat)] [E(ffect)]   Replacement             due after
+  -------  ----------------------  ----------------------  -------
+  14.4.1   OpenMP < 3.0            OpenMP >= 3.0           14.4.1
+  14.4.1   F ffmpeg                ffmpeg/avconf via pipe  14.4.1
+
+File formats:
+
+  o Fix pipe file-type detection regression. (robs)
+  o MAUD write fixes. [3507927] (Carl Eric Codere and Ulrich Klauer)
+  o Fix crash when seeking within a FLAC file. [3476843] (Eric Wong)
+  o Fix Ogg Vorbis files with certain numbers of channels being
+    truncated. (Ulrich Klauer)
+  o Fix reading 64-bit float WAVs. [3481510] (nu774 and Ulrich Klauer)
+  o Fix potential buffer overrun when writing FLAC files directly via
+    sox_write(). [3474924] (Eric Wong)
+
+Audio device drivers:
+
+  o Check whether pulseaudio is available before choosing it as
+    default. (robs)
+
+Effects:
+
+  o Restore 8 seconds default for spectrogram, if the input length is
+    not known. (Ulrich Klauer)
+  o Set output length for splice to unknown instead of 0. (Ulrich Klauer)
+  o Increase maximum width for spectrograms. (Ulrich Klauer)
+  o Fix memory leaks in LADSPA effect. (Eric Wong)
+  o Fix hang in several effects (rate, tempo, and those based on
+    dft_filter) when processing long files. [3592482, 3594822] (MrMod)
+  o Prevent (m)compand from tampering with their arguments. (Ulrich Klauer)
+
+Other bug fixes:
+
+  o Fix input length calculation for combine methods other than
+    concatenate. (Ulrich Klauer)
+  o Fix to configure.ac to work with Autoconf 2.69. [3600293] (cbagwell)
+  o Use binary mode for pipes on all Windows compilers, rather than
+    MSVC only. [3602130] (Ulrich Klauer)
+
+
+sox-14.4.0	2012-03-04
+----------
+
+Previously deprecated features that have been removed in this release:
+
+  Deprec-  Feature    [O(ption)]
+  ated in  [F(ormat)] [E(ffect)]   Replacement
+  -------  ----------------------  ----------------------
+  14.3.0   O --interactive         --no-clobber
+  14.3.0   E filter                ~= sinc
+  14.3.0   E norm -b, norm -i      gain -B, gain -en
+  14.3.0   PLAY_RATE_ARG           SOX_OPTS
+  14.2.0   E key alias             pitch
+  14.2.0   E pan                   ~= remix
+  14.1.0   E resample alias        rate
+  14.1.0   E polyphase alias       rate
+  14.1.0   E rabbit alias          rate
+  14.3.1   F sndfile: sndfile 1.0.11 sndfile > 1.0.11
+  14.3.0   F flac: libFLAC < 1.1.3 libFLAC >= 1.1.3
+  14.3.1   F mp3: lame 3.97        lame > 3.97
+
+Newly deprecated features (to be removed in future):
+
+  Deprec-  Feature    [O(ption)]                           Removal
+  ated in  [F(ormat)] [E(ffect)]   Replacement             due after
+  -------  ----------------------  ----------------------  -------
+  14.4.0   E mixer                 remix                   14.4.0 + 1 year
+  14.4.0   E swap with parameters  remix                   14.4.0
+
+Previously deprecated features (to be removed in future):
+
+  Deprec-  Feature    [O(ption)]                           Removal
+  ated in  [F(ormat)] [E(ffect)]   Replacement             due after
+  -------  ----------------------  ----------------------  -------
+  14.3.0   O -1/-2/-3/-4/-8        -b                      14.4.0
+  14.3.0   O -s/-u/-f              -e                      14.4.0
+  14.3.0   O -A/-U/-o/-i/-a/-g     -e                      14.4.0
+
+File formats:
+
+  o Mention in man pages that WAV files support floating point encodings.
+  o Add support for floating point encodings in AIFF-C files. (Ulrich Klauer)
+  o Pad WAV data chunk to an even number of bytes (as required by the
+    specification). [3203418] (Ulrich Klauer)
+  o Add optional MP2 write support with twolame library. (Paul Kelly)
+
+Audio device drivers:
+
+  o Give pulseaudio driver higher priority than alsa or oss now that
+    its proven stable and gives user more features; such as per app
+    volume control. (cbagwell)
+  o Fix bug when specifying OSX coreaudio device name.  Would only
+    search for first 3 devices. (cbagwell)
+  o Fix sox hangups are exit when using coreaudio. (cbagwell)
+  o Improve buffering in coreaudio driver (Michael Chen)
+  o Support enabling play/rec mode when user invokes sox as either
+    play or play.exe on windows. (cbagwell)
+  o Fix compile of sunaudio driver on OpenBSD (cbagwell)
+
+Effects:
+
+  o Improvements to man pages for tempo effect.  Really made in 14.3.2.
+    (Jim Harkins).
+  o New upsample effect. (robs)
+  o Fix to effects pipeline to let fade effect specify time from end of
+    file again. (cbagwell and Thor Andreassen)
+  o Fix man page default error for splice effect. (Ulrich Klauer)
+  o Enable support for --plot option on biquad and fir effects. (Ulrich Klauer)
+  o Effects chain can now be unlimited in length. (Ulrich Klauer)
+  o Fix newfile/restart effects when merging or mixing files. (Ulrich Klauer)
+  o Fix crashes in compand and mcompand effects. [3420893] (Ulrich Klauer)
+  o Let the delay effect gracefully handle the special case that a delay can
+    be more than the input length. [3055399] (Ulrich Klauer)
+  o New hilbert and downsample effects. (Ulrich Klauer)
+  o Fix problem where fade would sometimes fail if specifying a fade-out
+    immediately after a fade-in. (robs)
+  o Stricter syntax checking for several effects (might reveal bugs hidden
+    in existing scripts). (Ulrich Klauer)
+  o Calculate output audio length for most effects. (Ulrich Klauer)
+  o Fix problems with several effects when the buffer size was not evenly
+    divisible by the number of channels. [3420899] (Ulrich Klauer)
+  o Complete rewrite of the trim effect with extended syntax (backwards
+    compatible) and capabilities. [FR 2941349] (Ulrich Klauer)
+  o Fix trim optimization unexpectedly seeking backwards. (Ulrich Klauer)
+  o Prevent samples from getting lost at effects chain transitions in
+    multiple effects chain/multiple output modes. (Ulrich Klauer)
+
+Misc:
+
+  o Minor improvements to the man page. (Ulrich Klauer)
+  o When using pipes (-p) on Windows, set file mode to binary. (cbagwell)
+  o Updated .dat format description in soxformat. (Jan Stary)
+  o Doxygen documentation for libSoX. (Doug Cook)
+
+Other bug fixes:
+
+  o Fix several memory leaks. [3309913] (Jin-Myung Won and Ulrich Klauer)
+  o Fixed crashes in apps that call sox_format_init/quit() multiple times.
+   (cbagwell)
+
+Internal improvements:
+
+  o Added use_threads variable to sox_globals. This should be used to enable
+    or disable use of parallel effects processing instead of directly calling
+    omp_set_num_threads. (Doug Cook)
+  o Fix compiler warnings. (Cristian Morales Vega [P. 3072301], Doug Cook)
+  o Improve large file support by using 64-bit numbers to count
+    samples. (Doug Cook, Thor Andreassen, Ulrich Klauer)
+
 
 sox-14.3.2	2011-02-27
 ----------
