@@ -1,23 +1,27 @@
 Sample scripts:
 ---
 
-extract_file.bat : extract a sprite file from pill.big
+bigfile_extract_file.bat : extract a sprite file from pill.big
 
-list.bat : create a listing file listfile.txt
+bigfile_list.bat : create a listing file listfile.txt
 
-unpack.bat : unpack pill.big with all conversions enabled
+bigfile_unpack.bat : unpack pill.big with all conversions enabled
 
-unpack_raw.bat : unpack pill.big with pure filetypes (no conversions)
+bigfile_unpack_raw.bat : unpack pill.big with pure filetypes (no conversions)
 
-unpack_fortranslating.bat : unpack with TIM->TGA and ADPCM->WAV conversion which is useful for making your own BO PC localization.
+bigfile_unpack_fortranslating.bat : unpack with TIM->TGA and ADPCM->WAV conversion which is useful for making your own BO PC localization.
 
-unpack_oggsounds.bat : unpack pill.big with all conversions and sound files being converted to Ogg Vorbis
+bigfile_unpack_oggsounds.bat : unpack pill.big with all conversions and sound files being converted to Ogg Vorbis
 
-unpack_mapsonly_solids.bat : raw unpack with MAP->TGA conversion, showing content blocks.
+bigfile_unpack_mapsonly_solids.bat : raw unpack with MAP->TGA conversion, showing content blocks.
 
-unpack_mapsonly_plain.bat : raw unpack with MAP->TGA conversion, showing no additional info.
+bigfile_unpack_mapsonly_plain.bat : raw unpack with MAP->TGA conversion, showing no additional info.
 
-pack.bat : create a new pill2.big based on 'bigfile' folder (converts back all tga and wav)
+bigfile_unpack_mapsonly_withlighting.bat : raw unpack with MAP->TGA conversion, showing map lighting.
+
+bigfile_unpack_mapsonly_withtriggers.bat : raw unpack with MAP->TGA conversion, showing map triggers.
+
+bigfile_pack.bat : create a new pill2.big based on 'bigfile' folder (converts back all tga and wav)
 
 jam2tga(act2.jam).bat : convert a JAM file to number of TGA's
 
