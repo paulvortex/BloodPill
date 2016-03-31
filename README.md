@@ -60,6 +60,26 @@ If you found any, let me know.
  Version History + Changelog
 --------------------------------------------------------------------------------
 
+1.1 (Public release)
+------
+- New -bigfile -version command estimates pill.big version and sets
+  return code: 1 is error occured, 0 is PlayStation bigfile, -1 is PC
+  version bigfile, -2 is PC Sneak Peek Preview version.
+- Klist.txt is built-in now (so it is removed from distrib).
+- Font.tim is built-in now (so it is removed from distrib).
+- Blood Omen maps: fully investigated the lighting format, added new
+  -l/-maplighting switch which renders lighting on the map.
+  Normally day is rendered. -a/-maptoggled switch (objects toggled state)
+  renders night.
+- Blood Omen maps: investigated the field storing music played for
+  particular map.
+- Updated mapfile.h (blood omen map format description). Added
+  description for lights, effect flags, song names and map environment
+  flag (indoor/outdoor).
+- Berror.txt is now exported for warnings (for omnicide installer).
+- Install script: added "bigfile" command to switch current bigfile.
+- New icon.
+  
 1.09 (bugfix release)
 ------
 - Fixed tinkering sound (actually a decoder error) in the end of 
