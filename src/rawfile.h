@@ -110,7 +110,7 @@ typedef struct rawinfo_s
 
 // util functions
 void FlushRawInfo(rawinfo_t *rawinfo);
-bool ReadRawInfo(char *line, rawinfo_t *rawinfo);
+bool ReadRawInfo(const char *line, rawinfo_t *rawinfo);
 void WriteRawInfo(FILE *f, rawinfo_t *rawinfo);
 rawswitch_t ParseRawSwitch(char *str);
 char *UnparseRawSwitch(rawswitch_t rawswitch);

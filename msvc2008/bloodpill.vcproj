@@ -192,6 +192,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\bloodpill.rc"
+				>
+			</File>
+			<File
 				RelativePath=".\..\src\filter.cpp"
 				>
 			</File>

@@ -87,10 +87,10 @@ typedef struct
 	byte lightposx;          // position of lightsource
 	byte lightposy;          // position of lightsource
 	byte sprite;             // index of sprite from sprites array
-	byte lightsizex;         // size of light polygons
-	byte lightsizey;         // size of light polygons
-	byte u1;                 // ?
-	byte lightform;          // light form flags
+	byte lightheight;        // height (for lightsource)
+	byte lightwidth;         // width (for lightsource)
+	byte flags;              // effect flags
+	byte lightflags;         // light flags
 	byte r;                  // red color component
 	byte g;                  // green color component
 	byte b;                  // blue color component
@@ -178,8 +178,7 @@ typedef struct
 	// being 2-byte (unsigned short) tilenum contains some flags (flag are starting from byte 10)
 	// see TILEFLAG_ defines for possible tileflags
 	unsigned short  tilemaps[40];
-	// yet unknown info
-	byte            u1[12];
+	byte            u1[12]; // yet unknown info
 	bo_object_t     objects[10];
 	bo_monster_t    monsters[32];
 	bo_grpobject_t  grpobjects[8][32];
@@ -220,14 +219,33 @@ typedef struct
 	// effects
 	unsigned short  sprites[8];
 	bo_effect_t     effects[64];
-	// yet unknown data
-	unsigned char   u7[936];
+	// map general info
+	unsigned char   u61;
+	unsigned char   environments; // 0 is outdoor, 1 is indoor
+	unsigned char   ambientcolor[3]; // rgb format, 15 15 15 is white, 31 31 31 is double white
+	unsigned char   songnum; // 0 is oracle caves
+	                         // 1 is mausoleum
+	                         // 2 is awakening
+	                         // 3 is road to vengeance
+	                         // 4 is nupraptor
+	                         // 5 is maleks bastion
+	                         // 6 is voradors mansion
+	                         // 7 is dark eden
+	                         // 8 is solemn dirge
+	                         // 9 is avernus 
+	                         // 10 is elzevir
+	// yet unknown info #7
+	unsigned char   u7[930];
 }bo_map_t;
 
 // things that are not figured out yet:
 // - how lightning is done (variable form lights, day-night light, ambient light)
 // - monster's paths's switch (some paths are messed up)
 // - counters and puzzle triggers?
+
+// map environments
+#define ENVIRONMENTS_OUTDOOR    0
+#define ENVIRONMENTS_INDOOR     1
 
 // tileflags
 #define TILEFLAG_UNKNOWN1       1024
@@ -267,6 +285,20 @@ typedef struct
 // button flags
 #define BUTTONFLAG_TOGGLE		1
 #define BUTTONFLAG_SECRET       2
+
+// effect flags
+#define LIGHTFLAG_FIRE         2   // fire damage
+#define LIGHTFLAG_THUNDER      4   // thunder light
+#define LIGHTFLAG_X            8
+#define LIGHTFLAG_FORWARD      16  // spot light orientation, vertical lightsize sets number of steps, horizontal size sets starting step size
+#define LIGHTFLAG_BACK         32  // spot light orientation, vertical lightsize sets number of steps, horizontal size sets starting step size
+#define LIGHTFLAG_RIGHT        64  // spot light orientation, vertical lightsize sets number of steps, horizontal size sets starting step size
+#define LIGHTFLAG_LEFT        128  // spot light orientation, vertical lightsize sets number of steps, horizontal size sets starting step size
+
+// light flags (possible light flags - 4 or 6)
+#define EFFECTFLAG_DYNAMIC      1  // dynamic light adds to world light, not replacing it
+#define EFFECTFLAG_FLICKER      2  // flickering light
+#define EFFECTFLAG_LIGHT        4  // has light
 
 // item codes
 #define MAPITEM_SMALLBLOODFLASK 1

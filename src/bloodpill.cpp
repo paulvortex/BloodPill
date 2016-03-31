@@ -127,12 +127,29 @@ void PacifierEnd()
 void Warning(char *str, ...)
 {
 	va_list argptr;
+	char logfile[MAX_OSPATH], warn[10384];
+	FILE *f;
 
 	va_start(argptr, str);
-	printf("Warning: ");
-	vprintf(str, argptr);
+	vsprintf(warn, str, argptr);
 	va_end(argptr);
+
+	printf("Warning: ");
+	printf(warn);
 	printf("\n");
+	// write error log
+	if (errorlog)
+	{
+		sprintf(logfile, "%sberror.txt", progpath);
+		f = fopen(logfile, "ab");
+		if (f)
+		{
+			fwrite("Warning: ", 9, 1, f);
+			fwrite(warn, strlen(warn), 1, f);
+			fwrite("\n", 1, 1, f);
+			fclose(f);
+		}
+	}
 }
 
 
@@ -199,6 +216,7 @@ int Help_Main()
 	"    -pack dir: packs all entries back to a new bigfile\n"
 	"    -patch script: patch bigfile\n"
 	"    -extract filename: extract single entry from bigfile\n"
+	"    -version: measure bigfile version and return as ERRORLEVEL\n"
 	"\n"
 	"2.3.1 List bigfile contents:\n"
 	"----------------------------------------\n"
@@ -233,6 +251,7 @@ int Help_Main()
 	"      -mapcontents: use with -map2tga, make map image with content blocks\n"
 	"      -maptriggers: use with -map2tga, make map image with script info:\n"
 	"                    triggers, speech, activation points, exits etc.\n"
+	"      -maplighting: use with -map2tga, draw lighting on map image\n"
 	"      -mapsaveid: show save identifiers for buttons, enemies etc.)\n"
 	"      -maptoggled: use with -map2tga, make map image with all switches toggled\n"
 	"\n"
@@ -300,6 +319,7 @@ int Help_Main()
 	"      -colorsub X :subtract color values at 0-255 range\n"
 	"    Parameters for maps:\n"
 	"      -t: show triggers (buttons, paths, misc info)\n"
+	"      -l: show lighting (ambient light and effects)\n"
 	"      -s: show save identifiers for buttons, enemies etc.\n"
 	"      -c: show contents (solid places, special zones)\n"
 	"      -a: animated objects (effects, tiles etc.) shown in toggled state\n"
@@ -307,6 +327,14 @@ int Help_Main()
 	"      -scale2x: scale covnerted TGA images with Scale2X filter\n"
 	"      -scale4x: scale covnerted TGA images with Scale4X filter\n"
 	"\n"
+	"2.3.6 Measure bigfile version\n"
+	"    Usage: bpill -bigfile bigfilename -version\n"
+	"    Will return ERRORLEVEL:\n"
+	"     1 - error occured\n"
+	"     0 - bigfile is PlayStation bigfile\n"
+	"    -1 - bigfile is PC bigfile\n"
+	"    -2 - bigfile is PC Sneak Peek preview bigfile\n"
+	"----------------------------------------\n"
 	"3.1 Convert JAM movie to TGA files\n"
 	"----------------------------------------\n"
 	"    Usage: bpill -jam jamfile outputdir\n"
@@ -351,6 +379,7 @@ int Help_Main()
 	"    Outfile: optional path for output file\n"
 	"    Parameters:\n"
 	"      -t: show triggers (buttons, paths, misc info)\n"
+	"      -l: show lighting (ambient light and effects)\n"
 	"      -s: show save identifiers for buttons, enemies etc.\n"
 	"      -c: show contents (solid places, special zones)\n"
 	"      -a: animated objects (effects, tiles etc.) shown in toggled state\n"

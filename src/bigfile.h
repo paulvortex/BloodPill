@@ -108,7 +108,7 @@ bigklist_t;
 extern bigklist_t *bigklist;
 
 // base functions
-bigklist_t *BigfileLoadKList(char *filename, bool stopOnError);
+bigklist_t *BigfileLoadKList(char *filename, bool loadDefault);
 unsigned int BigfileEntryHashFromString(char *string, bool casterror);
 bigfileentry_t *BigfileGetEntry(bigfileheader_t *bigfile, unsigned int hash);
 bigfileheader_t *ReadBigfileHeader(FILE *f, bool loadfilecontents, bool hashnamesonly);

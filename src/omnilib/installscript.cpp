@@ -498,6 +498,30 @@ void Script_Parse(char *filename, char *basepath)
 				}
 				goto next;
 			}
+			if (!strcmp(com_token, "bigfile"))
+			{
+				if (!(t = COM_Parse(t)))
+					Error("bigfile: error parsing parm 1 on line %i\n", n);
+				else
+				{
+					// close current bigfile
+					if (bigfilehandle)
+						fclose(bigfilehandle);
+					bigfilehandle = NULL;
+					if (bigfile)
+						FreeBigfileHeader(bigfile);
+					bigfile = NULL;
+					// open new bigfile
+					bigfilehandle = fopen(com_token, "rb");
+					if (bigfilehandle == NULL)
+					{	
+						sprintf(outfile, "%s/%s", basepath, com_token);
+						bigfilehandle = SafeOpen(outfile, "rb");
+					}
+					bigfile = ReadBigfileHeader(bigfilehandle, false, false);
+				}
+				goto next;
+			}
 			if (!strcmp(com_token, "print")) 
 			{
 				while (t = COM_Parse(t))
@@ -908,9 +932,7 @@ void Script_Parse(char *filename, char *basepath)
 						PK3_Close(pk3);
 						writingpk3 = false;
 					}
-					printf("script execution time: %f\n", I_DoubleTime() - scriptstarted);
-					printf("%i statements\n", stt);
-					printf("break statement\n");
+					printf("script execution time: %f, %i statements\n", I_DoubleTime() - scriptstarted, stt);
 					break;
 				}
 			}
@@ -1285,6 +1307,7 @@ int Script_Main(int argc, char **argv)
 
 	// cmdline
 	debugon = false;
+	bigfilehandle = NULL;
 	bigfile = NULL;
 	bigklist = NULL;
 	strcpy(basepath, "");
@@ -1311,7 +1334,7 @@ int Script_Main(int argc, char **argv)
 					noprint = true;
 				}
 				strcpy(bigfilepath, argv[i]);
-				bigklist = BigfileLoadKList("klist.txt", false);
+				bigklist = BigfileLoadKList("klist.txt", true);
 				bigfilehandle = SafeOpen(argv[i], "rb");
 				bigfile = ReadBigfileHeader(bigfilehandle, false, false);
 				verbose = oldverbose;

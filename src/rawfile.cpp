@@ -102,7 +102,7 @@ void FlushRawInfo(rawinfo_t *rawinfo)
 	rawinfo->compressionpixels[3] = 0;
 }
 
-bool ReadRawInfo(char *line, rawinfo_t *rawinfo)
+bool ReadRawInfo(const char *line, rawinfo_t *rawinfo)
 {
 	char temp[256];
 	int num;

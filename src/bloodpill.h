@@ -11,7 +11,7 @@
 using namespace std;
 
 #ifndef BLOODPILL_VERSION
-#define BLOODPILL_VERSION "v1.09"
+#define BLOODPILL_VERSION "v1.1"
 static char *BLOODPILL_WELCOME =
 "-------------------------------------------------------------------------------\n"
 " Blood Pill %s by Pavel [VorteX] Timofeyev\n"
